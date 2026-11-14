@@ -3,19 +3,29 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 
-const mocks = vi.hoisted(() => ({
-  parseDocument: vi.fn(),
-  create: vi.fn(),
-  resolveViewOptions: vi.fn(),
-  createToolbar: vi.fn(),
-  createEditView: vi.fn(),
-  editorOptions: [] as MarkmapEditorOptions[],
-  editorDestroy: vi.fn(),
-  editorFocus: vi.fn(),
-  editorCommit: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const editorSelected: { value: string | null } = { value: 'root' };
+  return {
+    parseDocument: vi.fn(),
+    labelText: vi.fn(),
+    create: vi.fn(),
+    resolveViewOptions: vi.fn(),
+    createToolbar: vi.fn(),
+    createEditView: vi.fn(),
+    editorOptions: [] as MarkmapEditorOptions[],
+    editorStartEditing: vi.fn(),
+    editorSelected,
+    editorNodes: new Map<string, unknown>([['root', {}]]),
+    editorDestroy: vi.fn(),
+    editorFocus: vi.fn(),
+    editorCommit: vi.fn(),
+  };
+});
 
-vi.mock('@markmap/model', () => ({ parseDocument: mocks.parseDocument }));
+vi.mock('@markmap/model', () => ({
+  parseDocument: mocks.parseDocument,
+  labelText: mocks.labelText,
+}));
 vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
   resolveViewOptions: mocks.resolveViewOptions,
@@ -26,6 +36,18 @@ vi.mock('@markmap/edit-dom', () => ({
   MarkmapEditor: class {
     constructor(options: MarkmapEditorOptions) {
       mocks.editorOptions.push(options);
+    }
+
+    get selected(): string | null {
+      return mocks.editorSelected.value;
+    }
+
+    get document(): { readonly nodes: Map<string, unknown> } {
+      return { nodes: mocks.editorNodes };
+    }
+
+    startEditing(nodeId: string, text: string): void {
+      mocks.editorStartEditing(nodeId, text);
     }
 
     focus(): void {
@@ -118,6 +140,10 @@ const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {})
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.editorOptions.length = 0;
+  mocks.editorSelected.value = 'root';
+  mocks.editorNodes.clear();
+  mocks.editorNodes.set('root', {});
+  mocks.labelText.mockReturnValue('Root');
   document.head.replaceChildren();
 });
 
@@ -148,6 +174,42 @@ describe('Markmap adapter', () => {
     expect(toolbar.destroy).not.toHaveBeenCalled();
     expect(onSource).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  test('[R-18] adds a marker to the selected node', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.addMarker('✅');
+
+    expect(mocks.editorStartEditing).toHaveBeenCalledWith('root', '✅ Root');
+    expect(mocks.editorCommit).toHaveBeenCalled();
+    expect(mocks.editorFocus).toHaveBeenCalled();
+  });
+
+  test('[R-18] skips a marker that is already present', () => {
+    mocks.labelText.mockReturnValue('✅ Root');
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.addMarker('✅');
+
+    expect(mocks.editorStartEditing).not.toHaveBeenCalled();
+  });
+
+  test('[R-18] skips markers with no selected node or no editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = null;
+    result.view.addMarker('✅');
+    mocks.editorSelected.value = 'missing';
+    result.view.addMarker('✅');
+
+    const readOnly = mount({ editable: false });
+    if (!readOnly.result.ok) throw new Error(readOnly.result.message);
+    readOnly.result.view.addMarker('✅');
+
+    expect(mocks.editorStartEditing).not.toHaveBeenCalled();
   });
 
   test('[R-11] [R-13] forwards source changes and editor errors', () => {

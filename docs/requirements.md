@@ -70,23 +70,28 @@ Arrow keys move the selection between related nodes. Typing a printable characte
 
 An empty text file that matches a Markmap suffix opens with an editable first node. Typing a label creates a heading, so the first save produces valid Markmap Markdown without losing frontmatter. A read-only empty file stays blank and exposes no editor field.
 
+### R-18 Node markers
+
+An editable map offers a marker menu grouped by status, priority, progress, and flags. Choosing a marker replaces an existing leading marker on the selected node and preserves the rest of the label. Read-only maps show no marker menu. Markers are plain Unicode characters in the Markdown source.
+
 ## Traceability
 
-| Requirement | Tests                                                         |
-| ----------- | ------------------------------------------------------------- |
-| R-01        | `tests/manifest.test.ts`                                      |
-| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-03        | `tests/markmap-view.test.ts`, acceptance                      |
-| R-04        | `tests/app.test.ts`, acceptance                               |
-| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
-| R-06        | `tests/app.test.ts`                                           |
-| R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
-| R-08        | `tests/bundle.test.ts`                                        |
-| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`          |
-| R-10        | acceptance                                                    |
-| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-14        | `tests/gestures.test.ts`, acceptance                          |
-| R-15        | acceptance                                                    |
-| R-16        | `tests/markmap-view.test.ts`, acceptance                      |
+| Requirement | Tests                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| R-01        | `tests/manifest.test.ts`                                                                                            |
+| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-03        | `tests/markmap-view.test.ts`, acceptance                                                                            |
+| R-04        | `tests/app.test.ts`, acceptance                                                                                     |
+| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
+| R-06        | `tests/app.test.ts`                                                                                                 |
+| R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
+| R-08        | `tests/bundle.test.ts`                                                                                              |
+| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`                                                                |
+| R-10        | acceptance                                                                                                          |
+| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-14        | `tests/gestures.test.ts`, acceptance                                                                                |
+| R-15        | acceptance                                                                                                          |
+| R-16        | `tests/markmap-view.test.ts`, acceptance                                                                            |
+| R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
