@@ -62,6 +62,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         source: mount.markdown,
         view: createEditView(instance),
         container: mount.surface,
+        placeholder: '\u200B',
         onChange: (change) =>
           mount.onSource({
             source: change.source,

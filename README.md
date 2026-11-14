@@ -36,8 +36,8 @@ The folder must contain `package.json` and `editor/index.html`. The tracked `edi
 ## Behavior
 
 - The file opens as a Markmap with zoom, pan, fold, and fit controls from the library.
-- Click a node to select it. Enter adds a sibling, Tab adds a child, Shift+Tab outdents, F2 or Space edits the label, Delete removes the subtree, and Escape cancels.
-- New nodes start as `New topic` with the label selected, matching XMind fast entry.
+- Click a node to select it. A frame marks the selection. Enter adds a sibling, Tab adds a child, Shift+Tab outdents, F2 or Space edits the label, Delete removes the subtree, and Escape cancels.
+- New nodes start with an empty label. A zero-width marker keeps the node in Markdown, because a truly empty nested list item is dropped by the parser.
 - Edits change only the affected Markdown ranges. Frontmatter, formatting, inline Markdown, and line endings survive.
 - The map follows the OpenChamber light or dark theme. A `markmap.colorScheme` value in frontmatter does not override the host theme.
 - Markmap options under `markmap:` in YAML frontmatter, such as `theme`, `layout`, and `foldLevel`, are applied through `resolveViewOptions`.

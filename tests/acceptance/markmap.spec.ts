@@ -18,6 +18,7 @@ test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page 
   await page.getByText('Links', { exact: true }).first().click();
 
   await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+  await expect(page.locator('.mm-editor-selection')).toBeVisible();
   await expect(page.locator('.mm-editor-surface')).toBeFocused();
 });
 
@@ -28,7 +29,7 @@ test('[R-11] inserts a sibling with Enter and edits its label', async ({ page })
   await page.keyboard.press('Enter');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();
-  await expect(field).toHaveValue('New topic');
+  await expect(field).toHaveValue('');
 
   await page.keyboard.type('Keyboard node');
   await page.keyboard.press('Enter');

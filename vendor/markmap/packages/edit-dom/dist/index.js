@@ -35,10 +35,11 @@ var History = class {
 };
 // src/editor.ts
 var STYLE_ID = "mm-editor-style";
+var EMPTY_LABEL = "​";
 var STYLE = `
 .mm-editor-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
 .mm-editor-field{position:absolute;display:none;margin:0;padding:0 8px;border:0;background:transparent;color:inherit;font:inherit;line-height:1.25;text-align:center;white-space:pre-wrap;resize:none;overflow:hidden;outline:none;box-sizing:border-box;pointer-events:auto;transform-origin:top left}
-.mm-editor-selected text{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.mm-editor-selection{position:absolute;display:none;pointer-events:none;box-sizing:border-box;border:2px solid var(--oc-focus,#0097e6);border-radius:6px}
 .mm-editor-editing text{visibility:hidden}
 `;
 var styleUsers = /* @__PURE__ */ new WeakMap();
@@ -65,6 +66,7 @@ var MarkmapEditor = class {
 	view;
 	container;
 	field;
+	selectionBox;
 	layer;
 	history = new History();
 	onChange;
@@ -94,6 +96,8 @@ var MarkmapEditor = class {
 		if (this.restoreTabIndex) container.tabIndex = 0;
 		this.layer = doc.createElement("div");
 		this.layer.className = "mm-editor-layer";
+		this.selectionBox = doc.createElement("div");
+		this.selectionBox.className = "mm-editor-selection";
 		this.field = doc.createElement("textarea");
 		this.field.className = "mm-editor-field";
 		this.field.spellcheck = false;
@@ -101,7 +105,7 @@ var MarkmapEditor = class {
 		this.field.setAttribute("autocapitalize", "off");
 		this.field.setAttribute("wrap", "soft");
 		this.field.addEventListener("input", this.handleInput);
-		this.layer.append(this.field);
+		this.layer.append(this.selectionBox, this.field);
 		container.append(this.layer);
 		container.addEventListener("keydown", this.handleKeyDown);
 		container.addEventListener("click", this.handleClick);
@@ -159,12 +163,14 @@ var MarkmapEditor = class {
 		if (!node?.label) return;
 		if (!this.view.screenRect(nodeId)) return;
 		const label = labelText(this.doc, node);
-		const text = initialText ?? label;
+		const blank = label === EMPTY_LABEL;
+		const text = initialText ?? (blank ? "" : label);
 		this.field.value = text;
 		this.field.style.display = "block";
 		this.editing = {
 			nodeId,
 			original: label,
+			blank,
 			field: this.field
 		};
 		this.paintEditing();
@@ -378,7 +384,7 @@ var MarkmapEditor = class {
 		const editing = this.editing;
 		if (!editing) return "none";
 		const text = editing.field.value;
-		if (text === editing.original) {
+		if (text === editing.original || editing.blank && text === "") {
 			this.stopEditingUi();
 			return "none";
 		}
@@ -496,7 +502,9 @@ var MarkmapEditor = class {
 	}
 	selectedLabel() {
 		const node = this.selectedNode();
-		return node ? labelText(this.doc, node) : "";
+		if (!node) return "";
+		const label = labelText(this.doc, node);
+		return label === EMPTY_LABEL ? "" : label;
 	}
 	snapshot() {
 		return {
@@ -537,7 +545,22 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-selected").forEach((element) => {
 			element.classList.remove("mm-editor-selected");
 		});
-		if (this.selectedId) this.nodeGroup(this.selectedId)?.classList.add("mm-editor-selected");
+		if (!this.selectedId) {
+			this.selectionBox.style.display = "none";
+			return;
+		}
+		this.nodeGroup(this.selectedId)?.classList.add("mm-editor-selected");
+		const rect = this.view.screenRect(this.selectedId);
+		const box = this.container.getBoundingClientRect();
+		if (!rect) {
+			this.selectionBox.style.display = "none";
+			return;
+		}
+		this.selectionBox.style.display = "block";
+		this.selectionBox.style.left = `${rect.x - box.x - 2}px`;
+		this.selectionBox.style.top = `${rect.y - box.y - 2}px`;
+		this.selectionBox.style.width = `${rect.width + 4}px`;
+		this.selectionBox.style.height = `${rect.height + 4}px`;
 	}
 	paintEditing() {
 		this.view.element.querySelectorAll(".mm-editor-editing").forEach((element) => {

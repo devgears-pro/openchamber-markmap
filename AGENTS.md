@@ -43,7 +43,8 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`.
-- A node click selects the node, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
+- A node click selects the node, draws the selection frame, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
+- New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
 - Do not add network access, external assets, `any`, type assertions, or non-null assertions in `src/`.
 - Do not write comments in code. Tests and docs carry the explanation.

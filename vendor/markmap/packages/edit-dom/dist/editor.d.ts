@@ -4,6 +4,7 @@ export declare class MarkmapEditor {
     private readonly view;
     private readonly container;
     private readonly field;
+    private readonly selectionBox;
     private readonly layer;
     private readonly history;
     private readonly onChange?;
