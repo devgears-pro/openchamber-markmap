@@ -1,9 +1,11 @@
-# OpenChamber Markmap
+# Markmap for OpenChamber
 
 [![CI](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml/badge.svg)](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An OpenChamber file editor for Markmap Markdown. Open a `.markmap.md` file in Files and the outline becomes a mind map you can edit in place. Click a node, press Enter or Tab, type. The Markdown file stays the source of truth for Git, agents, and every other editor.
+
+This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, toolbar, and themes. The editable fork adds the model, commands, and overlay editor that make the diagram editable in OpenChamber.
 
 ![The Markmap editor in the dark theme](docs/images/editor-dark.png)
 
@@ -58,7 +60,7 @@ openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fop
 A folder install runs from that folder and does not update itself:
 
 ```text
-/Users/you/Projects/openchamber-markmap
+~/Projects/openchamber-markmap
 ```
 
 A Git install updates when `version` in `package.json` changes. Open **Settings → Extensions** and choose **Update** on the card.
@@ -125,7 +127,7 @@ markmap:
 
 The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
 
-The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` 1.1.1 plus the vendored editable packages `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). The repository contains no custom Markdown parser, layout engine, or serializer.
+The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` 1.1.1 plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). The repository contains no custom Markdown parser, layout engine, or serializer.
 
 ## Privacy
 
@@ -161,6 +163,12 @@ The process is documented in:
 - [`docs/requirements.md`](docs/requirements.md) — requirement tree and traceability.
 
 Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
+
+## Credits
+
+Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.
+
+The editable fork is public at <https://github.com/mmospanenko/markmap/tree/feat/editable-model>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes stay upstream Markmap.
 
 ## License
 

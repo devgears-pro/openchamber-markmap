@@ -1,9 +1,9 @@
 {
   "name": "openchamber-markmap",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map.",
+  "description": "Markmap for OpenChamber: an OpenChamber file editor that renders and edits Markmap Markdown as a mind map.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -42,7 +42,7 @@
       "openchamber": ">=2.7.1"
     },
     "id": "markmap",
-    "name": "Markmap",
+    "name": "Markmap for OpenChamber",
     "icon": "icon.svg",
     "contributes": {
       "fileEditors": [

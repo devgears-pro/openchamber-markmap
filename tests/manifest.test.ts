@@ -17,7 +17,9 @@ describe('extension manifest', () => {
 
   test('[R-01] declares the Markmap file editor for the chosen suffixes', () => {
     if (!result.ok) throw new Error(result.message);
+    const envelope = packageJson as { openchamber: { name: string } };
     const editors = result.manifest.contributes?.fileEditors ?? [];
+    expect(envelope.openchamber.name).toBe('Markmap for OpenChamber');
     expect(editors).toHaveLength(1);
     expect(editors[0]?.id).toBe('markmap');
     expect(editors[0]?.title).toBe('Markmap');

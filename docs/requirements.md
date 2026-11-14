@@ -6,7 +6,7 @@ The tree is the contract for this extension. Every requirement has an ID, and ev
 
 ### R-01 Manifest
 
-The package declares one `contributes.fileEditors` entry with id `markmap`, title `Markmap`, the six supported file-name patterns, a text entry, and a valid icon. It parses with the OpenChamber manifest schema.
+The package declares one `contributes.fileEditors` entry with display name `Markmap for OpenChamber`, id `markmap`, editor title `Markmap`, the six supported file-name patterns, a text entry, and a valid icon. It parses with the OpenChamber manifest schema.
 
 ### R-02 Render
 

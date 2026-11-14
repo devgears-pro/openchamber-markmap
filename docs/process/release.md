@@ -28,7 +28,7 @@ This checklist covers a user-facing release and a listing in the OpenChamber ext
 
 The OpenChamber extension directory is manual and curated at <https://openchamber.dev/extensions/>. Send the repository to <feedback@openchamber.dev> with the subject **OpenChamber extension for the directory**. Use the copy in [`../listing.md`](../listing.md) and fill the four fields it lists:
 
-- extension name `Markmap`;
+- extension name `Markmap for OpenChamber`;
 - repository URL;
 - category `Preview & files`;
 - a short "what it does" sentence.

@@ -1,6 +1,6 @@
 # Agent guide
 
-OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
+Markmap for OpenChamber is an OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. It is an adaptation of the open-source Markmap library. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
 
 ## Commands
 
@@ -82,8 +82,9 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 
 ## Reference
 
-- OpenChamber SDK: `@openchamber/sdk` 2.7.1. Local reference checkout: `/Users/id/Projects/oss/openchamber`.
+- OpenChamber SDK: `@openchamber/sdk` 2.7.1. A local OpenChamber source checkout is useful for reference but is not part of this repository.
 - Markmap: <https://markmap.js.org/> and <https://github.com/markmap/markmap>.
+- Editable fork: <https://github.com/mmospanenko/markmap/tree/feat/editable-model>.
 - Requirement tree: `docs/requirements.md`.
 - Process: `docs/process/sdlc.md`, `docs/process/testing.md`, `docs/process/bugs.md`, `docs/process/release.md`.
 - Directory copy: `docs/listing.md`.
