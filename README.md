@@ -20,6 +20,7 @@ This is an adaptation of the open-source Markmap library, not an official Markma
 - **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, `colorFreezeLevel`, and `fitMaxScale`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Local only.** No network requests, telemetry, external assets, or stored file contents. The extension asks for no capabilities.
+- **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
 
 ## Use cases
 

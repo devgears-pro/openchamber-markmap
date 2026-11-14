@@ -41,6 +41,7 @@ const createHost = () => {
   let saved: SavedListener | null = null;
   let unsupported = 0;
   const changes: FileEditorChange[] = [];
+  const urls: string[] = [];
 
   const host: MarkmapHost = {
     onReady: (listener) => {
@@ -73,11 +74,18 @@ const createHost = () => {
     reportFileUnsupported: () => {
       unsupported += 1;
     },
+    openUrl: (url) => {
+      urls.push(url);
+      return url.startsWith('https://reject.')
+        ? Promise.reject(new Error('blocked'))
+        : Promise.resolve();
+    },
   };
 
   return {
     host,
     changes,
+    urls,
     unsupported: () => unsupported,
     emitReady: (context: HostReadyContext) => ready?.(context),
     emitFile: (file: FileEditorDocument) => open?.(file),
@@ -199,6 +207,25 @@ describe('Markmap file editor', () => {
 
     expect(markmaps.mounts[0]?.editable).toBe(false);
     expect(contentOf(await host.snapshot())).toBe(SOURCE);
+  });
+
+  test('[R-17] forwards a node link to the host', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+
+    markmaps.mounts[0]?.onOpenUrl('https://example.com/docs');
+
+    expect(host.urls).toEqual(['https://example.com/docs']);
+  });
+
+  test('[R-17] ignores a rejected host link', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+
+    markmaps.mounts[0]?.onOpenUrl('https://reject.example/docs');
+    await Promise.resolve();
+
+    expect(host.urls).toEqual(['https://reject.example/docs']);
   });
 
   test('[R-16] passes an empty file through without changing it', async () => {

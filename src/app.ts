@@ -17,6 +17,7 @@ export type MarkmapHost = Pick<
   | 'onFileSaved'
   | 'reportFileChange'
   | 'reportFileUnsupported'
+  | 'openUrl'
 >;
 
 export type MountOptions = {
@@ -138,6 +139,9 @@ export const mountApp = (
         editable: !state.readOnly,
         onSource: handleSource,
         onError: handleError,
+        onOpenUrl: (url) => {
+          void host.openUrl(url).catch(() => undefined);
+        },
       });
       if (!result.ok) {
         state.failure = result.message;

@@ -70,6 +70,10 @@ Arrow keys move the selection between related nodes. Typing a printable characte
 
 An empty text file that matches a Markmap suffix opens with an editable first node. Typing a label creates a heading, so the first save produces valid Markmap Markdown without losing frontmatter. A read-only empty file stays blank and exposes no editor field.
 
+### R-17 External links
+
+Clicking an http(s) link in a node asks the host to open it and never navigates the editor frame. Non-http links are ignored. The editor asks for no new host capability.
+
 ## Traceability
 
 | Requirement | Tests                                                         |
@@ -90,3 +94,4 @@ An empty text file that matches a Markmap suffix opens with an editable first no
 | R-14        | `tests/gestures.test.ts`, acceptance                          |
 | R-15        | acceptance                                                    |
 | R-16        | `tests/markmap-view.test.ts`, acceptance                      |
+| R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`             |
