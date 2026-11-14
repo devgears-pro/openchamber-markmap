@@ -83,6 +83,7 @@ const setup = () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const onSource = vi.fn();
   const onError = vi.fn();
+  const onOpenUrl = vi.fn();
   const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
   mocks.parseDocument.mockImplementation((source: string) => ({
     tree:
@@ -96,7 +97,7 @@ const setup = () => {
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
   mocks.createEditView.mockReturnValue({});
-  return { markmap, toolbar, surface, svg, onSource, onError, resolved };
+  return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
 };
 
 const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}) => {
@@ -109,6 +110,7 @@ const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {})
     editable: true,
     onSource: base.onSource,
     onError: base.onError,
+    onOpenUrl: base.onOpenUrl,
     ...overrides,
   };
   const result = createMarkmapView(options);
@@ -148,6 +150,39 @@ describe('Markmap adapter', () => {
     expect(toolbar.destroy).not.toHaveBeenCalled();
     expect(onSource).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  test('[R-17] opens an http link through the host callback', () => {
+    const { svg, onOpenUrl } = mount();
+    const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    anchor.setAttribute('href', 'https://example.com/docs');
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    anchor.append(text);
+    svg.append(anchor);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    text.dispatchEvent(event);
+
+    expect(onOpenUrl).toHaveBeenCalledWith('https://example.com/docs');
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test('[R-17] ignores non-http links and non-element targets', () => {
+    const { svg, onOpenUrl } = mount();
+    const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    anchor.setAttribute('href', 'mailto:dev@example.com');
+    const textNode = document.createTextNode('mail');
+    anchor.append(textNode);
+    const emptyAnchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    emptyAnchor.textContent = 'plain';
+    svg.append(anchor, emptyAnchor);
+
+    textNode.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    emptyAnchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(onOpenUrl).not.toHaveBeenCalled();
   });
 
   test('[R-11] [R-13] forwards source changes and editor errors', () => {
@@ -219,6 +254,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'invalid yaml' });
@@ -239,6 +275,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'plain text' });
@@ -261,6 +298,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'editor failed' });
@@ -283,6 +321,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'bad options' });

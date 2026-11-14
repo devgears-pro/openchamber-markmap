@@ -41,6 +41,10 @@ const host: MarkmapHost = {
   reportFileUnsupported: () => {
     console.warn('dev sample cannot be rendered');
   },
+  openUrl: (url) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return Promise.resolve();
+  },
 };
 
 mountApp(host, root, { createMarkmap: createMarkmapView });

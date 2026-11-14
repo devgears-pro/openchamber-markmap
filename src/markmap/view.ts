@@ -27,6 +27,7 @@ export type MarkmapMount = {
   editable: boolean;
   onSource: (change: MarkmapSourceChange) => void;
   onError: (message: string) => void;
+  onOpenUrl: (url: string) => void;
 };
 
 export type MarkmapResult = { ok: true; view: MarkmapView } | { ok: false; message: string };
@@ -35,6 +36,16 @@ export type MarkmapFactory = (mount: MarkmapMount) => MarkmapResult;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const HTTP_URL = /^https?:\/\//iu;
+
+const linkOf = (target: EventTarget | null): string | null => {
+  if (!(target instanceof Element)) return null;
+  const anchor = target.closest('a');
+  if (anchor === null) return null;
+  const href = anchor.getAttribute('href') ?? '';
+  return HTTP_URL.test(href) ? href : null;
+};
 
 const optionsFor = (
   colorScheme: MarkmapColorScheme,
@@ -79,6 +90,15 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       editor.focus();
     }
 
+    const handleLink = (event: MouseEvent): void => {
+      const href = linkOf(event.target);
+      if (href === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      mount.onOpenUrl(href);
+    };
+    mount.svg.addEventListener('click', handleLink, true);
+
     const view: MarkmapView = {
       toolbar: toolbar.element,
       setColorScheme: (colorScheme) => {
@@ -88,6 +108,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         editor?.commit();
       },
       destroy: () => {
+        mount.svg.removeEventListener('click', handleLink, true);
         editor?.destroy();
         editor = null;
         toolbar?.destroy();
