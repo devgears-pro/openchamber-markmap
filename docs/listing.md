@@ -1,6 +1,6 @@
 # Directory listing copy
 
-The OpenChamber directory is curated by email. Use these four fields when sending the repository through **Send your extension** on <https://openchamber.dev/extensions/>.
+The OpenChamber directory is curated by email. Send the repository to <feedback@openchamber.dev> with the subject **OpenChamber extension for the directory**, using these four fields.
 
 ## Extension name
 
