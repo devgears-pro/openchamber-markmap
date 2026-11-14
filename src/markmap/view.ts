@@ -40,7 +40,8 @@ const optionsFor = (
   colorScheme: MarkmapColorScheme,
   frontmatter: Record<string, unknown>,
 ): ViewOptions => ({
-  ...resolveViewOptions({ duration: 0, fitPadding: 24 }, frontmatter.markmap).options,
+  ...resolveViewOptions({ duration: 0, fitPadding: 24, fitMaxScale: 1 }, frontmatter.markmap)
+    .options,
   colorScheme,
   gestures: mapGestures,
 });

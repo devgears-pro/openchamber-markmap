@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const scaleOf = (transform: string): number => Number(/scale\(([^)]+)\)/u.exec(transform)?.[1]);
+
 test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) => {
   await page.goto('/dev/');
 
@@ -7,6 +9,16 @@ test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) =>
   await expect(page.locator('.mm-markmap-svg g').first()).toBeVisible();
   await expect(page.locator('.markmap-toolbar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fit to view' })).toBeVisible();
+});
+
+test('[R-02] opens a map at no more than 100% scale', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 800 });
+  await page.goto('/dev/?map=showcase');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  const transform = await page.locator('.mm-markmap-svg > g').first().getAttribute('transform');
+
+  expect(scaleOf(transform ?? '')).toBeLessThanOrEqual(1);
 });
 
 test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page }) => {
@@ -71,7 +83,6 @@ test('[R-14] pans with the wheel and zooms with the modifier', async ({ page }) 
   await page.goto('/dev/');
   const root = page.locator('.mm-markmap-svg > g').first();
   const read = async (): Promise<string> => (await root.getAttribute('transform')) ?? '';
-  const scaleOf = (transform: string): number => Number(/scale\(([^)]+)\)/u.exec(transform)?.[1]);
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
 
   const before = await read();

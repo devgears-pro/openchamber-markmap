@@ -73,7 +73,7 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 - `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
 - `new MarkmapEditor({ source, view: createEditView(mm), container, onChange, onError })` adds selection, keyboard, overlay editing, and history over a live `Markmap`.
 - Apply `frontmatter.markmap` with `resolveViewOptions(base, input)`. The result includes warnings for unknown keys.
-- `Markmap.create(svg, root, options)` already fits the view. The argument order is target, root, options.
+- `Markmap.create(svg, root, options)` already fits the view. The extension caps `fitMaxScale` at 1, so a small map opens at 100% and a large one is fitted; frontmatter can override the cap. The argument order is target, root, options.
 - `mm.setOptions({ ...mm.options, colorScheme })` redraws without replacing the tree or editor history.
 - The `<svg>` needs a non-zero CSS box and no `viewBox`.
 - The toolbar must live in the same document as the map so it can use the map's `--mm-*` tokens.

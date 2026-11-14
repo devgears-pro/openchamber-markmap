@@ -10,7 +10,7 @@ The package declares one `contributes.fileEditors` entry with display name `Mark
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; this repository contains no custom Markdown parser, layout, or serializer.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; this repository contains no custom Markdown parser, layout, or serializer.
 
 ### R-03 Node selection
 

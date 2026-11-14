@@ -14,10 +14,10 @@ This is an adaptation of the open-source Markmap library, not an official Markma
 - **Edit on the map.** The map is the editing surface. There is no second Markdown pane and no separate model to keep in sync.
 - **Keyboard first.** Enter adds a sibling, Tab a child, Shift+Tab outdents, Delete removes a subtree, F2 or Space edits a label. Arrow keys move the selection; typing a printable character starts a label.
 - **Real Markmap.** Rendering, layout, folding, notes, the toolbar, and the viewport come from Markmap. The extension owns only the editing layer and the host contract.
-- **Canvas navigation.** Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
+- **Canvas navigation.** The map opens at 100% and is never magnified; a map larger than the window is fitted to it. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
-- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorFreezeLevel`, still apply.
+- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, `colorFreezeLevel`, and `fitMaxScale`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Local only.** No network requests, telemetry, external assets, or stored file contents. The extension asks for no capabilities.
 

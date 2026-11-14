@@ -141,7 +141,7 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions[0]?.view).toEqual({});
     expect(mocks.editorFocus).toHaveBeenCalledOnce();
     expect(mocks.resolveViewOptions).toHaveBeenCalledWith(
-      { duration: 0, fitPadding: 24 },
+      { duration: 0, fitPadding: 24, fitMaxScale: 1 },
       undefined,
     );
     expect(resolved.options).toBeDefined();
