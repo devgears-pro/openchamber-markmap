@@ -7,6 +7,7 @@ import type {
   MarkmapSourceChange,
   MarkmapView,
 } from './markmap/view';
+import { createMarkerMenu } from './ui/marker-menu';
 import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
@@ -152,6 +153,9 @@ export const mountApp = (
       state.view = result.view;
       state.renderedScheme = state.colorScheme;
       toolbar.replaceChildren(result.view.toolbar);
+      if (!state.readOnly) {
+        toolbar.append(createMarkerMenu(result.view.addMarker));
+      }
       return;
     }
 

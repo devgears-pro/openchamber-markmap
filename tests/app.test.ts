@@ -101,6 +101,7 @@ type FakeFactory = {
   factory: MarkmapFactory;
   mounts: MarkmapMount[];
   colorSchemes: MarkmapColorScheme[];
+  markers: string[];
   destroyed: () => number;
   commits: () => number;
   fail: string | null;
@@ -110,12 +111,16 @@ const createMarkmapFactory = (): FakeFactory => {
   const toolbar = document.createElement('div');
   toolbar.className = 'fake-markmap-toolbar';
   const colorSchemes: MarkmapColorScheme[] = [];
+  const markers: string[] = [];
   let destroyCount = 0;
   let commitCount = 0;
   const view: MarkmapView = {
     toolbar,
     setColorScheme: (scheme) => {
       colorSchemes.push(scheme);
+    },
+    addMarker: (marker) => {
+      markers.push(marker);
     },
     commit: () => {
       commitCount += 1;
@@ -127,6 +132,7 @@ const createMarkmapFactory = (): FakeFactory => {
   const state: FakeFactory = {
     mounts: [],
     colorSchemes,
+    markers,
     destroyed: () => destroyCount,
     commits: () => commitCount,
     fail: null,
@@ -197,8 +203,27 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts[0]?.editable).toBe(true);
     expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
     expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
-    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(1);
+    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(2);
     expect(root.querySelector('.mm-error')).toBeNull();
+  });
+
+  test('[R-18] adds the chosen marker from the toolbar', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const select = root.querySelector<HTMLSelectElement>('.mm-marker-select');
+    if (select === null) throw new Error('No marker menu');
+
+    select.value = '✅';
+    select.dispatchEvent(new Event('change'));
+
+    expect(markmaps.markers).toEqual(['✅']);
+  });
+
+  test('[R-18] hides the marker menu on a read-only file', () => {
+    const { host } = mount();
+    host.emitFile(textFile(SOURCE, true));
+
+    expect(root.querySelector('.mm-marker-select')).toBeNull();
   });
 
   test('[R-12] creates a read-only map without the node editor', async () => {

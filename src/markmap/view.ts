@@ -1,8 +1,9 @@
 import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
-import { parseDocument } from '@markmap/model';
+import { labelText, parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
+import { applyMarker } from './markers';
 import { mapGestures, wheelZoomDelta } from './gestures';
 
 export type MarkmapColorScheme = 'light' | 'dark';
@@ -15,6 +16,7 @@ export type MarkmapSourceChange = {
 export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
+  addMarker: (glyph: string) => void;
   commit: () => void;
   destroy: () => void;
 };
@@ -103,6 +105,20 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       toolbar: toolbar.element,
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
+      },
+      addMarker: (glyph) => {
+        if (editor === null) return;
+        editor.commit();
+        const id = editor.selected;
+        if (id === null) return;
+        const node = editor.document.nodes.get(id);
+        if (node === undefined) return;
+        const label = labelText(editor.document, node);
+        const next = applyMarker(label, glyph);
+        if (next === label) return;
+        editor.startEditing(id, next);
+        editor.commit();
+        editor.focus();
       },
       commit: () => {
         editor?.commit();

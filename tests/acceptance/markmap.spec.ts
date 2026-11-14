@@ -21,6 +21,15 @@ test('[R-02] opens a map at no more than 100% scale', async ({ page }) => {
   expect(scaleOf(transform ?? '')).toBeLessThanOrEqual(1);
 });
 
+test('[R-18] adds a marker from the toolbar', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+
+  await page.getByLabel('Add marker').selectOption({ label: '✅ Done' });
+
+  await expect(page.locator('.mm-markmap-svg')).toContainText('✅ Links');
+});
+
 test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page }) => {
   await page.goto('/dev/');
 
