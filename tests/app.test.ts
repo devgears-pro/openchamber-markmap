@@ -4,6 +4,7 @@ import { mountApp, type MarkmapHost, type MountOptions } from '../src/app';
 import type { MarkmapColorScheme, MarkmapFactory, MarkmapView } from '../src/markmap/view';
 import {
   EMPTY_GUEST_CONNECTION,
+  type FileEditorChange,
   type FileEditorDocument,
   type FileEditorSnapshot,
   type HostReadyContext,
@@ -26,12 +27,15 @@ markmap:
 type ReadyListener = Parameters<MarkmapHost['onReady']>[0];
 type OpenListener = Parameters<MarkmapHost['onFileOpen']>[0];
 type SnapshotHandler = Parameters<MarkmapHost['onFileSnapshot']>[0];
+type SavedListener = Parameters<MarkmapHost['onFileSaved']>[0];
 
 const createHost = () => {
   let ready: ReadyListener | null = null;
   let open: OpenListener | null = null;
   let snapshot: SnapshotHandler | null = null;
+  let saved: SavedListener | null = null;
   let unsupported = 0;
+  const changes: FileEditorChange[] = [];
 
   const host: MarkmapHost = {
     onReady: (listener) => {
@@ -52,6 +56,15 @@ const createHost = () => {
         snapshot = null;
       };
     },
+    onFileSaved: (listener) => {
+      saved = listener;
+      return () => {
+        saved = null;
+      };
+    },
+    reportFileChange: (change) => {
+      changes.push(change);
+    },
     reportFileUnsupported: () => {
       unsupported += 1;
     },
@@ -59,6 +72,7 @@ const createHost = () => {
 
   return {
     host,
+    changes,
     unsupported: () => unsupported,
     emitReady: (context: HostReadyContext) => ready?.(context),
     emitFile: (file: FileEditorDocument) => open?.(file),
@@ -66,6 +80,7 @@ const createHost = () => {
       if (snapshot === null) throw new Error('No snapshot handler');
       return snapshot('save');
     },
+    saved: (version: string) => saved?.(version),
   };
 };
 
@@ -181,9 +196,11 @@ describe('Markmap file editor', () => {
     const { host } = mount();
     host.emitFile(textFile(SOURCE));
 
-    expect(root.querySelector('.mm-source')?.hasAttribute('hidden')).toBe(false);
-    expect(root.querySelector('.mm-source')?.textContent).toBe(SOURCE);
-    expect(root.querySelector('.mm-source')?.getAttribute('aria-label')).toBe('Markdown source');
+    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
+    expect(source?.hasAttribute('hidden')).toBe(false);
+    expect(source?.value).toBe(SOURCE);
+    expect(source?.readOnly).toBe(false);
+    expect(source?.getAttribute('aria-label')).toBe('Markdown source');
     expect(root.querySelector('.mm-markmap-svg')?.getAttribute('role')).toBe('img');
     expect(root.querySelector('.mm-markmap-svg')?.getAttribute('aria-label')).toBe(
       'Markmap mind map',
@@ -197,6 +214,37 @@ describe('Markmap file editor', () => {
     const snapshot = await host.snapshot();
     expect(contentOf(snapshot)).toBe(SOURCE);
     expect((await host.snapshot()).version).toBe(snapshot.version);
+  });
+
+  test('[R-11] edits Markdown, redraws the map, and reports a dirty change', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
+    const next = `${SOURCE}\n## Added\n\n- New leaf\n`;
+
+    source!.value = next;
+    source!.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(markmaps.created[0]?.updates.at(-1)?.markdown).toBe(next);
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+
+    const snapshot = await host.snapshot();
+    expect(contentOf(snapshot)).toBe(next);
+    host.saved(snapshot.version);
+    expect(host.changes.at(-1)?.dirty).toBe(false);
+  });
+
+  test('[R-11] keeps a read-only file unchanged', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile({ ...textFile(SOURCE), readOnly: true });
+    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
+
+    expect(source?.readOnly).toBe(true);
+    source!.value = '# Changed\n';
+    source!.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(markmaps.created[0]?.updates).toHaveLength(0);
+    expect(contentOf(await host.snapshot())).toBe(SOURCE);
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {
@@ -255,18 +303,18 @@ describe('Markmap file editor', () => {
     expect(markmaps.created[0]?.scheme).toBe('dark');
   });
 
-  test('[R-06] reports a Markmap update failure', () => {
+  test('[R-11] shows a transient update failure', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
     markmaps.updateError = 'Update failed';
     host.emitReady(readyContext('light'));
 
-    expect(host.unsupported()).toBe(1);
+    expect(host.unsupported()).toBe(0);
     expect(markmaps.created[0]?.destroyed).toBe(true);
     expect(root.querySelector('.mm-error')?.textContent).toContain('Update failed');
   });
 
-  test('[R-06] reports an Error update failure', () => {
+  test('[R-11] reports an Error update failure', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
     markmaps.updateError = new Error('Update crashed');

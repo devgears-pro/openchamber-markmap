@@ -1,4 +1,4 @@
-import { type FileEditorSnapshot, type HostClient } from '@openchamber/sdk';
+import { createFileSaveTracker, type FileEditorSnapshot, type HostClient } from '@openchamber/sdk';
 import { applyHostReady } from '@openchamber/sdk/ui';
 
 import type { MarkmapColorScheme, MarkmapFactory, MarkmapView } from './markmap/view';
@@ -6,7 +6,12 @@ import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
   HostClient,
-  'onReady' | 'onFileOpen' | 'onFileSnapshot' | 'reportFileUnsupported'
+  | 'onReady'
+  | 'onFileOpen'
+  | 'onFileSnapshot'
+  | 'onFileSaved'
+  | 'reportFileChange'
+  | 'reportFileUnsupported'
 >;
 
 export type MountOptions = {
@@ -15,12 +20,15 @@ export type MountOptions = {
 
 type State = {
   hasFile: boolean;
+  readOnly: boolean;
   text: string;
   bytes: Uint8Array<ArrayBuffer> | null;
   failure: string | null;
   markmap: MarkmapView | null;
+  renderedText: string;
   renderedScheme: MarkmapColorScheme;
   colorScheme: MarkmapColorScheme;
+  tracker: ReturnType<typeof createFileSaveTracker>;
 };
 
 const textVersion = (text: string): string => {
@@ -55,12 +63,15 @@ export const mountApp = (
   const createMarkmap = options.createMarkmap;
   const state: State = {
     hasFile: false,
+    readOnly: false,
     text: '',
     bytes: null,
     failure: null,
     markmap: null,
+    renderedText: '',
     renderedScheme: 'dark',
     colorScheme: 'dark',
+    tracker: createFileSaveTracker(null),
   };
 
   const body = element('div', 'mm-body');
@@ -70,8 +81,9 @@ export const mountApp = (
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', 'Markmap mind map');
   const toolbar = element('div', 'mm-markmap-toolbar');
-  const source = element('pre', 'mm-source');
+  const source = element('textarea', 'mm-source');
   source.setAttribute('aria-label', 'Markdown source');
+  source.spellcheck = false;
   source.hidden = true;
   stage.append(svg, toolbar);
   body.append(stage, source);
@@ -80,6 +92,7 @@ export const mountApp = (
   const destroyMarkmap = (): void => {
     state.markmap?.destroy();
     state.markmap = null;
+    state.renderedText = '';
     state.renderedScheme = 'dark';
     toolbar.replaceChildren();
     svg.replaceChildren();
@@ -94,10 +107,20 @@ export const mountApp = (
     stage.append(error);
   };
 
+  const report = (): void => {
+    host.reportFileChange(state.tracker.observe(textVersion(state.text)));
+  };
+
+  source.addEventListener('input', () => {
+    if (state.readOnly || state.bytes !== null) return;
+    state.text = source.value;
+    report();
+    render();
+  });
+
   const render = (): void => {
     stage.querySelector('.mm-error')?.remove();
     source.hidden = !state.hasFile || state.bytes !== null;
-    source.textContent = state.text;
 
     if (state.failure !== null) {
       destroyMarkmap();
@@ -115,21 +138,21 @@ export const mountApp = (
         return;
       }
       state.markmap = result.view;
+      state.renderedText = state.text;
       state.renderedScheme = state.colorScheme;
       toolbar.replaceChildren(result.view.toolbar);
       return;
     }
 
-    if (state.colorScheme !== state.renderedScheme) {
+    if (state.text !== state.renderedText || state.colorScheme !== state.renderedScheme) {
       try {
         state.markmap.update(state.text, state.colorScheme);
       } catch (error) {
-        state.failure = messageOf(error);
         destroyMarkmap();
-        showError(state.failure);
-        host.reportFileUnsupported();
+        showError(messageOf(error));
         return;
       }
+      state.renderedText = state.text;
       state.renderedScheme = state.colorScheme;
     }
   };
@@ -151,13 +174,20 @@ export const mountApp = (
       destroyMarkmap();
       const text = file.encoding === 'text';
       state.hasFile = true;
+      state.readOnly = file.readOnly;
       state.text = text ? file.content : '';
       state.bytes = text ? null : file.bytes;
       state.failure = text ? null : 'This editor only opens text files.';
+      state.tracker = createFileSaveTracker(textVersion(state.text));
+      source.value = state.text;
+      source.readOnly = !text || file.readOnly;
       render();
       if (!text) host.reportFileUnsupported();
     }),
     host.onFileSnapshot(() => snapshot()),
+    host.onFileSaved((version) => {
+      host.reportFileChange({ dirty: state.tracker.markSaved(version), edited: false });
+    }),
   ];
 
   render();

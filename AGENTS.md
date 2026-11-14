@@ -23,23 +23,25 @@ bunx openchamber-guest-check
 ## Architecture
 
 - `src/main.ts` — `connectHost()` and mount.
-- `src/app.ts` — host wiring, source sidebar, snapshot, theme updates, lifecycle.
+- `src/app.ts` — host wiring, editable source sidebar, save tracking, snapshot, theme updates, lifecycle.
 - `src/markmap/view.ts` — the only module that imports Markmap. It parses Markdown, applies frontmatter options, creates the view and toolbar, and destroys them.
 - `src/ui/styles.ts` — the injected stylesheet, host tokens only.
 - `editor/` — installable package: `index.html` and the built `main.js`.
 - `tests/` — Vitest unit and DOM tests plus Playwright acceptance tests.
 - `scripts/` — requirement traceability and reproducible-build checks.
 
-The host owns the file. The editor receives text through `onFileOpen`, returns the original content through `onFileSnapshot`, and never writes Markdown. There is no editing, custom parser, layout engine, or palette in this repository.
+The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Markdown is edited in a plain textarea; there is no node editor, custom parser, layout engine, or palette in this repository.
 
 ## Non-negotiables
 
 - Keep the extension Markmap-only. Do not add a custom Markdown parser, node editor, or serializer.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
-- Preserve the file byte-for-byte. `onFileSnapshot` returns the original text or bytes and a content-derived version.
+- `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
+- Report edits with `createFileSaveTracker`: `observe` on input, `markSaved` on `onFileSaved`.
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
 - Use `@markmap/parse`, `@markmap/view`, and `@markmap/toolbar`; do not fork their behavior.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
+- The textarea is the only editing surface. Read-only files must not accept input.
 - Destroy the Markmap view, toolbar, and DOM on file change and dispose.
 - Do not add network access, external assets, `any`, type assertions, or non-null assertions in `src/`.
 - Do not write comments in code. Tests and docs carry the explanation.

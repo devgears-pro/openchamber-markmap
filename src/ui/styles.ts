@@ -36,20 +36,23 @@ const MARKMAP_CSS = `
     z-index: 2;
   }
   .mm-source {
+    box-sizing: border-box;
     flex: 0 0 clamp(220px, 30%, 420px);
     min-width: 0;
     margin: 0;
     padding: 10px 12px;
     overflow: auto;
+    border: 0;
     border-left: 1px solid var(--oc-border, #34343c);
+    outline: none;
     background: var(--oc-bg, #1b1b1f);
     color: var(--oc-fg, #ececf1);
     font-family: var(--oc-mono, ui-monospace, monospace);
     font-size: 12px;
     line-height: 1.5;
-    overflow-wrap: anywhere;
-    white-space: pre-wrap;
+    resize: none;
   }
+  .mm-source:focus { box-shadow: inset 0 0 0 1px var(--oc-focus, #7c6cf6); }
   .mm-source[hidden] { display: none; }
   .mm-error {
     position: absolute;

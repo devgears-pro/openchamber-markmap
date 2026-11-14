@@ -20,6 +20,8 @@ const host: MarkmapHost = {
     return () => undefined;
   },
   onFileSnapshot: () => () => undefined,
+  onFileSaved: () => () => undefined,
+  reportFileChange: () => undefined,
   reportFileUnsupported: () => {
     console.warn('dev sample cannot be rendered');
   },

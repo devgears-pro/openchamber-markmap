@@ -1,6 +1,6 @@
 # OpenChamber Markmap
 
-An OpenChamber extension that renders Markmap Markdown files as interactive mind maps in the Files view. The map is read-only, and the original Markdown sits beside it in a scrollable sidebar.
+An OpenChamber extension that renders Markmap Markdown files as interactive mind maps in the Files view. The map is read-only, and the Markdown is editable in a scrollable sidebar.
 
 The extension is a `contributes.fileEditors` package. It uses [`@markmap/parse`](https://www.npmjs.com/package/@markmap/parse), [`@markmap/view`](https://www.npmjs.com/package/@markmap/view), and [`@markmap/toolbar`](https://www.npmjs.com/package/@markmap/toolbar). It contains no custom Markdown parser, layout engine, or editor.
 
@@ -36,12 +36,12 @@ The folder must contain `package.json` and `editor/index.html`. The tracked `edi
 ## Behavior
 
 - The file opens as a Markmap with zoom, pan, fold, and fit controls from the library.
-- The raw Markdown is shown read-only in the sidebar. The sidebar hides for binary files.
+- Markdown is edited in a plain textarea beside the map. The map redraws as you type.
 - The map follows the OpenChamber light or dark theme. A `markmap.colorScheme` value in frontmatter does not override the host theme.
 - Markmap options under `markmap:` in YAML frontmatter, such as `theme`, `layout`, and `foldLevel`, are applied through `resolveViewOptions`.
-- Saving without edits returns the original text or bytes. The extension never rewrites Markdown.
+- Saving returns the current Markdown. An unchanged file returns the original text; binary input returns its original bytes.
+- The host autosaves through `reportFileChange` and `onFileSaved`. Read-only files lock the textarea.
 - Binary input and Markmap parse failures send the file to OpenChamber's source view.
-- There is no editing in this version. Use the source view to change the Markdown.
 
 ## Development
 
