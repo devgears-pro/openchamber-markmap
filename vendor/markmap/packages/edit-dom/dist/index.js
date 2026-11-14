@@ -175,6 +175,7 @@ var MarkmapEditor = class {
 		};
 		this.paintEditing();
 		this.positionEditing();
+		this.paintSelection();
 		this.field.focus({ preventScroll: true });
 		if (options.selectAll) this.field.select();
 		else this.field.setSelectionRange(text.length, text.length);
@@ -212,13 +213,13 @@ var MarkmapEditor = class {
 	}
 	handleInput = () => {
 		if (!this.editing) return;
-		const field = this.editing.field;
-		field.style.height = `${Math.max(1, field.scrollHeight)}px`;
+		this.positionEditing();
+		this.paintSelection();
 	};
 	handleViewChange = () => {
+		if (this.editing) this.positionEditing();
 		this.paintSelection();
 		this.paintEditing();
-		if (this.editing) this.positionEditing();
 	};
 	handleClick = (event) => {
 		const target = event.target;
@@ -432,6 +433,7 @@ var MarkmapEditor = class {
 		this.editing.field.style.display = "none";
 		this.editing = null;
 		this.paintEditing();
+		this.paintSelection();
 		this.container.focus({ preventScroll: true });
 	}
 	positionEditing() {
@@ -445,10 +447,15 @@ var MarkmapEditor = class {
 		const box = this.container.getBoundingClientRect();
 		const field = editing.field;
 		const scale = this.view.scale;
+		const fontSize = Number.parseFloat(getComputedStyle(field).fontSize) || 16;
+		const lineHeight = 20;
+		const textWidth = field.value.length * fontSize * .85 + 16;
+		const width = Math.max(rect.width / scale, textWidth, 40);
+		const rows = field.value.split("\n").length;
 		field.style.left = `${rect.x - box.x}px`;
 		field.style.top = `${rect.y - box.y}px`;
-		field.style.width = `${Math.max(1, rect.width) / scale}px`;
-		field.style.height = `${Math.max(1, rect.height, field.scrollHeight) / scale}px`;
+		field.style.width = `${width}px`;
+		field.style.height = `${Math.max(1, rect.height / scale, rows * lineHeight)}px`;
 		field.style.transform = `scale(${scale})`;
 	}
 	navigate(key) {
@@ -550,7 +557,7 @@ var MarkmapEditor = class {
 			return;
 		}
 		this.nodeGroup(this.selectedId)?.classList.add("mm-editor-selected");
-		const rect = this.view.screenRect(this.selectedId);
+		const rect = this.editing ? this.editing.field.getBoundingClientRect() : this.view.screenRect(this.selectedId);
 		const box = this.container.getBoundingClientRect();
 		if (!rect) {
 			this.selectionBox.style.display = "none";
