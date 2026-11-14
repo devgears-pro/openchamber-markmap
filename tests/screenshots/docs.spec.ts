@@ -12,7 +12,7 @@ const select = async (page: Page, label: string): Promise<void> => {
 };
 
 test('[R-02] [R-03] captures the README screenshots', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 1200, height: 800 });
 
   await page.goto('/dev/?map=showcase&theme=dark');
   await waitForMap(page);
@@ -29,6 +29,7 @@ test('[R-02] [R-03] captures the README screenshots', async ({ page }) => {
   await select(page, 'Private beta');
   await page.keyboard.press('F2');
   await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
-  await page.keyboard.type(' plan');
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+  await page.keyboard.type('Beta plan');
   await page.screenshot({ path: 'docs/images/editor-editing.png' });
 });
