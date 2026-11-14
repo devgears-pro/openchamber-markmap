@@ -94,6 +94,7 @@ type FakeFactory = {
   mounts: MarkmapMount[];
   colorSchemes: MarkmapColorScheme[];
   destroyed: () => number;
+  commits: () => number;
   fail: string | null;
 };
 
@@ -102,10 +103,14 @@ const createMarkmapFactory = (): FakeFactory => {
   toolbar.className = 'fake-markmap-toolbar';
   const colorSchemes: MarkmapColorScheme[] = [];
   let destroyCount = 0;
+  let commitCount = 0;
   const view: MarkmapView = {
     toolbar,
     setColorScheme: (scheme) => {
       colorSchemes.push(scheme);
+    },
+    commit: () => {
+      commitCount += 1;
     },
     destroy: () => {
       destroyCount += 1;
@@ -115,6 +120,7 @@ const createMarkmapFactory = (): FakeFactory => {
     mounts: [],
     colorSchemes,
     destroyed: () => destroyCount,
+    commits: () => commitCount,
     fail: null,
     factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
@@ -212,11 +218,12 @@ describe('Markmap file editor', () => {
   });
 
   test('[R-05] [R-09] snapshots the original text unchanged', async () => {
-    const { host } = mount();
+    const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
 
     const snapshot = await host.snapshot();
     expect(contentOf(snapshot)).toBe(SOURCE);
+    expect(markmaps.commits()).toBe(1);
     expect((await host.snapshot()).version).toBe(snapshot.version);
   });
 

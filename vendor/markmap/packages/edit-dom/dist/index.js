@@ -173,6 +173,9 @@ var MarkmapEditor = class {
 		if (options.selectAll) this.field.select();
 		else this.field.setSelectionRange(text.length, text.length);
 	}
+	commit() {
+		this.commitEditing();
+	}
 	undo() {
 		const entry = this.history.undo(this.snapshot());
 		if (!entry) return false;

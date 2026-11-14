@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   editorOptions: [] as MarkmapEditorOptions[],
   editorDestroy: vi.fn(),
   editorFocus: vi.fn(),
+  editorCommit: vi.fn(),
 }));
 
 vi.mock('@markmap/model', () => ({ parseDocument: mocks.parseDocument }));
@@ -29,6 +30,10 @@ vi.mock('@markmap/edit-dom', () => ({
 
     focus(): void {
       mocks.editorFocus();
+    }
+
+    commit(): void {
+      mocks.editorCommit();
     }
 
     destroy(): void {
@@ -161,6 +166,15 @@ describe('Markmap adapter', () => {
     expect(markmap.setOptions).toHaveBeenCalledWith({ colorScheme: 'light' });
     expect(mocks.create).toHaveBeenCalledTimes(before);
     expect(mocks.editorOptions).toHaveLength(1);
+  });
+
+  test('[R-05] commits an in-progress label before a snapshot', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.commit();
+
+    expect(mocks.editorCommit).toHaveBeenCalledOnce();
   });
 
   test('[R-07] destroys the editor, toolbar, view and SVG children', () => {

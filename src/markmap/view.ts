@@ -13,6 +13,7 @@ export type MarkmapSourceChange = {
 export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
+  commit: () => void;
   destroy: () => void;
 };
 
@@ -75,6 +76,9 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       toolbar: toolbar.element,
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
+      },
+      commit: () => {
+        editor?.commit();
       },
       destroy: () => {
         editor?.destroy();

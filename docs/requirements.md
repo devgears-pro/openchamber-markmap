@@ -22,7 +22,7 @@ The map uses the host theme mode (`light` or `dark`), not a color scheme from fi
 
 ### R-05 Snapshot fidelity
 
-`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
+`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is committed first, so a save during editing cannot lose text. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
 
 ### R-06 Unsupported fallback
 
@@ -66,7 +66,7 @@ An invalid command, such as a line break in a heading label, keeps the document 
 | R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-03        | `tests/markmap-view.test.ts`, acceptance                      |
 | R-04        | `tests/app.test.ts`                                           |
-| R-05        | `tests/app.test.ts`                                           |
+| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
 | R-06        | `tests/app.test.ts`                                           |
 | R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
 | R-08        | `tests/bundle.test.ts`                                        |

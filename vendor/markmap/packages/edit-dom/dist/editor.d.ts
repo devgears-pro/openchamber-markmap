@@ -33,6 +33,7 @@ export declare class MarkmapEditor {
     startEditing(nodeId?: string | null, initialText?: string, options?: {
         selectAll?: boolean;
     }): void;
+    commit(): void;
     undo(): boolean;
     redo(): boolean;
     destroy(): void;
