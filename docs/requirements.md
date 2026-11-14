@@ -10,7 +10,7 @@ The package declares one `contributes.fileEditors` entry with id `markmap`, titl
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. Rendering uses `@markmap/parse`, `@markmap/view`, and `@markmap/toolbar`; this repository contains no custom Markdown parser or layout.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; this repository contains no custom Markdown parser, layout, or serializer.
 
 ### R-03 Node selection
 
