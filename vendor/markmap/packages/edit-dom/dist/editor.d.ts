@@ -59,6 +59,7 @@ export declare class MarkmapEditor {
     private ensureVisible;
     private selectedNode;
     private selectedLabel;
+    private isEmptyRoot;
     private snapshot;
     private restore;
     private captureFolds;

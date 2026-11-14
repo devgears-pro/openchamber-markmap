@@ -66,6 +66,10 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 
 Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z undoes an edit, Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
 
+### R-16 New files
+
+An empty text file that matches a Markmap suffix opens with an editable first node. Typing a label creates a heading, so the first save produces valid Markmap Markdown without losing frontmatter. A read-only empty file stays blank and exposes no editor field.
+
 ## Traceability
 
 | Requirement | Tests                                                         |
@@ -85,3 +89,4 @@ Arrow keys move the selection between related nodes. Typing a printable characte
 | R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-14        | `tests/gestures.test.ts`, acceptance                          |
 | R-15        | acceptance                                                    |
+| R-16        | `tests/markmap-view.test.ts`, acceptance                      |

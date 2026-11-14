@@ -215,7 +215,7 @@ function nodeAtOffset(doc, offset) {
 	let best;
 	for (const id of doc.order) {
 		const node = doc.nodes.get(id);
-		if (!node?.block || node.kind === "root") continue;
+		if (!node?.block) continue;
 		if (offset < node.block.start || offset > node.block.end) continue;
 		if (node.block.end - node.block.start <= (best?.block ? best.block.end - best.block.start : Infinity)) best = node;
 	}

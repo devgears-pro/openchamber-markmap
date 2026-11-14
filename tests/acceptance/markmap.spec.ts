@@ -148,3 +148,19 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
   await page.keyboard.press('F2');
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
 });
+
+test('[R-16] opens a new empty file with an editable first node', async ({ page }) => {
+  await page.goto('/dev/?map=empty');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await expect(page.locator('.mm-editor-selection')).toBeHidden();
+
+  await page.keyboard.type('First note');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('First note');
+  await expect(page.locator('.mm-editor-selection')).toBeVisible();
+
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mm-markmap-svg')).toContainText('First note');
+});

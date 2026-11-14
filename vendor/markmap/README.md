@@ -4,7 +4,7 @@ These packages come from the local Markmap fork:
 
 - Source: `/Users/id/Projects/oss/markmap`
 - Branch: `feat/editable-model`
-- Commit: `cbcee81`
+- Commit: `73a8aed`
 - Base: Markmap `v1.1.1` (`06d1a19`)
 
 The fork adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, extends `@markmap/parse` and the `@markmap/core` types with source ranges, scales the overlay field with the map zoom, draws a selection frame, supports zero-width empty labels, sizes and frames the edit field from its text, reveals newly inserted nodes, and commits an in-progress label before a host snapshot. The renderer, view, and toolbar are unchanged and stay on the published `1.1.1` packages.

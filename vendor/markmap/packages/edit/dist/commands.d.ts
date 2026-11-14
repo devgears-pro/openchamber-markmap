@@ -6,6 +6,10 @@ export type Command = {
     node: string;
     text: string;
 } | {
+    type: 'insertFirst';
+    node: string;
+    text: string;
+} | {
     type: 'insertChild';
     node: string;
     text?: string;

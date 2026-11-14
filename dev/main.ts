@@ -10,8 +10,13 @@ if (root === null) throw new Error('Missing #root');
 const params = new URLSearchParams(window.location.search);
 const mode = params.get('theme') === 'light' ? 'light' : 'dark';
 const showcaseMode = params.get('map') === 'showcase';
-const content = showcaseMode ? showcase : sample;
-const name = showcaseMode ? 'showcase.markmap.md' : 'sample.markmap.md';
+const emptyMode = params.get('map') === 'empty';
+const content = emptyMode ? '' : showcaseMode ? showcase : sample;
+const name = emptyMode
+  ? 'empty.markmap.md'
+  : showcaseMode
+    ? 'showcase.markmap.md'
+    : 'sample.markmap.md';
 
 const host: MarkmapHost = {
   onReady: (listener) => {

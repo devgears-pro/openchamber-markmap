@@ -201,6 +201,14 @@ describe('Markmap file editor', () => {
     expect(contentOf(await host.snapshot())).toBe(SOURCE);
   });
 
+  test('[R-16] passes an empty file through without changing it', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(''));
+
+    expect(markmaps.mounts[0]?.markdown).toBe('');
+    expect(contentOf(await host.snapshot())).toBe('');
+  });
+
   test('[R-11] applies a map edit to the snapshot and dirty state', async () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));

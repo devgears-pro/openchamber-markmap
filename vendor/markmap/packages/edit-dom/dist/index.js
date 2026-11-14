@@ -160,10 +160,11 @@ var MarkmapEditor = class {
 			if (this.commitEditing() === "error") return;
 		}
 		const node = this.doc.nodes.get(nodeId);
-		if (!node?.label) return;
+		const first = this.isEmptyRoot(node);
+		if (!node || !node.label && !first) return;
 		if (!this.view.screenRect(nodeId)) return;
-		const label = labelText(this.doc, node);
-		const blank = label === EMPTY_LABEL;
+		const label = node.label ? labelText(this.doc, node) : "";
+		const blank = first || label === EMPTY_LABEL;
 		const text = initialText ?? (blank ? "" : label);
 		this.field.value = text;
 		this.field.style.display = "block";
@@ -171,6 +172,7 @@ var MarkmapEditor = class {
 			nodeId,
 			original: label,
 			blank,
+			first,
 			field: this.field
 		};
 		this.paintEditing();
@@ -274,6 +276,7 @@ var MarkmapEditor = class {
 			case "Delete":
 			case "Backspace":
 				event.preventDefault();
+				if (this.isEmptyRoot(this.selectedNode())) return;
 				this.runSelected({ type: "delete" });
 				return;
 			case "F2":
@@ -335,6 +338,15 @@ var MarkmapEditor = class {
 	insertAndEdit(kind) {
 		const id = this.selectedId;
 		if (!id) return;
+		const node = this.doc.nodes.get(id);
+		if (!node) return;
+		if (kind === "insertSibling" && node.kind === "root") {
+			if (this.isEmptyRoot(node)) {
+				this.startEditing(id, "", { selectAll: true });
+				return;
+			}
+			kind = "insertChild";
+		}
 		const result = this.run({
 			type: kind,
 			node: id,
@@ -390,11 +402,15 @@ var MarkmapEditor = class {
 			return "none";
 		}
 		const before = this.snapshot();
-		if (!this.apply({
+		if (!(editing.first ? this.apply({
+			type: "insertFirst",
+			node: editing.nodeId,
+			text
+		}) : this.apply({
 			type: "setLabel",
 			node: editing.nodeId,
 			text
-		})) return "error";
+		}))) return "error";
 		if (options.history !== false) this.history.push(before);
 		this.stopEditingUi();
 		return "changed";
@@ -416,7 +432,7 @@ var MarkmapEditor = class {
 			return;
 		}
 		const result = this.apply({
-			type: kind,
+			type: kind === "insertSibling" && node.kind === "root" ? "insertChild" : kind,
 			node: node.id,
 			text: this.placeholder
 		});
@@ -487,7 +503,8 @@ var MarkmapEditor = class {
 	selectAt(offset, options = {}) {
 		this.selectionOffset = offset;
 		const node = nodeAtOffset(this.doc, offset);
-		this.select(node?.id ?? null, options);
+		const fallback = this.doc.nodes.size === 1 ? this.doc.root : null;
+		this.select(node?.id ?? fallback, options);
 	}
 	select(id, options = {}) {
 		this.selectedId = id;
@@ -512,6 +529,9 @@ var MarkmapEditor = class {
 		if (!node) return "";
 		const label = labelText(this.doc, node);
 		return label === EMPTY_LABEL ? "" : label;
+	}
+	isEmptyRoot(node) {
+		return node?.kind === "root" && !node.block && !node.label && this.doc.nodes.size === 1;
 	}
 	snapshot() {
 		return {
@@ -553,6 +573,11 @@ var MarkmapEditor = class {
 			element.classList.remove("mm-editor-selected");
 		});
 		if (!this.selectedId) {
+			this.selectionBox.style.display = "none";
+			return;
+		}
+		const selected = this.doc.nodes.get(this.selectedId);
+		if (!this.editing && this.isEmptyRoot(selected)) {
 			this.selectionBox.style.display = "none";
 			return;
 		}

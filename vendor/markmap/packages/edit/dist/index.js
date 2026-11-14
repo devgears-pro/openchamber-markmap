@@ -189,6 +189,7 @@ function planCommand(doc, command) {
 	const node = nodeOf(doc, command.node);
 	switch (command.type) {
 		case "setLabel": return planSetLabel(doc, node, command.text);
+		case "insertFirst": return planInsertFirst(doc, node, command.text);
 		case "insertChild": return planInsert(doc, node, command.text ?? "", "child");
 		case "insertSibling": return planInsert(doc, node, command.text ?? "", "sibling");
 		case "delete": return planDelete(doc, node);
@@ -223,6 +224,47 @@ function planSetLabel(doc, node, raw) {
 			if (!found || found.kind !== node.kind || found.parent !== node.parent) throw shape("The edited node changed shape");
 			if (!found.label || next.source.slice(found.label.start, found.label.end) !== insert) throw shape("The label did not survive parsing");
 		}
+	};
+}
+function planInsertFirst(doc, node, raw) {
+	if (node.kind !== "root" || node.block || node.children.length > 0) throw new EditError("E_CAPABILITY", "The node is not an empty root", node.id);
+	const text = cleanLabel(raw);
+	if (!text) throw new EditError("E_LABEL", "The label cannot be empty", node.id);
+	assertSingleLine(node, text);
+	const line = headingLine(1, text);
+	const verify = (next, selection) => {
+		const created = nodeByLabelStart(next, selection);
+		if (!created || !created.block || !created.label || created.kind !== "root" && created.kind !== "heading" || created.level !== 1) throw shape("The first node is not an editable heading");
+		if (next.source.slice(created.label.start, created.label.end) !== text) throw shape("The first label did not survive parsing");
+		if (next.nodes.size !== 1 && next.nodes.size !== 2) throw shape("The first node changed the node count");
+	};
+	if (doc.source.trim() === "") return {
+		edits: [{
+			from: 0,
+			to: doc.source.length,
+			insert: line
+		}],
+		selection: {
+			kind: "insert",
+			edit: 0,
+			offset: 2
+		},
+		verify
+	};
+	const position = doc.source.length;
+	const inserted = insertLine(doc.source, position, line, lineEnding(doc.source));
+	return {
+		edits: [{
+			from: position,
+			to: position,
+			insert: inserted.insert
+		}],
+		selection: {
+			kind: "insert",
+			edit: 0,
+			offset: inserted.leading + 2
+		},
+		verify
 	};
 }
 function planInsert(doc, node, raw, mode) {

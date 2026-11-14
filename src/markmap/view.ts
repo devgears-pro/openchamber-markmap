@@ -51,7 +51,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
   let toolbar: ReturnType<typeof createToolbar> | null = null;
 
   try {
-    const parsed = parseDocument(mount.markdown);
+    const source = mount.markdown;
+    const parsed = parseDocument(source);
     markmap = Markmap.create(
       mount.svg,
       parsed.tree,
@@ -63,7 +64,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
 
     if (mount.editable) {
       editor = new MarkmapEditor({
-        source: mount.markdown,
+        source,
         view: createEditView(instance),
         container: mount.surface,
         placeholder: '\u200B',

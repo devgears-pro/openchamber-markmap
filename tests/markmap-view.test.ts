@@ -84,7 +84,14 @@ const setup = () => {
   const onSource = vi.fn();
   const onError = vi.fn();
   const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
-  mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+  mocks.parseDocument.mockImplementation((source: string) => ({
+    tree:
+      source.trim() === ''
+        ? root
+        : { ...root, source: { block: { start: 0, end: source.length } } },
+    frontmatter: {},
+    document: {},
+  }));
   mocks.resolveViewOptions.mockReturnValue(resolved);
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
