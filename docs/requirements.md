@@ -62,6 +62,10 @@ An invalid command, such as a line break in a heading label, keeps the document 
 
 An unmodified wheel or trackpad gesture pans the map without changing its scale. Line and page deltas are normalized, Shift maps vertical wheel input to horizontal, and a wheel burst is applied once per animation frame. A wheel with Cmd or Ctrl zooms around the pointer with clamped deltas.
 
+### R-15 Keyboard navigation and history
+
+Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z undoes an edit, Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
+
 ## Traceability
 
 | Requirement | Tests                                                         |
@@ -69,7 +73,7 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 | R-01        | `tests/manifest.test.ts`                                      |
 | R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-03        | `tests/markmap-view.test.ts`, acceptance                      |
-| R-04        | `tests/app.test.ts`                                           |
+| R-04        | `tests/app.test.ts`, acceptance                               |
 | R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
 | R-06        | `tests/app.test.ts`                                           |
 | R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
@@ -77,6 +81,7 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 | R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`          |
 | R-10        | acceptance                                                    |
 | R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-14        | `tests/gestures.test.ts`, acceptance                          |
+| R-15        | acceptance                                                    |

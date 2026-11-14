@@ -89,3 +89,62 @@ test('[R-14] pans with the wheel and zooms with the modifier', async ({ page }) 
   const zoomed = await read();
   expect(scaleOf(zoomed)).toBeGreaterThan(scaleOf(panned));
 });
+
+test('[R-04] follows the host light and dark theme', async ({ page }) => {
+  await page.goto('/dev/?theme=light');
+  await expect(page.locator('html')).toHaveAttribute('data-oc-theme', 'light');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  await page.goto('/dev/?theme=dark');
+  await expect(page.locator('html')).toHaveAttribute('data-oc-theme', 'dark');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+});
+
+test('[R-15] navigates with arrows, folds a branch, and edits by typing', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.mm-editor-selected')).toContainText('Markmap');
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.down(modifier);
+  await page.keyboard.press('/');
+  await page.keyboard.up(modifier);
+  await expect(page.getByText('Source', { exact: true })).toBeHidden();
+
+  await page.getByText('Features', { exact: true }).first().click();
+  await page.keyboard.type('x');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('Featuresx');
+  await page.keyboard.press('Escape');
+});
+
+test('[R-15] undoes and redoes an inserted node', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Undo node');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mm-markmap-svg')).toContainText('Undo node');
+
+  await page.keyboard.press(`${modifier}+z`);
+  await expect(page.locator('.mm-markmap-svg')).not.toContainText('Undo node');
+
+  await page.keyboard.press(`${modifier}+Shift+z`);
+  await expect(page.locator('.mm-markmap-svg')).toContainText('Undo node');
+});
+
+test('[R-12] renders a read-only file without an editor field', async ({ page }) => {
+  await page.goto('/dev/?readonly=1');
+
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press('F2');
+  await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+});

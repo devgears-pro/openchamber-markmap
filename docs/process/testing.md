@@ -50,7 +50,7 @@ When a requirement changes:
 
 ## Acceptance
 
-Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, editor errors, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
+Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, arrow navigation, folding, undo and redo, theme state, read-only rendering, editor errors, wheel gestures, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
 
 ## What not to do
 

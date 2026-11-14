@@ -29,6 +29,7 @@
     "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!node_modules/**\" \"!vendor/markmap/packages/**\"",
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts",
     "test": "vitest run",
     "test:acceptance": "playwright test",
     "test:coverage": "vitest run --coverage",
