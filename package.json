@@ -1,9 +1,9 @@
 {
   "name": "openchamber-markmap",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
-  "description": "OpenChamber file editor that renders and edits Markmap Markdown as an XMind-style mind map.",
+  "description": "OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -68,11 +68,14 @@
     "@markmap/model": "workspace:*",
     "@markmap/toolbar": "1.1.1",
     "@markmap/view": "1.1.1",
-    "@openchamber/sdk": "^2.7.1"
+    "@openchamber/sdk": "^2.7.1",
+    "d3-selection": "^3.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.57.0",
+    "@types/d3-selection": "^3.0.12",
+    "@types/d3-zoom": "^3.0.9",
     "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^9.39.1",

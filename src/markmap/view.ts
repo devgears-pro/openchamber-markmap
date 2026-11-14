@@ -3,6 +3,8 @@ import { parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
+import { mapGestures } from './gestures';
+
 export type MarkmapColorScheme = 'light' | 'dark';
 
 export type MarkmapSourceChange = {
@@ -40,6 +42,7 @@ const optionsFor = (
 ): ViewOptions => ({
   ...resolveViewOptions({ duration: 0, fitPadding: 24 }, frontmatter.markmap).options,
   colorScheme,
+  gestures: mapGestures,
 });
 
 export const createMarkmapView: MarkmapFactory = (mount) => {

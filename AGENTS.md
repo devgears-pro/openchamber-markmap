@@ -1,6 +1,6 @@
 # Agent guide
 
-OpenChamber file editor that renders and edits Markmap Markdown as an XMind-style mind map. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
+OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
 
 ## Commands
 
@@ -43,6 +43,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`.
+- Unmodified wheel events pan; Cmd/Ctrl + wheel zooms. The custom gesture layer is in `src/markmap/gestures.ts`.
 - A node click selects the node, draws the selection frame, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
 - New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.

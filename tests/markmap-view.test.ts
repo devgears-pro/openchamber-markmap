@@ -114,10 +114,15 @@ beforeEach(() => {
 
 describe('Markmap adapter', () => {
   test('[R-02] creates a view and an editable node editor', () => {
-    const { markmap, toolbar, surface, svg, onSource, onError, resolved } = mount();
+    const { markmap, toolbar, surface, onSource, onError, resolved } = mount();
 
     expect(mocks.parseDocument).toHaveBeenCalledWith('# Root');
-    expect(mocks.create).toHaveBeenCalledWith(svg, root, { colorScheme: 'dark' });
+    const options = mocks.create.mock.calls[0]?.[2] as {
+      colorScheme: string;
+      gestures: unknown;
+    };
+    expect(options.colorScheme).toBe('dark');
+    expect(options.gestures).toBeTypeOf('function');
     expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
     expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
     expect(mocks.editorOptions).toHaveLength(1);

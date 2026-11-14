@@ -66,3 +66,26 @@ test('[R-13] shows an editor error for a line break in a heading', async ({ page
   await expect(page.locator('.mm-notice')).toContainText('heading label cannot contain');
   await page.keyboard.press('Escape');
 });
+
+test('[R-14] pans with the wheel and zooms with the modifier', async ({ page }) => {
+  await page.goto('/dev/');
+  const root = page.locator('.mm-markmap-svg > g').first();
+  const read = async (): Promise<string> => (await root.getAttribute('transform')) ?? '';
+  const scaleOf = (transform: string): number => Number(/scale\(([^)]+)\)/u.exec(transform)?.[1]);
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  const before = await read();
+  await page.mouse.move(600, 400);
+  await page.mouse.wheel(60, 80);
+  await page.waitForTimeout(200);
+  const panned = await read();
+  expect(panned).not.toBe(before);
+  expect(scaleOf(panned)).toBeCloseTo(scaleOf(before));
+
+  await page.keyboard.down(modifier);
+  await page.mouse.wheel(0, -120);
+  await page.keyboard.up(modifier);
+  await page.waitForTimeout(300);
+  const zoomed = await read();
+  expect(scaleOf(zoomed)).toBeGreaterThan(scaleOf(panned));
+});

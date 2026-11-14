@@ -58,6 +58,10 @@ A file marked read-only renders the map without the node editor. Its snapshot st
 
 An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. The notice clears on the next successful edit.
 
+### R-14 Wheel navigation
+
+An unmodified wheel or trackpad gesture pans the map without changing its scale. A wheel with Cmd or Ctrl zooms around the pointer.
+
 ## Traceability
 
 | Requirement | Tests                                                         |
@@ -75,3 +79,4 @@ An invalid command, such as a line break in a heading label, keeps the document 
 | R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
 | R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
+| R-14        | `tests/gestures.test.ts`, acceptance                          |

@@ -1,6 +1,6 @@
 # OpenChamber Markmap
 
-An OpenChamber extension that opens Markmap Markdown files as an editable mind map in the Files view. Nodes are edited directly on the map with XMind-style keys; there is no Markdown sidebar.
+An OpenChamber extension that opens Markmap Markdown files as an editable mind map in the Files view. Nodes are edited directly on the map with keyboard shortcuts; there is no Markdown sidebar.
 
 The extension is a `contributes.fileEditors` package. It uses the vendored Markmap v1.1.1 fork for the editable model and keyboard layer, plus [`@markmap/view`](https://www.npmjs.com/package/@markmap/view) and [`@markmap/toolbar`](https://www.npmjs.com/package/@markmap/toolbar). The repository contains no custom Markdown parser, layout engine, or serializer.
 
@@ -36,6 +36,7 @@ The folder must contain `package.json` and `editor/index.html`. The tracked `edi
 ## Behavior
 
 - The file opens as a Markmap with zoom, pan, fold, and fit controls from the library.
+- Scroll or a trackpad gesture pans the canvas; Cmd/Ctrl + scroll zooms around the pointer.
 - Click a node to select it. A frame marks the selection. Enter adds a sibling, Tab adds a child, Shift+Tab outdents, F2 or Space edits the label, Delete removes the subtree, and Escape cancels.
 - New nodes start with an empty label. A zero-width marker keeps the node in Markdown, because a truly empty nested list item is dropped by the parser.
 - Edits change only the affected Markdown ranges. Frontmatter, formatting, inline Markdown, and line endings survive.
