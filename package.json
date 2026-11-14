@@ -1,0 +1,84 @@
+{
+  "name": "openchamber-markmap",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenChamber file editor that renders Markmap Markdown as a read-only mind map with a source sidebar.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mmospanenko/openchamber-markmap.git"
+  },
+  "homepage": "https://github.com/mmospanenko/openchamber-markmap",
+  "bugs": {
+    "url": "https://github.com/mmospanenko/openchamber-markmap/issues"
+  },
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "dev": "vite --open /dev/",
+    "build": "vite build",
+    "check:bundle-fresh": "git diff --exit-code -- editor/main.js",
+    "check:requirements": "bun scripts/check-requirements.ts",
+    "check:reproducible": "bun scripts/check-reproducible.ts",
+    "format": "prettier --write .",
+    "lint": "bun run lint:code && bun run lint:format && bun run lint:docs && bun run check:dead-code",
+    "lint:code": "eslint .",
+    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!node_modules/**\"",
+    "lint:format": "prettier --check .",
+    "check:dead-code": "knip",
+    "test": "vitest run",
+    "test:acceptance": "playwright test",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "verify": "bun run typecheck && bun run lint && bun run check:requirements && bun run build && bun run check:bundle-fresh && bun run check:reproducible && bun run test:coverage"
+  },
+  "openchamber": {
+    "apiVersion": 1,
+    "engines": {
+      "openchamber": ">=2.7.1"
+    },
+    "id": "markmap",
+    "name": "Markmap",
+    "icon": "icon.svg",
+    "contributes": {
+      "fileEditors": [
+        {
+          "id": "markmap",
+          "title": "Markmap",
+          "match": [
+            "*.markmap.md",
+            "*-markmap.md",
+            "*.mm.md",
+            "*-mm.md",
+            "*.mindmap.md",
+            "*-mindmap.md"
+          ],
+          "entry": "editor/index.html",
+          "content": "text"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@markmap/parse": "1.1.1",
+    "@markmap/toolbar": "1.1.1",
+    "@markmap/view": "1.1.1",
+    "@openchamber/sdk": "^2.7.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@markmap/core": "1.1.1",
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^24.10.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "eslint": "^9.39.1",
+    "happy-dom": "^21.0.4",
+    "knip": "^5.70.2",
+    "markdownlint-cli2": "^0.19.0",
+    "prettier": "^3.7.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.48.0",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

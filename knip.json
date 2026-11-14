@@ -1,0 +1,10 @@
+{
+  "entry": [
+    "dev/main.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.spec.ts",
+    "*.config.ts"
+  ],
+  "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "dev/**/*.ts"]
+}
