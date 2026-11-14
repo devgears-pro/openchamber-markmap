@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "dev": "vite --open /dev/",
+    "dev-version": "bun scripts/dev-version.ts",
     "build": "vite build",
     "check:bundle-fresh": "git diff --exit-code -- editor/main.js",
     "check:requirements": "bun scripts/check-requirements.ts",

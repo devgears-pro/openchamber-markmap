@@ -1,28 +1,16 @@
-# Release and directory submission
+# Directory submission
 
-This checklist covers a user-facing release and a listing in the OpenChamber extension directory. A release is not ready until every item is checked against the live repository.
+The version, tag, and changelog process is in [`releases.md`](releases.md). This page covers the OpenChamber extension directory and the checks after a release is published.
 
-## Before the release
+## Before submitting
 
-1. Update behavior only through a requirement and a failing test. See [`sdlc.md`](sdlc.md).
-2. Bump `version` in `package.json` when an installed copy should update. A Git install compares this version.
-3. Run `bun install` if dependencies changed and commit `bun.lock`.
-4. Run `bun run verify`. It must be green.
-5. Run `bun run test:acceptance` when rendering, layout, or gestures changed.
-6. Run `bun run screenshots` when the visible UI changed and commit the updated images in `docs/images/`.
-7. Review the screenshots for light and dark themes. They must use synthetic content only.
-8. Run `bunx openchamber-guest-check`. It must report that the package is ready.
-9. Rebuild `editor/main.js` and commit it with the source change.
-10. Push and wait for both CI jobs: `verify` and `acceptance`.
-
-## Repository check
-
-- The repository is public. The directory links to it, and a private repository cannot be installed by anyone else.
-- The GitHub description matches the current product. It must not mention removed features.
-- Topics include `openchamber`, `openchamber-extension`, `markmap`, `mindmap`, and `markdown`.
-- `README.md` opens with the product sentence and a current screenshot, then covers install, use cases, keyboard, file names, privacy, and development.
+- The repository is public and has a tagged release. A private repository or an untagged branch cannot be installed by other people.
+- `bun run verify` and `bun run test:acceptance` are green on `main`.
+- The GitHub description matches the released product; topics include `openchamber`, `openchamber-extension`, `markmap`, `mindmap`, and `markdown`.
+- `README.md` opens with the product sentence and a current screenshot, then covers install, file names, keyboard, privacy, and development.
+- `docs/images/` was regenerated from synthetic content for the current UI.
 - `LICENSE`, `THIRD_PARTY_NOTICES.md`, and `docs/licenses/` are present.
-- The latest commit is the one CI tested. `git status` is clean.
+- `git status` is clean and the commit is the one CI tested.
 
 ## Directory listing
 
@@ -33,12 +21,12 @@ The OpenChamber extension directory is manual and curated at <https://openchambe
 - category `Preview & files`;
 - a short "what it does" sentence.
 
-Do not submit while the repository is private. Do not describe a feature that the current version does not have.
+Do not submit while the repository is private. Do not describe a feature that the released version does not have.
 
 ## After publication
 
-1. Install from the Git URL in a clean OpenChamber profile, not the development folder.
-2. Open a synthetic `.markmap.md` file and check selection, editing, save, theme switching, and read-only rendering.
-3. Confirm the extension card shows the expected version.
-4. Test one update: bump the version, push, and use **Check for updates** in Settings → Extensions.
+1. Install from the plain Git URL in a clean OpenChamber profile, not the development folder.
+2. Open a synthetic `.markmap.md` file and check selection, editing, save, theme switching, read-only rendering, links, and markers.
+3. Confirm the extension card shows the released version.
+4. Install the pinned tag URL `#vX.Y.Z` and confirm the same version.
 5. Keep the issue or directory thread updated with the install result and screenshots.

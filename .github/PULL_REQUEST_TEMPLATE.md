@@ -6,6 +6,12 @@
 - [ ] The test name contains `[R-xx]`.
 - [ ] For a bug, the failing regression test was posted before the fix.
 
+## Release
+
+- [ ] The PR title is a Conventional Commit (`feat:`, `fix:`, `docs:`, `chore:`), and it drives the changelog.
+- [ ] The target branch is `dev` for a feature or fix, and `main` only for a release promotion.
+- [ ] `CHANGELOG.md` and the `package.json` version were not edited by hand; Release Please and the dev workflow own them.
+
 ## Verification
 
 - [ ] `bun run verify`

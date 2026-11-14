@@ -51,13 +51,29 @@ Requirements: OpenChamber 2.7.1 or newer on desktop or web. File editors are not
 2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
 3. There are no capabilities to approve; the host hands the editor one file at a time.
 
+Stable:
+
 ```text
 https://github.com/mmospanenko/openchamber-markmap
+```
+
+Preview:
+
+```text
+https://github.com/mmospanenko/openchamber-markmap#dev
+```
+
+Pinned release:
+
+```text
+https://github.com/mmospanenko/openchamber-markmap#v0.4.0
 ```
 
 ```text
 openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap
 ```
+
+The preview follows the `dev` branch. CI bumps its `version` on every push, so **Check for updates** sees it, and it may break. It replaces the stable install because both use the same extension id; remove it and add the plain URL to return to stable. A pinned tag stays on that tag.
 
 A folder install runs from that folder and does not update itself:
 
@@ -161,7 +177,8 @@ The process is documented in:
 - [`docs/process/sdlc.md`](docs/process/sdlc.md) — change lifecycle and gates.
 - [`docs/process/testing.md`](docs/process/testing.md) — test levels and coverage.
 - [`docs/process/bugs.md`](docs/process/bugs.md) — failing test first.
-- [`docs/process/release.md`](docs/process/release.md) — version, screenshots, and directory submission.
+- [`docs/process/release.md`](docs/process/release.md) — directory submission and post-release checks.
+- [`docs/process/releases.md`](docs/process/releases.md) — branches, versions, tags, and changelogs.
 - [`docs/requirements.md`](docs/requirements.md) — requirement tree and traceability.
 
 Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.

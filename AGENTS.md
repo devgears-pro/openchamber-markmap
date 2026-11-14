@@ -68,6 +68,13 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 
 Bugs follow the same path, with the regression test first. See `docs/process/bugs.md`.
 
+## Branches and releases
+
+- Feature and fix PRs target `dev`; only a release promotion merges into `main`.
+- CI writes the `-dev.N` preview version on every push to `dev`. Release Please writes the stable version, changelog, tag, and release on `main`.
+- Do not edit the `package.json` version or the generated `CHANGELOG.md` sections by hand. PR titles are Conventional Commits because they become the changelog.
+- The process and first-time setup are in `docs/process/releases.md`.
+
 ## Markmap facts
 
 - `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
