@@ -44,7 +44,7 @@ The preview version commit is `chore(dev): preview X.Y.Z-dev.N [skip ci]`. It ch
 ## Stable release
 
 1. Make sure `dev` is green and the preview has been tested.
-2. Open a PR from `dev` into `main` and merge it. This is the only promotion step.
+2. Open a PR from `dev` into `main` and merge it with a **merge commit, not squash**. Release Please reads the commits on `main`; a squash merge would hide the feature and fix entries. This is the only promotion step.
 3. The **Release** workflow runs Release Please on `main`. It opens or updates a PR titled `chore(main): release X.Y.Z`.
 4. Review the version and the generated changelog in that PR. CI must be green.
 5. Merge the release PR. Release Please creates the `vX.Y.Z` tag and the GitHub Release.
