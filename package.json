@@ -1,6 +1,6 @@
 {
   "name": "openchamber-markmap",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "type": "module",
   "description": "OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map.",

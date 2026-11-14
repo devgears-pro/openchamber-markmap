@@ -60,7 +60,7 @@ An invalid command, such as a line break in a heading label, keeps the document 
 
 ### R-14 Wheel navigation
 
-An unmodified wheel or trackpad gesture pans the map without changing its scale. A wheel with Cmd or Ctrl zooms around the pointer.
+An unmodified wheel or trackpad gesture pans the map without changing its scale. Line and page deltas are normalized, Shift maps vertical wheel input to horizontal, and a wheel burst is applied once per animation frame. A wheel with Cmd or Ctrl zooms around the pointer with clamped deltas.
 
 ## Traceability
 

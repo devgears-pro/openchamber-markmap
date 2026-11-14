@@ -46,6 +46,7 @@ const { createMarkmapView } = await import('../src/markmap/view');
 
 type FakeMarkmap = {
   options: Record<string, unknown>;
+  zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
 };
@@ -62,6 +63,7 @@ const root: MarkmapNode = {
 const fakeMarkmap = (): FakeMarkmap => {
   const markmap: FakeMarkmap = {
     options: {},
+    zoomBehavior: { wheelDelta: vi.fn() },
     setOptions: vi.fn((next: Record<string, unknown>) => {
       markmap.options = next;
     }),
@@ -123,6 +125,7 @@ describe('Markmap adapter', () => {
     };
     expect(options.colorScheme).toBe('dark');
     expect(options.gestures).toBeTypeOf('function');
+    expect(markmap.zoomBehavior.wheelDelta).toHaveBeenCalledWith(expect.any(Function));
     expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
     expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
     expect(mocks.editorOptions).toHaveLength(1);

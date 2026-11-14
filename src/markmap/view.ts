@@ -3,7 +3,7 @@ import { parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
-import { mapGestures } from './gestures';
+import { mapGestures, wheelZoomDelta } from './gestures';
 
 export type MarkmapColorScheme = 'light' | 'dark';
 
@@ -58,6 +58,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       optionsFor(mount.colorScheme, parsed.frontmatter),
     );
     const instance = markmap;
+    instance.zoomBehavior.wheelDelta(wheelZoomDelta);
     toolbar = createToolbar(instance);
 
     if (mount.editable) {
