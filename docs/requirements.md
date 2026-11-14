@@ -50,6 +50,10 @@ The map exposes an image role and a name, the source sidebar exposes its name, a
 
 Typing in the sidebar updates the map, reports `{ dirty: true, edited: true }` through the save tracker, and becomes the next snapshot. A saved version clears the dirty flag. Read-only files reject edits and keep the original snapshot.
 
+### R-12 Node click focuses source
+
+A left click on a Markmap node focuses the Markdown textarea and selects that node's source range, including its heading or list marker. Clicks on links, fold controls, and nodes without a source position are ignored.
+
 ## Traceability
 
 | Requirement | Tests                                                         |
@@ -64,4 +68,5 @@ Typing in the sidebar updates the map, reports `{ dirty: true, edited: true }` t
 | R-08        | `tests/bundle.test.ts`                                        |
 | R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`          |
 | R-10        | `tests/app.test.ts`, acceptance                               |
-| R-11        | `tests/app.test.ts`                                           |
+| R-11        | `tests/app.test.ts`, acceptance                               |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |

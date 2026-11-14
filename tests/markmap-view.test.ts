@@ -19,8 +19,11 @@ vi.mock('@markmap/toolbar', () => ({ createToolbar: mocks.createToolbar }));
 const { createMarkmapView } = await import('../src/markmap/view');
 
 type FakeMarkmap = {
+  tree: MarkmapNode | undefined;
   fit: ReturnType<typeof vi.fn>;
   setTree: ReturnType<typeof vi.fn>;
+  hitAt: ReturnType<typeof vi.fn>;
+  layoutPoint: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
 };
 
@@ -30,12 +33,16 @@ const root: MarkmapNode = {
   content: [],
   notes: [],
   data: {},
+  position: { start: 5, end: 9 },
   children: [],
 };
 
 const fakeMarkmap = (): FakeMarkmap => ({
+  tree: root,
   fit: vi.fn(),
   setTree: vi.fn(),
+  hitAt: vi.fn(() => ({ kind: 'node', nodeId: 'root' })),
+  layoutPoint: vi.fn(() => [10, 20]),
   destroy: vi.fn(),
 });
 
@@ -47,6 +54,7 @@ const setup = (theme?: string) => {
     update: vi.fn(),
   };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const onNode = vi.fn();
   const frontmatter = theme === undefined ? {} : { markmap: { theme } };
   mocks.parse.mockReturnValue({ root, frontmatter, gfm: true });
   mocks.resolveViewOptions.mockReturnValue({
@@ -56,7 +64,7 @@ const setup = (theme?: string) => {
   });
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
-  return { markmap, toolbar, svg, frontmatter };
+  return { markmap, toolbar, svg, frontmatter, onNode };
 };
 
 beforeEach(() => {
@@ -66,8 +74,8 @@ beforeEach(() => {
 
 describe('Markmap adapter', () => {
   test('[R-02] creates a view and applies frontmatter options', () => {
-    const { markmap, toolbar, svg, frontmatter } = setup('cards');
-    const result = createMarkmapView(svg, '# Root', 'dark');
+    const { markmap, toolbar, svg, frontmatter, onNode } = setup('cards');
+    const result = createMarkmapView(svg, '# Root', 'dark', onNode);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -83,8 +91,8 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-04] updates the tree', () => {
-    const { markmap, svg } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light');
+    const { markmap, svg, onNode } = setup();
+    const result = createMarkmapView(svg, '# Root', 'light', onNode);
     if (!result.ok) throw new Error(result.message);
 
     const nextRoot: MarkmapNode = { ...root, id: 'next' };
@@ -102,8 +110,8 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-07] destroys every resource', () => {
-    const { markmap, toolbar, svg } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light');
+    const { markmap, toolbar, svg, onNode } = setup();
+    const result = createMarkmapView(svg, '# Root', 'light', onNode);
     if (!result.ok) throw new Error(result.message);
     svg.append(document.createElementNS('http://www.w3.org/2000/svg', 'g'));
 
@@ -114,13 +122,78 @@ describe('Markmap adapter', () => {
     expect(svg.childElementCount).toBe(0);
   });
 
+  test('[R-12] reports the source range for a clicked node', () => {
+    const { markmap, svg, onNode } = setup();
+    const result = createMarkmapView(svg, '# Root', 'light', onNode);
+    if (!result.ok) throw new Error(result.message);
+
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).toHaveBeenLastCalledWith({ start: 5, end: 9 });
+
+    const child: MarkmapNode = {
+      id: 'child',
+      type: 'heading',
+      content: [],
+      notes: [],
+      data: {},
+      position: { start: 10, end: 14 },
+      children: [],
+    };
+    markmap.tree = { ...root, children: [child] };
+    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'child' });
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+
+    expect(onNode).toHaveBeenLastCalledWith({ start: 10, end: 14 });
+  });
+
+  test('[R-12] ignores clicks that are not a left click on a positioned node', () => {
+    const { markmap, svg, onNode } = setup();
+    const result = createMarkmapView(svg, '# Root', 'light', onNode);
+    if (!result.ok) throw new Error(result.message);
+
+    svg.dispatchEvent(new MouseEvent('click', { button: 1, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+
+    markmap.hitAt.mockReturnValue({ kind: 'link', nodeId: 'root', href: 'https://example.com' });
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+
+    markmap.hitAt.mockReturnValue(null);
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+
+    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'missing' });
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+
+    const child: MarkmapNode = {
+      id: 'child',
+      type: 'heading',
+      content: [],
+      notes: [],
+      data: {},
+      children: [],
+    };
+    markmap.tree = { ...root, children: [child] };
+    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'child' });
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+
+    markmap.tree = undefined;
+    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
+    expect(onNode).not.toHaveBeenCalled();
+  });
+
   test('[R-06] reports a parse error without touching the DOM', () => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     mocks.parse.mockImplementation(() => {
       throw new Error('invalid yaml');
     });
 
-    expect(createMarkmapView(svg, '---', 'light')).toEqual({ ok: false, message: 'invalid yaml' });
+    expect(createMarkmapView(svg, '---', 'light', vi.fn())).toEqual({
+      ok: false,
+      message: 'invalid yaml',
+    });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(svg.childElementCount).toBe(0);
   });
@@ -131,16 +204,19 @@ describe('Markmap adapter', () => {
       throw 'plain text';
     });
 
-    expect(createMarkmapView(svg, '', 'light')).toEqual({ ok: false, message: 'plain text' });
+    expect(createMarkmapView(svg, '', 'light', vi.fn())).toEqual({
+      ok: false,
+      message: 'plain text',
+    });
   });
 
   test('[R-07] destroys a created view when the toolbar fails', () => {
-    const { markmap, svg } = setup();
+    const { markmap, svg, onNode } = setup();
     mocks.createToolbar.mockImplementation(() => {
       throw new Error('toolbar failed');
     });
 
-    expect(createMarkmapView(svg, '# Root', 'light')).toEqual({
+    expect(createMarkmapView(svg, '# Root', 'light', onNode)).toEqual({
       ok: false,
       message: 'toolbar failed',
     });
@@ -155,7 +231,7 @@ describe('Markmap adapter', () => {
       throw new Error('bad options');
     });
 
-    expect(createMarkmapView(svg, '# Root', 'light')).toEqual({
+    expect(createMarkmapView(svg, '# Root', 'light', vi.fn())).toEqual({
       ok: false,
       message: 'bad options',
     });

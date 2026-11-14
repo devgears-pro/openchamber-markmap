@@ -4,6 +4,8 @@ import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
 export type MarkmapColorScheme = 'light' | 'dark';
 
+export type MarkmapSourceRange = { start: number; end: number };
+
 export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
   update: (markdown: string, colorScheme: MarkmapColorScheme) => void;
@@ -16,10 +18,26 @@ export type MarkmapFactory = (
   svg: SVGSVGElement,
   markdown: string,
   colorScheme: MarkmapColorScheme,
+  onNode: (range: MarkmapSourceRange) => void,
 ) => MarkmapResult;
+
+type TreeNode = {
+  id: string;
+  position?: MarkmapSourceRange;
+  children: TreeNode[];
+};
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const positionOf = (node: TreeNode, id: string): MarkmapSourceRange | null => {
+  if (node.id === id) return node.position ?? null;
+  for (const child of node.children) {
+    const range = positionOf(child, id);
+    if (range !== null) return range;
+  }
+  return null;
+};
 
 const optionsFor = (
   colorScheme: MarkmapColorScheme,
@@ -29,22 +47,37 @@ const optionsFor = (
   colorScheme,
 });
 
-export const createMarkmapView: MarkmapFactory = (svg, markdown, colorScheme) => {
+export const createMarkmapView: MarkmapFactory = (svg, markdown, colorScheme, onNode) => {
   let markmap: Markmap | null = null;
   try {
     const parsed = parse(markdown);
     markmap = Markmap.create(svg, parsed.root, optionsFor(colorScheme, parsed.frontmatter));
-    const toolbar = createToolbar(markmap);
+    const instance = markmap;
+    const toolbar = createToolbar(instance);
+
+    const handleClick = (event: MouseEvent): void => {
+      if (event.button !== 0) return;
+      const root = instance.tree;
+      if (root === undefined) return;
+      const [x, y] = instance.layoutPoint(event.clientX, event.clientY);
+      const hit = instance.hitAt(x, y);
+      if (hit?.kind !== 'node') return;
+      const range = positionOf(root, hit.nodeId);
+      if (range !== null) onNode(range);
+    };
+    svg.addEventListener('click', handleClick);
+
     const view: MarkmapView = {
       toolbar: toolbar.element,
       update: (nextMarkdown, nextScheme) => {
         const next = parse(nextMarkdown);
-        markmap?.setTree(next.root, optionsFor(nextScheme, next.frontmatter));
-        markmap?.fit();
+        instance.setTree(next.root, optionsFor(nextScheme, next.frontmatter));
+        instance.fit();
       },
       destroy: () => {
+        svg.removeEventListener('click', handleClick);
         toolbar.destroy();
-        markmap?.destroy();
+        instance.destroy();
         markmap = null;
         svg.replaceChildren();
       },

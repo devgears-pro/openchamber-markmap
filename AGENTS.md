@@ -42,6 +42,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - Use `@markmap/parse`, `@markmap/view`, and `@markmap/toolbar`; do not fork their behavior.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
 - The textarea is the only editing surface. Read-only files must not accept input.
+- A node click focuses the textarea and selects the node's `position` range from the parsed tree. Positions are absolute offsets that include the frontmatter.
 - Destroy the Markmap view, toolbar, and DOM on file change and dispose.
 - Do not add network access, external assets, `any`, type assertions, or non-null assertions in `src/`.
 - Do not write comments in code. Tests and docs carry the explanation.

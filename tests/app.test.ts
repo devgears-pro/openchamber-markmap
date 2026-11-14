@@ -89,6 +89,7 @@ type FakeMarkmap = {
   scheme: MarkmapColorScheme;
   view: MarkmapView;
   updates: { markdown: string; scheme: MarkmapColorScheme }[];
+  onNode: (range: { start: number; end: number }) => void;
   destroyed: boolean;
 };
 
@@ -104,13 +105,14 @@ const createMarkmapFactory = (): FakeMarkmapFactory => {
     created: [],
     fail: null,
     updateError: null,
-    factory: (_svg, markdown, scheme) => {
+    factory: (_svg, markdown, scheme, onNode) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
       const toolbar = document.createElement('div');
       const entry: FakeMarkmap = {
         markdown,
         scheme,
         updates: [],
+        onNode,
         destroyed: false,
         view: {
           toolbar,
@@ -245,6 +247,21 @@ describe('Markmap file editor', () => {
 
     expect(markmaps.created[0]?.updates).toHaveLength(0);
     expect(contentOf(await host.snapshot())).toBe(SOURCE);
+  });
+
+  test('[R-12] focuses the Markdown text for a clicked node', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
+    const start = SOURCE.indexOf('## Branch');
+    const end = start + '## Branch'.length;
+
+    markmaps.created[0]?.onNode({ start, end });
+
+    expect(document.activeElement).toBe(source);
+    expect(source?.selectionStart).toBe(start);
+    expect(source?.selectionEnd).toBe(end);
+    expect(source?.value.slice(start, end)).toBe('## Branch');
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {

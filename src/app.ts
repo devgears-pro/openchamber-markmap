@@ -1,7 +1,12 @@
 import { createFileSaveTracker, type FileEditorSnapshot, type HostClient } from '@openchamber/sdk';
 import { applyHostReady } from '@openchamber/sdk/ui';
 
-import type { MarkmapColorScheme, MarkmapFactory, MarkmapView } from './markmap/view';
+import type {
+  MarkmapColorScheme,
+  MarkmapFactory,
+  MarkmapSourceRange,
+  MarkmapView,
+} from './markmap/view';
 import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
@@ -89,6 +94,15 @@ export const mountApp = (
   body.append(stage, source);
   root.append(body);
 
+  const focusNode = (range: MarkmapSourceRange): void => {
+    const start = Math.max(0, Math.min(range.start, state.text.length));
+    const end = Math.max(start, Math.min(range.end, state.text.length));
+    source.focus();
+    source.setSelectionRange(start, end);
+    const line = state.text.slice(0, start).split('\n').length;
+    source.scrollTop = Math.max(0, (line - 1) * 18 - source.clientHeight / 3);
+  };
+
   const destroyMarkmap = (): void => {
     state.markmap?.destroy();
     state.markmap = null;
@@ -130,7 +144,7 @@ export const mountApp = (
     if (!state.hasFile) return;
 
     if (state.markmap === null) {
-      const result = createMarkmap(svg, state.text, state.colorScheme);
+      const result = createMarkmap(svg, state.text, state.colorScheme, focusNode);
       if (!result.ok) {
         state.failure = result.message;
         showError(result.message);

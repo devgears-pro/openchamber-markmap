@@ -28,3 +28,19 @@ test('[R-11] edits Markdown and redraws the real Markmap', async ({ page }) => {
   await expect(page.locator('.mm-markmap-svg')).toContainText('New branch');
   await expect(page.locator('.mm-markmap-svg')).toContainText('New leaf');
 });
+
+test('[R-12] focuses the Markdown line when a node is clicked', async ({ page }) => {
+  await page.goto('/dev/');
+  const source = page.locator('.mm-source');
+
+  await page.getByText('Links', { exact: true }).first().click();
+
+  await expect(source).toBeFocused();
+  const selection = await source.evaluate((element: HTMLTextAreaElement) => ({
+    start: element.selectionStart,
+    end: element.selectionEnd,
+    text: element.value.slice(element.selectionStart, element.selectionEnd),
+  }));
+  expect(selection.end).toBeGreaterThan(selection.start);
+  expect(selection.text).toContain('Links');
+});

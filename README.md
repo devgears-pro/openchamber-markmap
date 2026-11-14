@@ -37,6 +37,7 @@ The folder must contain `package.json` and `editor/index.html`. The tracked `edi
 
 - The file opens as a Markmap with zoom, pan, fold, and fit controls from the library.
 - Markdown is edited in a plain textarea beside the map. The map redraws as you type.
+- Clicking a map node focuses the textarea and selects that node's Markdown line, including its `#` or `-` marker.
 - The map follows the OpenChamber light or dark theme. A `markmap.colorScheme` value in frontmatter does not override the host theme.
 - Markmap options under `markmap:` in YAML frontmatter, such as `theme`, `layout`, and `foldLevel`, are applied through `resolveViewOptions`.
 - Saving returns the current Markdown. An unchanged file returns the original text; binary input returns its original bytes.
