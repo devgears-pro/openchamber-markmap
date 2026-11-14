@@ -1,43 +1,37 @@
-import { parse } from '@markmap/parse';
+import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
+import { parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
 export type MarkmapColorScheme = 'light' | 'dark';
 
-export type MarkmapSourceRange = { start: number; end: number };
+export type MarkmapSourceChange = {
+  source: string;
+  selection: number;
+};
 
 export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
-  update: (markdown: string, colorScheme: MarkmapColorScheme) => void;
+  setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   destroy: () => void;
+};
+
+export type MarkmapMount = {
+  surface: HTMLElement;
+  svg: SVGSVGElement;
+  markdown: string;
+  colorScheme: MarkmapColorScheme;
+  editable: boolean;
+  onSource: (change: MarkmapSourceChange) => void;
+  onError: (message: string) => void;
 };
 
 export type MarkmapResult = { ok: true; view: MarkmapView } | { ok: false; message: string };
 
-export type MarkmapFactory = (
-  svg: SVGSVGElement,
-  markdown: string,
-  colorScheme: MarkmapColorScheme,
-  onNode: (range: MarkmapSourceRange) => void,
-) => MarkmapResult;
-
-type TreeNode = {
-  id: string;
-  position?: MarkmapSourceRange;
-  children: TreeNode[];
-};
+export type MarkmapFactory = (mount: MarkmapMount) => MarkmapResult;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
-
-const positionOf = (node: TreeNode, id: string): MarkmapSourceRange | null => {
-  if (node.id === id) return node.position ?? null;
-  for (const child of node.children) {
-    const range = positionOf(child, id);
-    if (range !== null) return range;
-  }
-  return null;
-};
 
 const optionsFor = (
   colorScheme: MarkmapColorScheme,
@@ -47,45 +41,57 @@ const optionsFor = (
   colorScheme,
 });
 
-export const createMarkmapView: MarkmapFactory = (svg, markdown, colorScheme, onNode) => {
+export const createMarkmapView: MarkmapFactory = (mount) => {
   let markmap: Markmap | null = null;
-  try {
-    const parsed = parse(markdown);
-    markmap = Markmap.create(svg, parsed.root, optionsFor(colorScheme, parsed.frontmatter));
-    const instance = markmap;
-    const toolbar = createToolbar(instance);
+  let editor: MarkmapEditor | null = null;
+  let toolbar: ReturnType<typeof createToolbar> | null = null;
 
-    const handleClick = (event: MouseEvent): void => {
-      if (event.button !== 0) return;
-      const root = instance.tree;
-      if (root === undefined) return;
-      const [x, y] = instance.layoutPoint(event.clientX, event.clientY);
-      const hit = instance.hitAt(x, y);
-      if (hit?.kind !== 'node') return;
-      const range = positionOf(root, hit.nodeId);
-      if (range !== null) onNode(range);
-    };
-    svg.addEventListener('click', handleClick);
+  try {
+    const parsed = parseDocument(mount.markdown);
+    markmap = Markmap.create(
+      mount.svg,
+      parsed.tree,
+      optionsFor(mount.colorScheme, parsed.frontmatter),
+    );
+    const instance = markmap;
+    toolbar = createToolbar(instance);
+
+    if (mount.editable) {
+      editor = new MarkmapEditor({
+        source: mount.markdown,
+        view: createEditView(instance),
+        container: mount.surface,
+        onChange: (change) =>
+          mount.onSource({
+            source: change.source,
+            selection: change.selection,
+          }),
+        onError: (error) => mount.onError(error.message),
+      });
+      editor.focus();
+    }
 
     const view: MarkmapView = {
       toolbar: toolbar.element,
-      update: (nextMarkdown, nextScheme) => {
-        const next = parse(nextMarkdown);
-        instance.setTree(next.root, optionsFor(nextScheme, next.frontmatter));
-        instance.fit();
+      setColorScheme: (colorScheme) => {
+        instance.setOptions({ ...instance.options, colorScheme });
       },
       destroy: () => {
-        svg.removeEventListener('click', handleClick);
-        toolbar.destroy();
+        editor?.destroy();
+        editor = null;
+        toolbar?.destroy();
+        toolbar = null;
         instance.destroy();
         markmap = null;
-        svg.replaceChildren();
+        mount.svg.replaceChildren();
       },
     };
     return { ok: true, view };
   } catch (error) {
+    editor?.destroy();
+    toolbar?.destroy();
     markmap?.destroy();
-    svg.replaceChildren();
+    mount.svg.replaceChildren();
     return { ok: false, message: messageOf(error) };
   }
 };

@@ -9,19 +9,20 @@ const MARKMAP_CSS = `
     font-family: var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif);
     font-size: 13px;
   }
-  .mm-body {
+  .mm-stage {
     position: absolute;
     inset: 0;
     display: flex;
     overflow: hidden;
     background: var(--oc-bg, #1b1b1f);
   }
-  .mm-stage {
+  .mm-editor-surface {
     position: relative;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    color: var(--oc-fg, #ececf1);
+    font: 400 16px/20px var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif);
   }
   .mm-markmap-svg {
     display: block;
@@ -33,30 +34,26 @@ const MARKMAP_CSS = `
     position: absolute;
     top: 8px;
     right: 8px;
-    z-index: 2;
+    z-index: 4;
   }
-  .mm-source {
-    box-sizing: border-box;
-    flex: 0 0 clamp(220px, 30%, 420px);
-    min-width: 0;
-    margin: 0;
-    padding: 10px 12px;
-    overflow: auto;
-    border: 0;
-    border-left: 1px solid var(--oc-border, #34343c);
-    outline: none;
-    background: var(--oc-bg, #1b1b1f);
-    color: var(--oc-fg, #ececf1);
-    font-family: var(--oc-mono, ui-monospace, monospace);
+  .mm-notice {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    z-index: 5;
+    padding: 7px 10px;
+    border: 1px solid var(--oc-border, #34343c);
+    border-radius: calc(var(--oc-radius, 9px) * 0.7);
+    background: var(--oc-elevated, #25252c);
+    color: var(--oc-warning-text, #f0c36a);
     font-size: 12px;
-    line-height: 1.5;
-    resize: none;
   }
-  .mm-source:focus { box-shadow: inset 0 0 0 1px var(--oc-focus, #7c6cf6); }
-  .mm-source[hidden] { display: none; }
+  .mm-notice[hidden] { display: none; }
   .mm-error {
     position: absolute;
     inset: 0;
+    z-index: 6;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -66,14 +63,6 @@ const MARKMAP_CSS = `
     text-align: center;
   }
   .mm-error p { max-width: 52ch; margin: 0; }
-  @media (max-width: 720px) {
-    .mm-body { flex-direction: column; }
-    .mm-source {
-      flex: 0 0 35%;
-      border-top: 1px solid var(--oc-border, #34343c);
-      border-left: 0;
-    }
-  }
 `;
 
 export const ensureStyles = (target: Document): void => {

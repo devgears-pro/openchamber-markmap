@@ -12,9 +12,9 @@ The package declares one `contributes.fileEditors` entry with id `markmap`, titl
 
 A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. Rendering uses `@markmap/parse`, `@markmap/view`, and `@markmap/toolbar`; this repository contains no custom Markdown parser or layout.
 
-### R-03 Source sidebar
+### R-03 Node selection
 
-The Markdown is editable in a plain textarea beside the map. The sidebar has an accessible name, scrolls independently, hides for binary input, and is locked when the host marks the file read-only.
+A matching file opens with the root selected. A left click selects a node, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node.
 
 ### R-04 Theme
 
@@ -44,15 +44,19 @@ The same source and lockfile produce the same bundle. Snapshot versions depend o
 
 ### R-10 Accessibility
 
-The map exposes an image role and a name, the source sidebar exposes its name, and the Markmap toolbar keeps labelled controls.
+The map exposes an image role and a name, and the Markmap toolbar keeps labelled controls.
 
-### R-11 Markdown editing
+### R-11 Keyboard editing
 
-Typing in the sidebar updates the map, reports `{ dirty: true, edited: true }` through the save tracker, and becomes the next snapshot. A saved version clears the dirty flag. Read-only files reject edits and keep the original snapshot.
+Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, F2 or Space edits the label, and Escape cancels. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
 
-### R-12 Node click focuses source
+### R-12 Read-only files
 
-A left click on a Markmap node focuses the Markdown textarea and selects that node's source range, including its heading or list marker. Clicks on links, fold controls, and nodes without a source position are ignored.
+A file marked read-only renders the map without the node editor. Its snapshot stays byte-for-byte equal to the opened file.
+
+### R-13 Editor errors
+
+An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. The notice clears on the next successful edit.
 
 ## Traceability
 
@@ -60,13 +64,14 @@ A left click on a Markmap node focuses the Markdown textarea and selects that no
 | ----------- | ------------------------------------------------------------- |
 | R-01        | `tests/manifest.test.ts`                                      |
 | R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-03        | `tests/app.test.ts`, `tests/styles.test.ts`, acceptance       |
+| R-03        | `tests/markmap-view.test.ts`, acceptance                      |
 | R-04        | `tests/app.test.ts`                                           |
 | R-05        | `tests/app.test.ts`                                           |
 | R-06        | `tests/app.test.ts`                                           |
 | R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
 | R-08        | `tests/bundle.test.ts`                                        |
 | R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`          |
-| R-10        | `tests/app.test.ts`, acceptance                               |
-| R-11        | `tests/app.test.ts`, acceptance                               |
-| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
+| R-10        | acceptance                                                    |
+| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
+| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |

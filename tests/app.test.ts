@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import { mountApp, type MarkmapHost, type MountOptions } from '../src/app';
-import type { MarkmapColorScheme, MarkmapFactory, MarkmapView } from '../src/markmap/view';
+import type {
+  MarkmapColorScheme,
+  MarkmapFactory,
+  MarkmapMount,
+  MarkmapView,
+} from '../src/markmap/view';
 import {
   EMPTY_GUEST_CONNECTION,
   type FileEditorChange,
@@ -14,7 +19,7 @@ import {
 
 const SOURCE = `---
 markmap:
-  colorScheme: light
+  theme: classic
 ---
 
 # Root
@@ -84,51 +89,37 @@ const createHost = () => {
   };
 };
 
-type FakeMarkmap = {
-  markdown: string;
-  scheme: MarkmapColorScheme;
-  view: MarkmapView;
-  updates: { markdown: string; scheme: MarkmapColorScheme }[];
-  onNode: (range: { start: number; end: number }) => void;
-  destroyed: boolean;
-};
-
-type FakeMarkmapFactory = {
+type FakeFactory = {
   factory: MarkmapFactory;
-  created: FakeMarkmap[];
+  mounts: MarkmapMount[];
+  colorSchemes: MarkmapColorScheme[];
+  destroyed: () => number;
   fail: string | null;
-  updateError: unknown;
 };
 
-const createMarkmapFactory = (): FakeMarkmapFactory => {
-  const state: FakeMarkmapFactory = {
-    created: [],
+const createMarkmapFactory = (): FakeFactory => {
+  const toolbar = document.createElement('div');
+  toolbar.className = 'fake-markmap-toolbar';
+  const colorSchemes: MarkmapColorScheme[] = [];
+  let destroyCount = 0;
+  const view: MarkmapView = {
+    toolbar,
+    setColorScheme: (scheme) => {
+      colorSchemes.push(scheme);
+    },
+    destroy: () => {
+      destroyCount += 1;
+    },
+  };
+  const state: FakeFactory = {
+    mounts: [],
+    colorSchemes,
+    destroyed: () => destroyCount,
     fail: null,
-    updateError: null,
-    factory: (_svg, markdown, scheme, onNode) => {
+    factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
-      const toolbar = document.createElement('div');
-      const entry: FakeMarkmap = {
-        markdown,
-        scheme,
-        updates: [],
-        onNode,
-        destroyed: false,
-        view: {
-          toolbar,
-          update: (nextMarkdown, nextScheme) => {
-            if (state.updateError !== null) throw state.updateError;
-            entry.markdown = nextMarkdown;
-            entry.scheme = nextScheme;
-            entry.updates.push({ markdown: nextMarkdown, scheme: nextScheme });
-          },
-          destroy: () => {
-            entry.destroyed = true;
-          },
-        },
-      };
-      state.created.push(entry);
-      return { ok: true, view: entry.view };
+      state.mounts.push(mount);
+      return { ok: true, view };
     },
   };
   return state;
@@ -145,10 +136,10 @@ const readyContext = (mode: HostThemeMode): HostReadyContext => ({
   item: null,
 });
 
-const textFile = (content: string): FileEditorDocument => ({
+const textFile = (content: string, readOnly = false): FileEditorDocument => ({
   path: 'notes.markmap.md',
   name: 'notes.markmap.md',
-  readOnly: false,
+  readOnly,
   encoding: 'text',
   content,
 });
@@ -183,30 +174,41 @@ describe('Markmap file editor', () => {
     return { host, app, markmaps };
   };
 
-  test('[R-02] renders the opened file as a Markmap', () => {
+  test('[R-02] renders a text file as an editable Markmap', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
 
-    expect(markmaps.created).toHaveLength(1);
-    expect(markmaps.created[0]?.markdown).toBe(SOURCE);
-    expect(root.querySelector('.mm-markmap-svg')).not.toBeNull();
+    expect(markmaps.mounts).toHaveLength(1);
+    expect(markmaps.mounts[0]?.markdown).toBe(SOURCE);
+    expect(markmaps.mounts[0]?.editable).toBe(true);
+    expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
+    expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
     expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(1);
     expect(root.querySelector('.mm-error')).toBeNull();
   });
 
-  test('[R-03] [R-10] shows the Markdown source in the sidebar', () => {
-    const { host } = mount();
-    host.emitFile(textFile(SOURCE));
+  test('[R-12] creates a read-only map without the node editor', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE, true));
 
-    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
-    expect(source?.hasAttribute('hidden')).toBe(false);
-    expect(source?.value).toBe(SOURCE);
-    expect(source?.readOnly).toBe(false);
-    expect(source?.getAttribute('aria-label')).toBe('Markdown source');
-    expect(root.querySelector('.mm-markmap-svg')?.getAttribute('role')).toBe('img');
-    expect(root.querySelector('.mm-markmap-svg')?.getAttribute('aria-label')).toBe(
-      'Markmap mind map',
-    );
+    expect(markmaps.mounts[0]?.editable).toBe(false);
+    expect(contentOf(await host.snapshot())).toBe(SOURCE);
+  });
+
+  test('[R-11] applies a map edit to the snapshot and dirty state', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const next = '# Changed\n\n## Branch\n\n- Leaf\n';
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onSource({ source: next, selection: 0 });
+
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    const snapshot = await host.snapshot();
+    expect(contentOf(snapshot)).toBe(next);
+    host.saved(snapshot.version);
+    expect(host.changes.at(-1)?.dirty).toBe(false);
   });
 
   test('[R-05] [R-09] snapshots the original text unchanged', async () => {
@@ -216,52 +218,6 @@ describe('Markmap file editor', () => {
     const snapshot = await host.snapshot();
     expect(contentOf(snapshot)).toBe(SOURCE);
     expect((await host.snapshot()).version).toBe(snapshot.version);
-  });
-
-  test('[R-11] edits Markdown, redraws the map, and reports a dirty change', async () => {
-    const { host, markmaps } = mount();
-    host.emitFile(textFile(SOURCE));
-    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
-    const next = `${SOURCE}\n## Added\n\n- New leaf\n`;
-
-    source!.value = next;
-    source!.dispatchEvent(new Event('input', { bubbles: true }));
-
-    expect(markmaps.created[0]?.updates.at(-1)?.markdown).toBe(next);
-    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
-
-    const snapshot = await host.snapshot();
-    expect(contentOf(snapshot)).toBe(next);
-    host.saved(snapshot.version);
-    expect(host.changes.at(-1)?.dirty).toBe(false);
-  });
-
-  test('[R-11] keeps a read-only file unchanged', async () => {
-    const { host, markmaps } = mount();
-    host.emitFile({ ...textFile(SOURCE), readOnly: true });
-    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
-
-    expect(source?.readOnly).toBe(true);
-    source!.value = '# Changed\n';
-    source!.dispatchEvent(new Event('input', { bubbles: true }));
-
-    expect(markmaps.created[0]?.updates).toHaveLength(0);
-    expect(contentOf(await host.snapshot())).toBe(SOURCE);
-  });
-
-  test('[R-12] focuses the Markdown text for a clicked node', () => {
-    const { host, markmaps } = mount();
-    host.emitFile(textFile(SOURCE));
-    const source = root.querySelector<HTMLTextAreaElement>('.mm-source');
-    const start = SOURCE.indexOf('## Branch');
-    const end = start + '## Branch'.length;
-
-    markmaps.created[0]?.onNode({ start, end });
-
-    expect(document.activeElement).toBe(source);
-    expect(source?.selectionStart).toBe(start);
-    expect(source?.selectionEnd).toBe(end);
-    expect(source?.value.slice(start, end)).toBe('## Branch');
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {
@@ -276,68 +232,57 @@ describe('Markmap file editor', () => {
     });
 
     expect(host.unsupported()).toBe(1);
-    expect(markmaps.created).toHaveLength(0);
-    expect(root.querySelector('.mm-source')?.hasAttribute('hidden')).toBe(true);
+    expect(markmaps.mounts).toHaveLength(0);
+    expect(root.querySelector('.mm-error')?.textContent).toContain('text files');
     const snapshot = await host.snapshot();
     expect('bytes' in snapshot ? snapshot.bytes : null).toBe(bytes);
   });
 
-  test('[R-06] reports a Markmap parsing failure and asks for the source view', () => {
+  test('[R-06] reports a Markmap creation failure and asks for the source view', () => {
     const { host, markmaps } = mount();
     markmaps.fail = 'Broken markdown';
     host.emitFile(textFile(SOURCE));
 
     expect(host.unsupported()).toBe(1);
-    expect(markmaps.created).toHaveLength(0);
+    expect(markmaps.mounts).toHaveLength(0);
     expect(root.querySelector('.mm-error')?.textContent).toContain('Broken markdown');
   });
 
-  test('[R-04] applies the host colour scheme on ready', () => {
+  test('[R-04] applies the host colour scheme without recreating the view', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
-    expect(markmaps.created[0]?.scheme).toBe('dark');
+    expect(markmaps.mounts[0]?.colorScheme).toBe('dark');
 
     host.emitReady(readyContext('light'));
-    expect(markmaps.created[0]?.updates.at(-1)?.scheme).toBe('light');
+    expect(markmaps.colorSchemes.at(-1)).toBe('light');
+
+    host.emitReady(readyContext('light'));
+    expect(markmaps.colorSchemes).toHaveLength(1);
 
     host.emitReady(readyContext('dark'));
-    expect(markmaps.created[0]?.updates.at(-1)?.scheme).toBe('dark');
-  });
-
-  test('[R-04] keeps the view when the scheme does not change', () => {
-    const { host, markmaps } = mount();
-    host.emitFile(textFile(SOURCE));
-    host.emitReady(readyContext('dark'));
-
-    expect(markmaps.created[0]?.updates).toHaveLength(0);
+    expect(markmaps.colorSchemes.at(-1)).toBe('dark');
+    expect(markmaps.mounts).toHaveLength(1);
   });
 
   test('[R-04] uses the ready scheme for the first render', () => {
     const { host, markmaps } = mount();
-    host.emitReady(readyContext('dark'));
+    host.emitReady(readyContext('light'));
     host.emitFile(textFile(SOURCE));
 
-    expect(markmaps.created[0]?.scheme).toBe('dark');
+    expect(markmaps.mounts[0]?.colorScheme).toBe('light');
   });
 
-  test('[R-11] shows a transient update failure', () => {
+  test('[R-13] shows and clears an editor error', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
-    markmaps.updateError = 'Update failed';
-    host.emitReady(readyContext('light'));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
 
-    expect(host.unsupported()).toBe(0);
-    expect(markmaps.created[0]?.destroyed).toBe(true);
-    expect(root.querySelector('.mm-error')?.textContent).toContain('Update failed');
-  });
+    mountCall.onError('Heading cannot contain a line break');
+    expect(root.querySelector('.mm-notice')?.textContent).toContain('Heading cannot');
 
-  test('[R-11] reports an Error update failure', () => {
-    const { host, markmaps } = mount();
-    host.emitFile(textFile(SOURCE));
-    markmaps.updateError = new Error('Update crashed');
-    host.emitReady(readyContext('light'));
-
-    expect(root.querySelector('.mm-error')?.textContent).toContain('Update crashed');
+    mountCall.onSource({ source: SOURCE, selection: 0 });
+    expect(root.querySelector('.mm-notice')?.hasAttribute('hidden')).toBe(true);
   });
 
   test('[R-07] destroys the previous view when another file opens', () => {
@@ -345,9 +290,8 @@ describe('Markmap file editor', () => {
     host.emitFile(textFile(SOURCE));
     host.emitFile(textFile('# Other\n'));
 
-    expect(markmaps.created).toHaveLength(2);
-    expect(markmaps.created[0]?.destroyed).toBe(true);
-    expect(markmaps.created[1]?.destroyed).toBe(false);
+    expect(markmaps.mounts).toHaveLength(2);
+    expect(markmaps.destroyed()).toBe(1);
   });
 
   test('[R-07] destroys the view and clears the frame on dispose', () => {
@@ -355,7 +299,7 @@ describe('Markmap file editor', () => {
     host.emitFile(textFile(SOURCE));
     app.dispose();
 
-    expect(markmaps.created[0]?.destroyed).toBe(true);
+    expect(markmaps.destroyed()).toBe(1);
     expect(root.childElementCount).toBe(0);
   });
 
@@ -363,8 +307,8 @@ describe('Markmap file editor', () => {
     const { host, markmaps } = mount();
     host.emitReady(readyContext('light'));
 
-    expect(markmaps.created).toHaveLength(0);
+    expect(markmaps.mounts).toHaveLength(0);
     expect(root.querySelector('.mm-error')).toBeNull();
-    expect(root.querySelector('.mm-markmap-svg')).not.toBeNull();
+    expect(root.querySelector('.mm-editor-surface')).not.toBeNull();
   });
 });

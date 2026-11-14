@@ -19,7 +19,10 @@ markmap:
 
 ## Controls
 
-- Scroll to zoom
-- Drag to pan
-- Click a fold dot to collapse a branch
-- Use the file toolbar for the source view
+- Click a node to select it
+- Enter adds a sibling
+- Tab adds a child
+- Shift+Tab outdents
+- F2 or Space edits the label
+- Delete removes the node
+- Cmd/Ctrl+Z undoes

@@ -7,40 +7,61 @@ test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) =>
   await expect(page.locator('.mm-markmap-svg g').first()).toBeVisible();
   await expect(page.locator('.markmap-toolbar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fit to view' })).toBeVisible();
-  await expect(page.locator('.mm-source')).toHaveValue(/# Markmap/u);
 });
 
-test('[R-03] [R-10] exposes the source and the map with accessible names', async ({ page }) => {
+test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page }) => {
   await page.goto('/dev/');
 
-  await expect(page.locator('.mm-source')).toHaveAttribute('aria-label', 'Markdown source');
   await expect(page.locator('.mm-markmap-svg')).toHaveAttribute('role', 'img');
   await expect(page.locator('.mm-markmap-svg')).toHaveAttribute('aria-label', 'Markmap mind map');
-  await expect(page.locator('.mm-source')).toHaveValue(/## Links/u);
-});
-
-test('[R-11] edits Markdown and redraws the real Markmap', async ({ page }) => {
-  await page.goto('/dev/');
-  const source = page.locator('.mm-source');
-
-  await source.fill('# Edited\n\n## New branch\n\n- New leaf\n');
-
-  await expect(page.locator('.mm-markmap-svg')).toContainText('New branch');
-  await expect(page.locator('.mm-markmap-svg')).toContainText('New leaf');
-});
-
-test('[R-12] focuses the Markdown line when a node is clicked', async ({ page }) => {
-  await page.goto('/dev/');
-  const source = page.locator('.mm-source');
 
   await page.getByText('Links', { exact: true }).first().click();
 
-  await expect(source).toBeFocused();
-  const selection = await source.evaluate((element: HTMLTextAreaElement) => ({
-    start: element.selectionStart,
-    end: element.selectionEnd,
-    text: element.value.slice(element.selectionStart, element.selectionEnd),
-  }));
-  expect(selection.end).toBeGreaterThan(selection.start);
-  expect(selection.text).toContain('Links');
+  await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+  await expect(page.locator('.mm-editor-surface')).toBeFocused();
+});
+
+test('[R-11] inserts a sibling with Enter and edits its label', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+
+  await page.keyboard.press('Enter');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('New topic');
+
+  await page.keyboard.type('Keyboard node');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+
+  await expect(page.locator('.mm-markmap-svg')).toContainText('Keyboard node');
+});
+
+test('[R-11] inserts a child with Tab and deletes it', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Markmap', { exact: true }).first().click();
+
+  await page.keyboard.press('Tab');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Child node');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.mm-markmap-svg')).toContainText('Child node');
+
+  await page.getByText('Child node', { exact: true }).first().click();
+  await page.keyboard.press('Delete');
+  await expect(page.locator('.mm-markmap-svg')).not.toContainText('Child node');
+});
+
+test('[R-13] shows an editor error for a line break in a heading', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+
+  await page.keyboard.press('F2');
+  await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
+  await page.keyboard.press('Shift+Enter');
+
+  await expect(page.locator('.mm-notice')).toContainText('heading label cannot contain');
+  await page.keyboard.press('Escape');
 });

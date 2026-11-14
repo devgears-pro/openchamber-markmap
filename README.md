@@ -1,8 +1,8 @@
 # OpenChamber Markmap
 
-An OpenChamber extension that renders Markmap Markdown files as interactive mind maps in the Files view. The map is read-only, and the Markdown is editable in a scrollable sidebar.
+An OpenChamber extension that opens Markmap Markdown files as an editable mind map in the Files view. Nodes are edited directly on the map with XMind-style keys; there is no Markdown sidebar.
 
-The extension is a `contributes.fileEditors` package. It uses [`@markmap/parse`](https://www.npmjs.com/package/@markmap/parse), [`@markmap/view`](https://www.npmjs.com/package/@markmap/view), and [`@markmap/toolbar`](https://www.npmjs.com/package/@markmap/toolbar). It contains no custom Markdown parser, layout engine, or editor.
+The extension is a `contributes.fileEditors` package. It uses the vendored Markmap v1.1.1 fork for the editable model and keyboard layer, plus [`@markmap/view`](https://www.npmjs.com/package/@markmap/view) and [`@markmap/toolbar`](https://www.npmjs.com/package/@markmap/toolbar). The repository contains no custom Markdown parser, layout engine, or serializer.
 
 ## File patterns
 
@@ -36,13 +36,15 @@ The folder must contain `package.json` and `editor/index.html`. The tracked `edi
 ## Behavior
 
 - The file opens as a Markmap with zoom, pan, fold, and fit controls from the library.
-- Markdown is edited in a plain textarea beside the map. The map redraws as you type.
-- Clicking a map node focuses the textarea and selects that node's Markdown line, including its `#` or `-` marker.
+- Click a node to select it. Enter adds a sibling, Tab adds a child, Shift+Tab outdents, F2 or Space edits the label, Delete removes the subtree, and Escape cancels.
+- New nodes start as `New topic` with the label selected, matching XMind fast entry.
+- Edits change only the affected Markdown ranges. Frontmatter, formatting, inline Markdown, and line endings survive.
 - The map follows the OpenChamber light or dark theme. A `markmap.colorScheme` value in frontmatter does not override the host theme.
 - Markmap options under `markmap:` in YAML frontmatter, such as `theme`, `layout`, and `foldLevel`, are applied through `resolveViewOptions`.
 - Saving returns the current Markdown. An unchanged file returns the original text; binary input returns its original bytes.
-- The host autosaves through `reportFileChange` and `onFileSaved`. Read-only files lock the textarea.
-- Binary input and Markmap parse failures send the file to OpenChamber's source view.
+- The host autosaves through `reportFileChange` and `onFileSaved`.
+- Read-only files render without the node editor.
+- Binary input and Markmap failures send the file to OpenChamber's source view.
 
 ## Development
 
@@ -58,6 +60,8 @@ bun run test:acceptance
 `bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer.
 
 `editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green.
+
+The editable Markmap packages are vendored from the fork in `vendor/markmap`; see [`vendor/markmap/README.md`](vendor/markmap/README.md).
 
 ## Quality workflow
 

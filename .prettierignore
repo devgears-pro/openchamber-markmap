@@ -3,3 +3,5 @@ editor/main.js
 node_modules/
 playwright-report/
 test-results/
+
+vendor/markmap/packages/

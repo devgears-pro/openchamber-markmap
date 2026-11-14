@@ -7,7 +7,7 @@ describe('markmap styles', () => {
     document.head.replaceChildren();
   });
 
-  test('[R-03] adds the style once', () => {
+  test('[R-02] adds the style once', () => {
     ensureStyles(document);
     ensureStyles(document);
 

@@ -4,7 +4,7 @@
 
 ## Markmap
 
-MIT License. Copyright (c) 2020 Gerald. Full text: [`docs/licenses/markmap.txt`](docs/licenses/markmap.txt).
+MIT License. Copyright (c) 2020 Gerald. Full text: [`docs/licenses/markmap.txt`](docs/licenses/markmap.txt). The vendored editable packages in [`vendor/markmap`](vendor/markmap) use the same license, with a copy in [`vendor/markmap/LICENSE`](vendor/markmap/LICENSE).
 
 ## d3
 

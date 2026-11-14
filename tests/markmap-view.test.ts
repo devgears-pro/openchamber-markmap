@@ -1,29 +1,47 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { MarkmapNode } from '@markmap/core';
+import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 
 const mocks = vi.hoisted(() => ({
-  parse: vi.fn(),
+  parseDocument: vi.fn(),
   create: vi.fn(),
   resolveViewOptions: vi.fn(),
   createToolbar: vi.fn(),
+  createEditView: vi.fn(),
+  editorOptions: [] as MarkmapEditorOptions[],
+  editorDestroy: vi.fn(),
+  editorFocus: vi.fn(),
 }));
 
-vi.mock('@markmap/parse', () => ({ parse: mocks.parse }));
+vi.mock('@markmap/model', () => ({ parseDocument: mocks.parseDocument }));
 vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
   resolveViewOptions: mocks.resolveViewOptions,
 }));
 vi.mock('@markmap/toolbar', () => ({ createToolbar: mocks.createToolbar }));
+vi.mock('@markmap/edit-dom', () => ({
+  createEditView: mocks.createEditView,
+  MarkmapEditor: class {
+    constructor(options: MarkmapEditorOptions) {
+      mocks.editorOptions.push(options);
+    }
+
+    focus(): void {
+      mocks.editorFocus();
+    }
+
+    destroy(): void {
+      mocks.editorDestroy();
+    }
+  },
+}));
 
 const { createMarkmapView } = await import('../src/markmap/view');
 
 type FakeMarkmap = {
-  tree: MarkmapNode | undefined;
-  fit: ReturnType<typeof vi.fn>;
-  setTree: ReturnType<typeof vi.fn>;
-  hitAt: ReturnType<typeof vi.fn>;
-  layoutPoint: ReturnType<typeof vi.fn>;
+  options: Record<string, unknown>;
+  setOptions: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
 };
 
@@ -33,208 +51,212 @@ const root: MarkmapNode = {
   content: [],
   notes: [],
   data: {},
-  position: { start: 5, end: 9 },
   children: [],
 };
 
-const fakeMarkmap = (): FakeMarkmap => ({
-  tree: root,
-  fit: vi.fn(),
-  setTree: vi.fn(),
-  hitAt: vi.fn(() => ({ kind: 'node', nodeId: 'root' })),
-  layoutPoint: vi.fn(() => [10, 20]),
-  destroy: vi.fn(),
-});
+const fakeMarkmap = (): FakeMarkmap => {
+  const markmap: FakeMarkmap = {
+    options: {},
+    setOptions: vi.fn((next: Record<string, unknown>) => {
+      markmap.options = next;
+    }),
+    destroy: vi.fn(),
+  };
+  return markmap;
+};
 
-const setup = (theme?: string) => {
+const setup = () => {
   const markmap = fakeMarkmap();
   const toolbar = {
     element: document.createElement('div'),
     destroy: vi.fn(),
     update: vi.fn(),
   };
+  const surface = document.createElement('div');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  const onNode = vi.fn();
-  const frontmatter = theme === undefined ? {} : { markmap: { theme } };
-  mocks.parse.mockReturnValue({ root, frontmatter, gfm: true });
-  mocks.resolveViewOptions.mockReturnValue({
-    options: { colorScheme: 'light' },
-    json: {},
-    warnings: [],
-  });
+  const onSource = vi.fn();
+  const onError = vi.fn();
+  const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
+  mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+  mocks.resolveViewOptions.mockReturnValue(resolved);
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
-  return { markmap, toolbar, svg, frontmatter, onNode };
+  mocks.createEditView.mockReturnValue({});
+  return { markmap, toolbar, surface, svg, onSource, onError, resolved };
+};
+
+const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}) => {
+  const base = setup();
+  const options = {
+    surface: base.surface,
+    svg: base.svg,
+    markdown: '# Root',
+    colorScheme: 'dark' as const,
+    editable: true,
+    onSource: base.onSource,
+    onError: base.onError,
+    ...overrides,
+  };
+  const result = createMarkmapView(options);
+  return { ...base, options, result };
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.editorOptions.length = 0;
   document.head.replaceChildren();
 });
 
 describe('Markmap adapter', () => {
-  test('[R-02] creates a view and applies frontmatter options', () => {
-    const { markmap, toolbar, svg, frontmatter, onNode } = setup('cards');
-    const result = createMarkmapView(svg, '# Root', 'dark', onNode);
+  test('[R-02] creates a view and an editable node editor', () => {
+    const { markmap, toolbar, surface, svg, onSource, onError, resolved } = mount();
 
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(mocks.parse).toHaveBeenCalledWith('# Root');
-    expect(mocks.resolveViewOptions).toHaveBeenCalledWith(
-      { duration: 0, fitPadding: 24 },
-      frontmatter.markmap,
-    );
+    expect(mocks.parseDocument).toHaveBeenCalledWith('# Root');
     expect(mocks.create).toHaveBeenCalledWith(svg, root, { colorScheme: 'dark' });
     expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
-    expect(markmap.fit).not.toHaveBeenCalled();
-    expect(result.view.toolbar).toBe(toolbar.element);
+    expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
+    expect(mocks.editorOptions).toHaveLength(1);
+    expect(mocks.editorOptions[0]?.source).toBe('# Root');
+    expect(mocks.editorOptions[0]?.container).toBe(surface);
+    expect(mocks.editorOptions[0]?.view).toEqual({});
+    expect(mocks.editorFocus).toHaveBeenCalledOnce();
+    expect(mocks.resolveViewOptions).toHaveBeenCalledWith(
+      { duration: 0, fitPadding: 24 },
+      undefined,
+    );
+    expect(resolved.options).toBeDefined();
+    expect(toolbar.destroy).not.toHaveBeenCalled();
+    expect(onSource).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 
-  test('[R-04] updates the tree', () => {
-    const { markmap, svg, onNode } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light', onNode);
+  test('[R-11] [R-13] forwards source changes and editor errors', () => {
+    const { onSource, onError } = mount();
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onChange?.({ source: '# Next', selection: 4, document: {} as never });
+    editor.onError?.(new Error('bad label'));
+
+    expect(onSource).toHaveBeenCalledWith({ source: '# Next', selection: 4 });
+    expect(onError).toHaveBeenCalledWith('bad label');
+  });
+
+  test('[R-12] skips the editor for a read-only file', () => {
+    const { result, markmap } = mount({ editable: false });
+
+    expect(result.ok).toBe(true);
+    expect(mocks.editorOptions).toHaveLength(0);
+    expect(mocks.create).toHaveBeenCalledOnce();
+    expect(markmap.destroy).not.toHaveBeenCalled();
+  });
+
+  test('[R-04] updates the color scheme without recreating the view', () => {
+    const { result, markmap } = mount();
     if (!result.ok) throw new Error(result.message);
+    const before = mocks.create.mock.calls.length;
 
-    const nextRoot: MarkmapNode = { ...root, id: 'next' };
-    mocks.parse.mockReturnValueOnce({ root: nextRoot, frontmatter: {}, gfm: true });
-    mocks.resolveViewOptions.mockReturnValueOnce({
-      options: { colorScheme: 'dark' },
-      json: {},
-      warnings: [],
-    });
-    result.view.update('# Next', 'light');
+    result.view.setColorScheme('light');
 
-    expect(mocks.parse).toHaveBeenLastCalledWith('# Next');
-    expect(markmap.setTree).toHaveBeenCalledWith(nextRoot, { colorScheme: 'light' });
-    expect(markmap.fit).toHaveBeenCalledOnce();
+    expect(markmap.setOptions).toHaveBeenCalledWith({ colorScheme: 'light' });
+    expect(mocks.create).toHaveBeenCalledTimes(before);
+    expect(mocks.editorOptions).toHaveLength(1);
   });
 
-  test('[R-07] destroys every resource', () => {
-    const { markmap, toolbar, svg, onNode } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light', onNode);
+  test('[R-07] destroys the editor, toolbar, view and SVG children', () => {
+    const { result, markmap, toolbar, svg } = mount();
     if (!result.ok) throw new Error(result.message);
     svg.append(document.createElementNS('http://www.w3.org/2000/svg', 'g'));
 
     result.view.destroy();
 
+    expect(mocks.editorDestroy).toHaveBeenCalledOnce();
     expect(toolbar.destroy).toHaveBeenCalledOnce();
     expect(markmap.destroy).toHaveBeenCalledOnce();
     expect(svg.childElementCount).toBe(0);
   });
 
-  test('[R-12] reports the source range for a clicked node', () => {
-    const { markmap, svg, onNode } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light', onNode);
-    if (!result.ok) throw new Error(result.message);
-
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).toHaveBeenLastCalledWith({ start: 5, end: 9 });
-
-    const child: MarkmapNode = {
-      id: 'child',
-      type: 'heading',
-      content: [],
-      notes: [],
-      data: {},
-      position: { start: 10, end: 14 },
-      children: [],
-    };
-    markmap.tree = { ...root, children: [child] };
-    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'child' });
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-
-    expect(onNode).toHaveBeenLastCalledWith({ start: 10, end: 14 });
-  });
-
-  test('[R-12] ignores clicks that are not a left click on a positioned node', () => {
-    const { markmap, svg, onNode } = setup();
-    const result = createMarkmapView(svg, '# Root', 'light', onNode);
-    if (!result.ok) throw new Error(result.message);
-
-    svg.dispatchEvent(new MouseEvent('click', { button: 1, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-
-    markmap.hitAt.mockReturnValue({ kind: 'link', nodeId: 'root', href: 'https://example.com' });
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-
-    markmap.hitAt.mockReturnValue(null);
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-
-    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'missing' });
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-
-    const child: MarkmapNode = {
-      id: 'child',
-      type: 'heading',
-      content: [],
-      notes: [],
-      data: {},
-      children: [],
-    };
-    markmap.tree = { ...root, children: [child] };
-    markmap.hitAt.mockReturnValue({ kind: 'node', nodeId: 'child' });
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-
-    markmap.tree = undefined;
-    svg.dispatchEvent(new MouseEvent('click', { button: 0, clientX: 10, clientY: 20 }));
-    expect(onNode).not.toHaveBeenCalled();
-  });
-
   test('[R-06] reports a parse error without touching the DOM', () => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    mocks.parse.mockImplementation(() => {
+    mocks.parseDocument.mockImplementation(() => {
       throw new Error('invalid yaml');
     });
 
-    expect(createMarkmapView(svg, '---', 'light', vi.fn())).toEqual({
-      ok: false,
-      message: 'invalid yaml',
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '---',
+      colorScheme: 'dark',
+      editable: true,
+      onSource: vi.fn(),
+      onError: vi.fn(),
     });
+
+    expect(result).toEqual({ ok: false, message: 'invalid yaml' });
     expect(mocks.create).not.toHaveBeenCalled();
     expect(svg.childElementCount).toBe(0);
   });
 
   test('[R-06] reports a non-Error rejection as text', () => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    mocks.parse.mockImplementation(() => {
+    mocks.parseDocument.mockImplementation(() => {
       throw 'plain text';
     });
 
-    expect(createMarkmapView(svg, '', 'light', vi.fn())).toEqual({
-      ok: false,
-      message: 'plain text',
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg: document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      markdown: '',
+      colorScheme: 'dark',
+      editable: true,
+      onSource: vi.fn(),
+      onError: vi.fn(),
     });
+
+    expect(result).toEqual({ ok: false, message: 'plain text' });
   });
 
-  test('[R-07] destroys a created view when the toolbar fails', () => {
-    const { markmap, svg, onNode } = setup();
-    mocks.createToolbar.mockImplementation(() => {
-      throw new Error('toolbar failed');
+  test('[R-07] cleans up when the editor fails to construct', () => {
+    const { markmap, toolbar, svg } = setup();
+    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+    mocks.create.mockReturnValue(markmap);
+    mocks.createToolbar.mockReturnValue(toolbar);
+    mocks.createEditView.mockImplementation(() => {
+      throw new Error('editor failed');
     });
 
-    expect(createMarkmapView(svg, '# Root', 'light', onNode)).toEqual({
-      ok: false,
-      message: 'toolbar failed',
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '# Root',
+      colorScheme: 'dark',
+      editable: true,
+      onSource: vi.fn(),
+      onError: vi.fn(),
     });
+
+    expect(result).toEqual({ ok: false, message: 'editor failed' });
+    expect(toolbar.destroy).toHaveBeenCalledOnce();
     expect(markmap.destroy).toHaveBeenCalledOnce();
     expect(svg.childElementCount).toBe(0);
   });
 
   test('[R-06] reports a failure while resolving options', () => {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    mocks.parse.mockReturnValue({ root, frontmatter: {}, gfm: true });
+    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
     mocks.resolveViewOptions.mockImplementation(() => {
       throw new Error('bad options');
     });
 
-    expect(createMarkmapView(svg, '# Root', 'light', vi.fn())).toEqual({
-      ok: false,
-      message: 'bad options',
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg: document.createElementNS('http://www.w3.org/2000/svg', 'svg'),
+      markdown: '# Root',
+      colorScheme: 'dark',
+      editable: true,
+      onSource: vi.fn(),
+      onError: vi.fn(),
     });
+
+    expect(result).toEqual({ ok: false, message: 'bad options' });
     expect(mocks.create).not.toHaveBeenCalled();
   });
 });

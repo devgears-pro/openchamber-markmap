@@ -2,16 +2,16 @@
 
 ## Levels
 
-| Level        | Tool                                 | What it proves                                                               |
-| ------------ | ------------------------------------ | ---------------------------------------------------------------------------- |
-| Types        | `tsc --noEmit`                       | The code satisfies strict TypeScript, including tests and scripts.           |
-| Unit         | Vitest                               | The adapter maps Markmap APIs, options, updates, and cleanup correctly.      |
-| DOM          | Vitest + happy-dom                   | The host contract, sidebar, theme, snapshot, and fallback behavior.          |
-| Contract     | Vitest                               | `package.json` parses with the OpenChamber manifest schema.                  |
-| Bundle       | Vitest                               | The entry is one classic script and the IIFE stays within budget.            |
-| Acceptance   | Playwright                           | The real Markmap renderer draws a map, mounts its toolbar, and keeps labels. |
-| Static       | ESLint, Prettier, markdownlint, Knip | Style, formatting, docs, and dead code.                                      |
-| Reproducible | `check:reproducible`                 | Two builds from the same tree produce identical bytes.                       |
+| Level        | Tool                                 | What it proves                                                                                                |
+| ------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| Types        | `tsc --noEmit`                       | The code satisfies strict TypeScript, including tests and scripts.                                            |
+| Unit         | Vitest                               | The adapter maps Markmap APIs, options, updates, and cleanup correctly.                                       |
+| DOM          | Vitest + happy-dom                   | The host contract, node selection, theme, snapshot, and fallback behavior.                                    |
+| Contract     | Vitest                               | `package.json` parses with the OpenChamber manifest schema.                                                   |
+| Bundle       | Vitest                               | The entry is one classic script and the IIFE stays within budget.                                             |
+| Acceptance   | Playwright                           | The real renderer draws a map, mounts its toolbar, and the keyboard editor inserts, edits, and removes nodes. |
+| Static       | ESLint, Prettier, markdownlint, Knip | Style, formatting, docs, and dead code.                                                                       |
+| Reproducible | `check:reproducible`                 | Two builds from the same tree produce identical bytes.                                                        |
 
 ## Commands
 
@@ -50,7 +50,7 @@ When a requirement changes:
 
 ## Acceptance
 
-Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, the source sidebar, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
+Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, editor errors, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
 
 ## What not to do
 

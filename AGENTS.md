@@ -1,6 +1,6 @@
 # Agent guide
 
-OpenChamber file editor that renders Markmap Markdown. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
+OpenChamber file editor that renders and edits Markmap Markdown as an XMind-style mind map. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
 
 ## Commands
 
@@ -23,27 +23,28 @@ bunx openchamber-guest-check
 ## Architecture
 
 - `src/main.ts` — `connectHost()` and mount.
-- `src/app.ts` — host wiring, editable source sidebar, save tracking, snapshot, theme updates, lifecycle.
-- `src/markmap/view.ts` — the only module that imports Markmap. It parses Markdown, applies frontmatter options, creates the view and toolbar, and destroys them.
+- `src/app.ts` — host wiring, save tracking, snapshot, theme updates, lifecycle.
+- `src/markmap/view.ts` — the only module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
 - `src/ui/styles.ts` — the injected stylesheet, host tokens only.
+- `vendor/markmap/` — vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source commit is in `vendor/markmap/README.md`.
 - `editor/` — installable package: `index.html` and the built `main.js`.
 - `tests/` — Vitest unit and DOM tests plus Playwright acceptance tests.
 - `scripts/` — requirement traceability and reproducible-build checks.
 
-The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Markdown is edited in a plain textarea; there is no node editor, custom parser, layout engine, or palette in this repository.
+The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Nodes are edited directly on the map; there is no Markdown sidebar, custom parser, layout engine, serializer, or palette in this repository.
 
 ## Non-negotiables
 
-- Keep the extension Markmap-only. Do not add a custom Markdown parser, node editor, or serializer.
+- Keep the extension Markmap-only. Use the vendored editable fork; do not add a custom Markdown parser, serializer, or layout.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
-- Report edits with `createFileSaveTracker`: `observe` on input, `markSaved` on `onFileSaved`.
+- Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
-- Use `@markmap/parse`, `@markmap/view`, and `@markmap/toolbar`; do not fork their behavior.
+- Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
-- The textarea is the only editing surface. Read-only files must not accept input.
-- A node click focuses the textarea and selects the node's `position` range from the parsed tree. Positions are absolute offsets that include the frontmatter.
-- Destroy the Markmap view, toolbar, and DOM on file change and dispose.
+- The map is the only editing surface. Read-only files render without `MarkmapEditor`.
+- A node click selects the node, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
+- Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
 - Do not add network access, external assets, `any`, type assertions, or non-null assertions in `src/`.
 - Do not write comments in code. Tests and docs carry the explanation.
 - Every requirement ID in `docs/requirements.md` must appear as `[R-xx]` in at least one test name. Every test file needs at least one ID.
@@ -63,10 +64,11 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 
 ## Markmap facts
 
-- `parse(markdown)` returns `{ root, frontmatter }`. YAML frontmatter is stripped from the tree.
+- `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
+- `new MarkmapEditor({ source, view: createEditView(mm), container, onChange, onError })` adds selection, keyboard, overlay editing, and history over a live `Markmap`.
 - Apply `frontmatter.markmap` with `resolveViewOptions(base, input)`. The result includes warnings for unknown keys.
 - `Markmap.create(svg, root, options)` already fits the view. The argument order is target, root, options.
-- `mm.setTree(root, options)` updates data. `mm.destroy()` releases the view and leaves the `<svg>` element in place.
+- `mm.setOptions({ ...mm.options, colorScheme })` redraws without replacing the tree or editor history.
 - The `<svg>` needs a non-zero CSS box and no `viewBox`.
 - The toolbar must live in the same document as the map so it can use the map's `--mm-*` tokens.
 - `colorScheme` accepts `light`, `dark`, or `auto`. Pass the host mode explicitly; `auto` follows the OS, not OpenChamber.

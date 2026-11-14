@@ -8,6 +8,7 @@ export default tseslint.config(
       'editor/main.js',
       'eslint.config.js',
       'node_modules/**',
+      'vendor/**',
       'test-results/**',
       'playwright-report/**',
       '.openchamber/**',
