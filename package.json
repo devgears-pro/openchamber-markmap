@@ -20,8 +20,8 @@
   "scripts": {
     "dev": "vite --open /dev/",
     "dev-version": "bun scripts/dev-version.ts",
-    "build": "vite build",
-    "check:bundle-fresh": "git diff --exit-code -- editor/main.js",
+    "build": "vite build && vite build --config vite.config.chat.ts",
+    "check:bundle-fresh": "git diff --exit-code -- editor/main.js chat/main.js",
     "check:requirements": "bun scripts/check-requirements.ts",
     "check:reproducible": "bun scripts/check-reproducible.ts",
     "format": "prettier --write .",
@@ -60,6 +60,17 @@
           ],
           "entry": "editor/index.html",
           "content": "text"
+        }
+      ],
+      "blocks": [
+        {
+          "name": "Mindmap",
+          "description": "Draws a Markmap mind map from a Markmap Markdown argument; read-only.",
+          "args": [
+            "markdown"
+          ],
+          "entry": "chat/index.html",
+          "height": 480
         }
       ]
     }

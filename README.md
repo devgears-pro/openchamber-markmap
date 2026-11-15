@@ -25,6 +25,19 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
 
+## Mind maps in chat
+
+The extension also adds a `Mindmap` component to OpenChamber's UI block language. While it is active, an agent can put a whole Markmap document in a reply and the chat draws it as a read-only map:
+
+````markdown
+```openui-lang
+root = Stack([plan])
+plan = Mindmap("# Release 0.6\n## Editor\n- Layout switcher\n## Chat\n- Mind map block")
+```
+````
+
+The map is fitted into a 480 px frame, follows the host light or dark theme, and pans and zooms inside its own frame. It has no toolbar, no editing, and no file access; open a Markmap file to change one. Only an assistant reply on screen draws the block, and VS Code loads no extensions, so there it stays source.
+
 ## Use cases
 
 **Plans that live with the code.** Keep a release, architecture, or migration map next to the repository as `plan.markmap.md`. Humans edit it visually; agents read and write the same Markdown with their normal file tools.

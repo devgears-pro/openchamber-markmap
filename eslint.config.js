@@ -7,6 +7,7 @@ export default defineConfig(
     [
       'coverage/**',
       'editor/main.js',
+      'chat/main.js',
       'node_modules/**',
       'vendor/**',
       'test-results/**',

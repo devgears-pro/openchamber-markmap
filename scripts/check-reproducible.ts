@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const bundle = join(root, 'editor', 'main.js');
+const bundles = [join(root, 'editor', 'main.js'), join(root, 'chat', 'main.js')];
 
 const build = (): void => {
   const result = spawnSync('bun', ['run', 'build'], {
@@ -15,7 +15,11 @@ const build = (): void => {
   if (result.status !== 0) process.exit(result.status ?? 1);
 };
 
-const digest = (): string => createHash('sha256').update(readFileSync(bundle)).digest('hex');
+const digest = (): string => {
+  const hash = createHash('sha256');
+  for (const bundle of bundles) hash.update(readFileSync(bundle));
+  return hash.digest('hex');
+};
 
 build();
 const first = digest();
@@ -27,4 +31,4 @@ if (first !== second) {
   process.exit(1);
 }
 
-console.log(`Reproducible bundle: ${second}`);
+console.log(`Reproducible bundles: ${second}`);

@@ -5,6 +5,7 @@
     ".": {
       "entry": [
         "dev/main.ts",
+        "dev/block.ts",
         "scripts/**/*.ts",
         "tests/**/*.test.ts",
         "tests/**/*.spec.ts",

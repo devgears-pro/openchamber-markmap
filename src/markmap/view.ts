@@ -1,14 +1,16 @@
 import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
 import { labelText, parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
-import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
+import { Markmap } from '@markmap/view';
 
 import { createClipboard } from './clipboard';
+import { messageOf } from './errors';
 import { applyMarker } from './markers';
-import { mapGestures, wheelZoomDelta } from './gestures';
+import { wheelZoomDelta } from './gestures';
 import { layoutFor, type MarkmapLayout } from './layouts';
+import { optionsFor, type MarkmapColorScheme } from './options';
 
-export type MarkmapColorScheme = 'light' | 'dark';
+export type { MarkmapColorScheme } from './options';
 
 export type MarkmapSourceChange = {
   source: string;
@@ -41,9 +43,6 @@ export type MarkmapResult = { ok: true; view: MarkmapView } | { ok: false; messa
 
 export type MarkmapFactory = (mount: MarkmapMount) => MarkmapResult;
 
-const messageOf = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
-
 const HTTP_URL = /^https?:\/\//iu;
 
 const linkOf = (target: EventTarget | null): string | null => {
@@ -52,36 +51,6 @@ const linkOf = (target: EventTarget | null): string | null => {
   if (anchor === null) return null;
   const href = anchor.getAttribute('href') ?? '';
   return HTTP_URL.test(href) ? href : null;
-};
-
-type ResolvedView = {
-  options: ViewOptions;
-  warnings: string[];
-  layout: MarkmapLayout;
-};
-
-const layoutNameOf = (layout: ViewOptions['layout']): MarkmapLayout => {
-  if (layout === layoutFor('tree')) return 'tree';
-  if (layout === layoutFor('org-chart')) return 'org-chart';
-  return 'two-sided';
-};
-
-const optionsFor = (
-  colorScheme: MarkmapColorScheme,
-  frontmatter: Record<string, unknown>,
-): ResolvedView => {
-  const base: ViewOptions = {
-    duration: 0,
-    fitPadding: 24,
-    fitMaxScale: 1,
-    layout: layoutFor('two-sided'),
-  };
-  const resolved = resolveViewOptions(base, frontmatter['markmap']);
-  return {
-    options: { ...resolved.options, colorScheme, gestures: mapGestures },
-    warnings: resolved.warnings,
-    layout: layoutNameOf(resolved.options.layout),
-  };
 };
 
 export const createMarkmapView: MarkmapFactory = (mount) => {

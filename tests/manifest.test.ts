@@ -67,4 +67,24 @@ describe('extension manifest', () => {
     if (!result.ok) throw new Error(result.message);
     expect(result.manifest.engines?.openchamber).toBe('>=2.7.1');
   });
+
+  test('[R-23] declares the Mindmap chat block', () => {
+    if (!result.ok) throw new Error(result.message);
+    const blocks = result.manifest.contributes.blocks ?? [];
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.name).toBe('Mindmap');
+    expect(blocks[0]?.description).toContain('Markmap');
+    expect(blocks[0]?.description.length).toBeLessThanOrEqual(120);
+    expect(blocks[0]?.args).toEqual(['markdown']);
+    expect(blocks[0]?.entry).toBe('chat/index.html');
+    expect(blocks[0]?.height).toBe(480);
+    expect(blocks[0]?.answers).toBeUndefined();
+  });
+
+  test('[R-23] ships the chat block entry', () => {
+    if (!result.ok) throw new Error(result.message);
+    const entry = result.manifest.contributes.blocks?.[0]?.entry;
+    if (entry === undefined) throw new Error('No chat block entry');
+    expect(() => readFileSync(resolve(root, entry))).not.toThrow();
+  });
 });
