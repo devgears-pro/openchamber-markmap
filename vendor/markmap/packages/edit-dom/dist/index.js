@@ -80,6 +80,7 @@ var MarkmapEditor = class {
 	selectedId = null;
 	selectionOffset = 0;
 	editing = null;
+	previewing = false;
 	destroyed = false;
 	constructor({ source, view, container, placeholder, onChange, onError }) {
 		this.view = view;
@@ -145,7 +146,7 @@ var MarkmapEditor = class {
 	}
 	setSource(source, options = {}) {
 		const parsed = parseDocument(source);
-		this.stopEditingUi();
+		this.stopEditingUi(false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.history.clear();
@@ -178,9 +179,12 @@ var MarkmapEditor = class {
 		this.field.style.display = "block";
 		this.editing = {
 			nodeId,
+			previewId: nodeId,
 			original: label,
 			blank,
 			first,
+			preview: false,
+			folds: [...this.view.foldedIds],
 			field: this.field
 		};
 		this.paintEditing();
@@ -223,10 +227,13 @@ var MarkmapEditor = class {
 	}
 	handleInput = () => {
 		if (!this.editing) return;
+		this.previewEditing();
 		this.positionEditing();
 		this.paintSelection();
+		this.paintEditing();
 	};
 	handleViewChange = () => {
+		if (this.previewing) return;
 		if (this.editing) this.positionEditing();
 		this.paintSelection();
 		this.paintEditing();
@@ -317,8 +324,10 @@ var MarkmapEditor = class {
 				const field = this.editing.field;
 				field.value = this.editing.original;
 				field.setSelectionRange(field.value.length, field.value.length);
+				this.previewEditing();
 				this.positionEditing();
 				this.paintSelection();
+				this.paintEditing();
 				return;
 			}
 			if (this.editing && this.editing.field.value === this.editing.original) {
@@ -407,7 +416,10 @@ var MarkmapEditor = class {
 			this.doc = result.document;
 			if (editing && command.type === "setLabel" && command.node === editing.nodeId) {
 				const target = nodeAtOffset(result.document, result.selection);
-				if (target) editing.nodeId = target.id;
+				if (target) {
+					editing.nodeId = target.id;
+					editing.previewId = target.id;
+				}
 			}
 			this.view.setTree(result.tree);
 			this.restoreFolds(folds, result);
@@ -438,7 +450,7 @@ var MarkmapEditor = class {
 			text
 		}))) return "error";
 		if (options.history !== false) this.history.push(before);
-		this.stopEditingUi();
+		this.stopEditingUi(false);
 		return "changed";
 	}
 	cancelEditing() {
@@ -470,8 +482,55 @@ var MarkmapEditor = class {
 			this.startEditing(created.id, void 0, { selectAll: true });
 		}
 	}
-	stopEditingUi() {
+	previewEditing() {
+		const editing = this.editing;
+		if (!editing) return;
+		const text = editing.field.value;
+		if (text === editing.original || editing.blank && text === "") {
+			this.restorePreview(editing);
+			return;
+		}
+		const folds = this.captureFolds(this.doc);
+		try {
+			const result = applyCommand(this.doc, editing.first ? {
+				type: "insertFirst",
+				node: editing.nodeId,
+				text
+			} : {
+				type: "setLabel",
+				node: editing.nodeId,
+				text
+			});
+			this.previewing = true;
+			try {
+				this.view.setTree(result.tree);
+				this.restoreFolds(folds, result);
+			} finally {
+				this.previewing = false;
+			}
+			editing.previewId = nodeAtOffset(result.document, result.selection)?.id ?? editing.previewId;
+			editing.preview = true;
+		} catch {
+			this.previewing = false;
+		}
+	}
+	restorePreview(editing) {
+		if (!editing.preview) return;
+		const parsed = parseDocument(this.doc.source);
+		this.previewing = true;
+		try {
+			this.view.setTree(parsed.tree);
+			this.view.setFoldedIds(editing.folds, { animate: false });
+		} finally {
+			this.previewing = false;
+		}
+		editing.preview = false;
+		editing.previewId = editing.nodeId;
+		this.selectedId = editing.nodeId;
+	}
+	stopEditingUi(restore = true) {
 		if (!this.editing) return;
+		if (restore) this.restorePreview(this.editing);
 		this.editing.field.style.display = "none";
 		this.editing = null;
 		this.paintEditing();
@@ -481,7 +540,7 @@ var MarkmapEditor = class {
 	positionEditing() {
 		const editing = this.editing;
 		if (!editing) return;
-		const rect = this.view.screenRect(editing.nodeId);
+		const rect = this.view.screenRect(editing.previewId);
 		if (!rect) {
 			this.stopEditingUi();
 			return;
@@ -499,7 +558,7 @@ var MarkmapEditor = class {
 		}, 0) + 16;
 		const width = Math.max(rect.width / scale, textWidth, 40);
 		const rows = field.value.split("\n").length;
-		const direction = this.view.direction(editing.nodeId);
+		const direction = this.view.direction(editing.previewId);
 		const align = direction === "left" ? "right" : direction === "top" || direction === "bottom" ? "center" : "left";
 		const left = align === "center" ? rect.x + rect.width / 2 - width * scale / 2 : align === "right" ? rect.x + rect.width - width * scale : rect.x;
 		field.style.left = `${left - box.x}px`;
@@ -577,7 +636,7 @@ var MarkmapEditor = class {
 	}
 	restore(entry) {
 		const parsed = parseDocument(entry.source);
-		this.stopEditingUi();
+		this.stopEditingUi(false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.view.setTree(parsed.tree);
@@ -608,17 +667,18 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-selected").forEach((element) => {
 			element.classList.remove("mm-editor-selected");
 		});
-		if (!this.selectedId) {
+		const id = this.editing?.previewId ?? this.selectedId;
+		if (!id) {
 			this.selectionBox.style.display = "none";
 			return;
 		}
-		const selected = this.doc.nodes.get(this.selectedId);
+		const selected = this.doc.nodes.get(id);
 		if (!this.editing && this.isEmptyRoot(selected)) {
 			this.selectionBox.style.display = "none";
 			return;
 		}
-		this.nodeGroup(this.selectedId)?.classList.add("mm-editor-selected");
-		const rect = this.editing ? this.editing.field.getBoundingClientRect() : this.view.screenRect(this.selectedId);
+		this.nodeGroup(id)?.classList.add("mm-editor-selected");
+		const rect = this.editing ? this.editing.field.getBoundingClientRect() : this.view.screenRect(id);
 		const box = this.container.getBoundingClientRect();
 		if (!rect) {
 			this.selectionBox.style.display = "none";
@@ -634,7 +694,7 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-editing").forEach((element) => {
 			element.classList.remove("mm-editor-editing");
 		});
-		if (this.editing) this.nodeGroup(this.editing.nodeId)?.classList.add("mm-editor-editing");
+		if (this.editing) this.nodeGroup(this.editing.previewId)?.classList.add("mm-editor-editing");
 	}
 	nodeGroup(id) {
 		return this.view.element.querySelector(`[data-key="node:${id}"]`);

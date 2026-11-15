@@ -18,6 +18,7 @@ export declare class MarkmapEditor {
     private selectedId;
     private selectionOffset;
     private editing;
+    private previewing;
     private destroyed;
     constructor({ source, view, container, placeholder, onChange, onError }: MarkmapEditorOptions);
     get source(): string;
@@ -52,6 +53,8 @@ export declare class MarkmapEditor {
     private commitEditing;
     private cancelEditing;
     private commitAndInsert;
+    private previewEditing;
+    private restorePreview;
     private stopEditingUi;
     private positionEditing;
     private navigate;
