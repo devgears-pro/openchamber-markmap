@@ -659,6 +659,32 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
           '.mm-markmap-toolbar button svg, .mm-layout-menu button svg, .mm-marker-menu svg, .mm-notes-menu button svg, .mm-editor-notes-toolbar button svg',
         ),
       ];
+      const topIcons = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar .markmap-toolbar button svg, .mm-layout-menu button svg, .mm-marker-menu svg, .mm-notes-menu button svg',
+        ),
+      ];
+      const topGeometry = topIcons.map((icon) => {
+        const path = icon.querySelector('path');
+        const style = path === null ? null : getComputedStyle(path);
+        const box = getComputedStyle(icon);
+        return {
+          width: box.width,
+          height: box.height,
+          viewBox: icon.getAttribute('viewBox'),
+          fill: style?.fill ?? '',
+          stroke: style?.stroke ?? '',
+          strokeWidth: style?.strokeWidth ?? '',
+          strokeLinecap: style?.strokeLinecap ?? '',
+          strokeLinejoin: style?.strokeLinejoin ?? '',
+        };
+      });
+      const buttonNames = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar .markmap-toolbar button, .mm-layout-menu button, .mm-notes-menu button',
+        ),
+      ].map((button) => button.getAttribute('aria-label') ?? '');
+      const marker = document.querySelector('.mm-marker-select');
       return {
         panelBackground: getComputedStyle(panel).backgroundColor,
         panelForeground: getComputedStyle(panel).color,
@@ -674,6 +700,9 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
             style.fill === 'none' && style.stroke !== 'none' && style.strokeLinecap === 'round'
           );
         }),
+        topGeometry,
+        buttonNames,
+        markerName: marker?.getAttribute('aria-label') ?? '',
       };
     });
 
@@ -682,6 +711,34 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
     expect(result.fieldForeground).toBe(result.expectedForeground);
     expect(result.iconCount).toBeGreaterThanOrEqual(15);
     expect(result.outlineIcons).toBe(true);
+    expect(result.topGeometry).toHaveLength(9);
+    expect(result.buttonNames).toEqual([
+      'Zoom in',
+      'Zoom out',
+      'Fit to view',
+      'Expand all',
+      'Tree',
+      'Two-sided',
+      'Org chart',
+      'Edit notes',
+    ]);
+    expect(result.markerName).toBe('Add marker');
+    for (const icon of result.topGeometry) {
+      expect(icon).toEqual({
+        width: '20px',
+        height: '20px',
+        viewBox: '0 0 16 16',
+        fill: 'none',
+        stroke: result.expectedForeground,
+        strokeWidth: '1.5px',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+      });
+    }
+    for (const name of result.buttonNames) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole('combobox', { name: 'Add marker' })).toBeVisible();
   }
 });
 

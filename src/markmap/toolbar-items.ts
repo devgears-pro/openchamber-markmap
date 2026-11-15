@@ -1,10 +1,10 @@
 import { builtinButtons, type ToolbarItem } from '@markmap/toolbar';
 
 const ICONS = {
-  zoomIn: 'M8 2.5v11M2.5 8h11',
-  zoomOut: 'M2.5 8h11',
-  fit: 'M6 2.5H2.5V6M14 2.5h3.5V6M17.5 14v3.5H14M6 17.5H2.5V14',
-  expandAll: 'M3 5h10M3 10h14M3 15h7M14 3l3 2-3 2',
+  zoomIn: 'M7 2.8a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4ZM10.1 10.1 13.8 13.8M4.9 7h4.2M7 4.9v4.2',
+  zoomOut: 'M7 2.8a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4ZM10.1 10.1 13.8 13.8M4.9 7h4.2',
+  fit: 'M6.5 2H2v4.5M9.5 2H14v4.5M14 9.5V14H9.5M6.5 14H2V9.5',
+  expandAll: 'M3 3 8 8l5-5M3 8l5 5 5-5',
 } as const;
 
 export const createToolbarItems = (): readonly ToolbarItem[] => [

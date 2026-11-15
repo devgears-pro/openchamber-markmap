@@ -30,18 +30,22 @@ describe('layout menu', () => {
     expect(buttonOf(menu, 'org-chart').getAttribute('aria-pressed')).toBe('false');
   });
 
-  test('[R-27] uses consistent 20-unit outline icons for each layout', () => {
+  test('[R-27] draws three distinct 16-unit outline icons for the layouts', () => {
     const menu = createLayoutMenu('tree', vi.fn());
     document.body.append(menu);
 
     const icons = [...menu.querySelectorAll('button svg')];
     expect(icons).toHaveLength(3);
     expect(icons.map((icon) => icon.getAttribute('viewBox'))).toEqual([
-      '0 0 20 20',
-      '0 0 20 20',
-      '0 0 20 20',
+      '0 0 16 16',
+      '0 0 16 16',
+      '0 0 16 16',
     ]);
-    expect(icons.every((icon) => icon.querySelector('path') !== null)).toBe(true);
+    const shapes = icons.map((icon) => icon.querySelectorAll('path'));
+    expect(shapes.every((paths) => paths.length === 1)).toBe(true);
+    const data = shapes.map((paths) => paths[0]?.getAttribute('d') ?? '');
+    expect(data.every((path) => path.length > 0)).toBe(true);
+    expect(new Set(data).size).toBe(3);
   });
 
   test('[R-22] forwards a choice and updates the active button', () => {

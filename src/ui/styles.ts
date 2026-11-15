@@ -51,6 +51,7 @@ const MARKMAP_CSS = `
     border: 0;
     border-radius: 0;
     background: transparent;
+    color: var(--oc-fg, #ececf1);
   }
   .mm-markmap-toolbar .markmap-toolbar button,
   .mm-markmap-toolbar .markmap-toolbar select {
@@ -68,8 +69,11 @@ const MARKMAP_CSS = `
     outline-offset: -2px;
   }
   .mm-markmap-toolbar .markmap-toolbar svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+  }
+  .mm-markmap-toolbar .markmap-toolbar path {
+    stroke-width: 1.5;
   }
   .mm-clipboard-sink {
     position: absolute;
@@ -116,13 +120,13 @@ const MARKMAP_CSS = `
   }
   .mm-layout-button svg {
     display: block;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
   }
   .mm-layout-button path {
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.6;
+    stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
@@ -171,8 +175,8 @@ const MARKMAP_CSS = `
     right: 0;
     bottom: 0;
     left: 0;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     margin: auto;
     color: var(--oc-fg, #ececf1);
     pointer-events: none;
@@ -180,7 +184,7 @@ const MARKMAP_CSS = `
   .mm-marker-menu path {
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.6;
+    stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
   }

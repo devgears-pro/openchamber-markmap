@@ -38,7 +38,7 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The issue, when there is one, and the pull request.
 - The cause for a bug, or the reason for a task.
 - The test command, the red output, and the green output. For a visual change, the issue comment with a screenshot or GIF that `docs/process/releases.md` requires.
-- The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`. Always include it, even when the worktree folder is also available.
+- The OpenChamber install address as a complete plain-text URL in a code span, including the scheme, repository, and branch fragment: `https://github.com/mmospanenko/openchamber-markmap#<branch>`. Use the exact branch name after `#`; the stable `dev` address is `https://github.com/mmospanenko/openchamber-markmap#dev`. Always include it, even when the worktree folder is also available.
 
 ## Worktrees and sync
 
@@ -50,7 +50,7 @@ The fork follows the same rule with its integration branch `feat/editable-model`
 
 ## Human UI acceptance
 
-Do not merge a UI change into `dev` until the user has tested and explicitly accepted its appearance on the installable feature branch. Before asking for acceptance, provide the branch install link, the changed states to check, and screenshots for a static change or a short GIF for an interaction. Green CI does not count as visual acceptance. If the user requests changes, update the same branch and provide fresh evidence before asking again.
+Do not merge a UI change into `dev` until the user has tested and explicitly accepted its appearance on the installable feature branch. Before asking for acceptance, provide the complete feature-branch install address as plain text, the changed states to check, and screenshots for a static change or a short GIF for an interaction. A UI test request must include the complete address, not only a shortened linked label. Green CI does not count as visual acceptance. If the user requests changes, update the same branch and provide fresh evidence before asking again.
 
 ## Fork changes
 

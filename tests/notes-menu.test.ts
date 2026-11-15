@@ -24,8 +24,9 @@ describe('notes menu', () => {
     const menu = createNotesMenu(vi.fn());
     const icon = menu.querySelector('button svg');
 
-    expect(icon?.getAttribute('viewBox')).toBe('0 0 20 20');
+    expect(icon?.getAttribute('viewBox')).toBe('0 0 16 16');
     expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.querySelectorAll('path')).toHaveLength(1);
     expect(icon?.querySelector('path')?.getAttribute('d')).toBeTruthy();
   });
 

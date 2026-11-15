@@ -24,6 +24,9 @@ describe('map toolbar icons', () => {
     ).toEqual(labels);
     expect(items).toContain('fold-level');
 
+    const custom = items.filter((item): item is ToolbarButton => typeof item !== 'string');
+    expect(new Set(custom.map((item) => item.icon)).size).toBe(labels.length);
+
     for (const [index, key] of keys.entries()) {
       const item = buttonOf(labels[index] ?? '');
       expect(item.icon).toBeTruthy();
