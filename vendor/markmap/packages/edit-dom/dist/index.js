@@ -304,6 +304,15 @@ var MarkmapEditor = class {
 	handleEditingKey(event) {
 		if (event.isComposing || event.keyCode === 229) return;
 		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+			if (this.editing && !event.shiftKey && this.editing.field.value !== this.editing.original) {
+				event.preventDefault();
+				const field = this.editing.field;
+				field.value = this.editing.original;
+				field.setSelectionRange(field.value.length, field.value.length);
+				this.positionEditing();
+				this.paintSelection();
+				return;
+			}
 			if (this.editing && this.editing.field.value === this.editing.original) {
 				event.preventDefault();
 				this.stopEditingUi();
