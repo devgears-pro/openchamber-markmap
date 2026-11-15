@@ -418,6 +418,51 @@ test('[R-15] undoes and redoes an inserted node', async ({ page }) => {
   await expect(page.locator('.mm-markmap-svg')).toContainText('Undo node');
 });
 
+test('[R-21] copies a subtree and pastes it as a child', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+c`);
+  await page.getByText('Markmap', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+v`);
+
+  await expect(nodes).toHaveCount(before + 3);
+  await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+});
+
+test('[R-21] cuts a subtree and pastes it back', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+x`);
+  await expect(nodes).toHaveCount(before - 3);
+
+  await page.keyboard.press(`${modifier}+v`);
+  await expect(nodes).toHaveCount(before);
+  await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+});
+
+test('[R-21] pastes external plain text as a child label', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.evaluate(() => navigator.clipboard.writeText('  External\n\n note  '));
+  await page.keyboard.press(`${modifier}+v`);
+
+  await expect(page.locator('.mm-markmap-svg')).toContainText('External note');
+  await expect(page.locator('.mm-editor-selected')).toContainText('External note');
+});
+
 test('[R-12] renders a read-only file without an editor field', async ({ page }) => {
   await page.goto('/dev/?readonly=1');
 

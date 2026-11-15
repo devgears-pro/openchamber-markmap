@@ -86,6 +86,10 @@ A focused node stays in selection mode until the user explicitly edits it. Print
 
 When the host requests a snapshot during label editing, the snapshot includes the current label without closing the field, changing its focus, or leaving edit mode. The user can continue typing after autosave.
 
+### R-21 Clipboard
+
+An editable map copies the selected node with its whole subtree, notes, and markers as its exact Markdown block, and cuts it with one delete history entry. Paste inserts an in-map copy as the last child of the selection, renumbers headings and reindents list items to the child depth, and selects the pasted root. An impossible depth or a block with several top-level nodes leaves the file unchanged and shows a notice. Plain text from outside becomes one child label with line breaks collapsed. DOM copy, cut, and paste events drive the behavior, and a hidden editable sink receives paste, so the editor asks for no new host capability and keeps native clipboard behavior inside an open label field. An empty clipboard, a cut of the root, or a node without a block shows a notice.
+
 ## Traceability
 
 | Requirement | Tests                                                                                                               |
@@ -110,3 +114,4 @@ When the host requests a snapshot during label editing, the snapshot includes th
 | R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-19        | acceptance                                                                                                          |
 | R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-21        | `tests/clipboard.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                 |

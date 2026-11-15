@@ -33,6 +33,22 @@ function cutRange(source, block) {
 		end
 	};
 }
+function blockInsertion(source, position, block, ending) {
+	const atLineStart = position === 0 || source[position - 1] === "\n";
+	const prefix = atLineStart ? "" : ending;
+	const hasNewline = block.endsWith("\n") || block.endsWith("\r\n");
+	const newlineAfter = newlineLengthAt(source, position) > 0;
+	let suffix = "";
+	if (!hasNewline) {
+		if (atLineStart) {
+			if (position < source.length || newlineLengthAt(source, position - 1) > 0) suffix = ending;
+		} else if (!newlineAfter && position < source.length) suffix = ending;
+	}
+	return {
+		insert: prefix + block + suffix,
+		leading: prefix.length
+	};
+}
 function insertLine(source, position, line, ending) {
 	if (position === 0 || source[position - 1] === "\n") return {
 		insert: line + (position < source.length || source.endsWith("\n") ? ending : ""),
@@ -140,6 +156,42 @@ function firstLineMarker(text) {
 	const heading = HEADING_MARKER.exec(line);
 	return heading ? heading[0].length : 0;
 }
+function shiftHeadings(text, delta, ending) {
+	if (delta === 0) return text;
+	const { document } = parseDocument(text);
+	const levels = /* @__PURE__ */ new Map();
+	for (const id of document.order) {
+		const node = document.nodes.get(id);
+		if (!node?.block || node.kind !== "heading" && node.kind !== "root") continue;
+		const level = node.level + delta;
+		if (level < 1) throw new EditError("E_LEVEL", "Heading level would drop below one", node.id);
+		if (level > 6) throw new EditError("E_LEVEL", "Heading level cannot exceed six", node.id);
+		levels.set(node.block.start, level);
+	}
+	let offset = 0;
+	return text.split(ending).map((line) => {
+		const level = levels.get(offset);
+		offset += line.length + ending.length;
+		if (level == null) return line;
+		return line.replace(/^([ \t]{0,3})(#{1,6})(?=[ \t]|$)/, (_, space) => {
+			return `${space}${"#".repeat(level)}`;
+		});
+	}).join(ending);
+}
+function reindentList(text, delta, ending) {
+	if (delta === 0) return text;
+	if (delta > 0) {
+		const pad = " ".repeat(delta);
+		return text.split(ending).map((line) => line.trim() ? pad + line : line).join(ending);
+	}
+	const cut = -delta;
+	return text.split(ending).map((line) => {
+		if (!line.trim()) return line;
+		const prefix = /^[ \t]*/.exec(line)?.[0] ?? "";
+		if (prefix.length >= cut) return prefix.slice(cut) + line.slice(prefix.length);
+		return line;
+	}).join(ending);
+}
 // src/splice.ts
 function applySplices(source, splices) {
 	const indexed = splices.map((splice, index) => ({
@@ -192,6 +244,7 @@ function planCommand(doc, command) {
 		case "insertFirst": return planInsertFirst(doc, node, command.text);
 		case "insertChild": return planInsert(doc, node, command.text ?? "", "child");
 		case "insertSibling": return planInsert(doc, node, command.text ?? "", "sibling");
+		case "insertBlock": return planInsertBlock(doc, node, command.text);
 		case "delete": return planDelete(doc, node);
 		case "outdent": return planOutdent(doc, node);
 		case "toggleCheck": return planToggleCheck(doc, node);
@@ -337,6 +390,53 @@ function planInsert(doc, node, raw, mode) {
 			const created = nodeByLabelStart(next, selection);
 			if (!created || created.parent !== parentId) throw shape("The new node landed in the wrong place");
 			if (!created.label || next.source.slice(created.label.start, created.label.end) !== expectedLabel) throw shape("The new label did not survive parsing");
+		}
+	};
+}
+function normalizeBlockText(raw, ending) {
+	const trimmed = raw.replace(/\r\n?/g, "\n").replace(/^(?:[ \t]*\n)+/u, "").replace(/(?:\n[ \t]*)+$/u, "");
+	return ending === "\n" ? trimmed : trimmed.replace(/\n/g, ending);
+}
+function planInsertBlock(doc, node, raw) {
+	requireCapability(node, "addChild");
+	const ending = lineEnding(doc.source);
+	const block = normalizeBlockText(raw, ending);
+	if (!block.trim()) throw new EditError("E_LABEL", "The pasted text is empty", node.id);
+	const fragment = parseDocument(block).document;
+	const fragmentRoot = fragment.nodes.get(fragment.root);
+	if (!fragmentRoot) throw shape("The pasted text has no root");
+	const top = fragmentRoot.block ? fragmentRoot : fragmentRoot.children.map((id) => fragment.nodes.get(id)).find((child) => Boolean(child?.block));
+	if (!top || !top.label) throw new EditError("E_SHAPE", "The pasted text has no editable node", node.id);
+	const count = fragment.nodes.size - (fragmentRoot.block ? 0 : 1);
+	let moved;
+	if (top.kind === "heading" || top.kind === "root") {
+		if (node.kind === "listItem") throw new EditError("E_CAPABILITY", "A heading cannot be pasted under a list item", node.id);
+		moved = shiftHeadings(block, (node.kind === "root" ? node.block ? node.level : 0 : node.level) + 1 - top.level, ending);
+	} else if (top.kind === "listItem") {
+		if (!top.list) throw shape("The pasted list item has no list info");
+		moved = reindentList(block, (node.kind === "listItem" ? childIndent(doc, node) : "").length - top.list.indent.length, ending);
+	} else throw new EditError("E_SHAPE", "The pasted text has no editable node", node.id);
+	const position = node.block ? node.block.end : doc.source.length;
+	const placed = blockInsertion(doc.source, position, moved, ending);
+	const expected = firstLine(fragment.source, top.label.start).replace(/\r$/u, "");
+	const emptyRoot = node.kind === "root" && !node.block && node.children.length === 0;
+	return {
+		edits: [{
+			from: position,
+			to: position,
+			insert: placed.insert
+		}],
+		selection: {
+			kind: "insert",
+			edit: 0,
+			offset: placed.leading + firstLineMarker(moved)
+		},
+		verify(next, selection) {
+			const created = nodeByLabelStart(next, selection);
+			if (!created) throw shape("The pasted root did not survive parsing");
+			if (created.parent !== node.id && !(emptyRoot && created.id === next.root)) throw shape("The pasted subtree landed in the wrong place");
+			if (countSubtree(next, created) !== count) throw shape("The pasted subtree changed shape");
+			if (!created.label || firstLine(next.source, created.label.start).replace(/\r$/u, "") !== expected) throw shape("The pasted label did not survive parsing");
 		}
 	};
 }
