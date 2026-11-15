@@ -15,11 +15,16 @@ const mocks = vi.hoisted(() => {
     editorOptions: [] as MarkmapEditorOptions[],
     editorSetLabel: vi.fn(),
     editorSelected,
+    editorEditing: { value: false },
+    editorSource: { value: '# Root' },
     editorNodes: new Map<string, unknown>([['root', {}]]),
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
     editorCommit: vi.fn(),
     editorSnapshotForSave: vi.fn<() => string>(),
+    editorInsertBlock: vi.fn<(text: string) => boolean>(() => true),
+    editorInsertLabel: vi.fn<(text: string) => boolean>(() => true),
+    editorDeleteSelected: vi.fn<() => boolean>(() => true),
   };
 });
 
@@ -45,6 +50,26 @@ vi.mock('@markmap/edit-dom', () => ({
 
     get document(): { readonly nodes: Map<string, unknown> } {
       return { nodes: mocks.editorNodes };
+    }
+
+    get isEditing(): boolean {
+      return mocks.editorEditing.value;
+    }
+
+    get source(): string {
+      return mocks.editorSource.value;
+    }
+
+    insertBlock(text: string): boolean {
+      return mocks.editorInsertBlock(text);
+    }
+
+    insertLabel(text: string): boolean {
+      return mocks.editorInsertLabel(text);
+    }
+
+    deleteSelected(): boolean {
+      return mocks.editorDeleteSelected();
     }
 
     setLabel(nodeId: string, text: string): void {
@@ -148,10 +173,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.editorOptions.length = 0;
   mocks.editorSelected.value = 'root';
+  mocks.editorEditing.value = false;
+  mocks.editorSource.value = '# Root';
   mocks.editorNodes.clear();
   mocks.editorNodes.set('root', {});
   mocks.labelText.mockReturnValue('Root');
   document.head.replaceChildren();
+  document.body.replaceChildren();
 });
 
 describe('Markmap adapter', () => {
@@ -384,6 +412,50 @@ describe('Markmap adapter', () => {
     expect(toolbar.destroy).toHaveBeenCalledOnce();
     expect(markmap.destroy).toHaveBeenCalledOnce();
     expect(svg.childElementCount).toBe(0);
+  });
+
+  test('[R-21] copies and pastes from the mounted map', () => {
+    const { surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorNodes.set('root', {
+      block: { start: 0, end: 6 },
+      capabilities: { delete: false },
+    });
+    document.body.append(surface);
+    surface.tabIndex = 0;
+    surface.focus();
+    const clipboard = new DataTransfer();
+
+    surface.dispatchEvent(
+      new ClipboardEvent('copy', { clipboardData: clipboard, bubbles: true, cancelable: true }),
+    );
+
+    expect(clipboard.getData('text/plain')).toBe('# Root');
+
+    surface.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', metaKey: true, bubbles: true }));
+    const sink = surface.querySelector<HTMLTextAreaElement>('textarea.mm-clipboard-sink');
+    if (sink === null) throw new Error('No clipboard sink');
+    sink.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }),
+    );
+
+    expect(mocks.editorInsertBlock).toHaveBeenCalledWith('# Root');
+  });
+
+  test('[R-21] removes the clipboard sink with the view', () => {
+    const { surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    expect(surface.querySelector('.mm-clipboard-sink')).not.toBeNull();
+    result.view.destroy();
+
+    expect(surface.querySelector('.mm-clipboard-sink')).toBeNull();
+  });
+
+  test('[R-21] mounts no clipboard sink for a read-only map', () => {
+    const { surface } = mount({ editable: false });
+
+    expect(surface.querySelector('.mm-clipboard-sink')).toBeNull();
   });
 
   test('[R-06] reports a failure while resolving options', () => {

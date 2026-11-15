@@ -3,6 +3,7 @@ import { labelText, parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
+import { createClipboard } from './clipboard';
 import { applyMarker } from './markers';
 import { mapGestures, wheelZoomDelta } from './gestures';
 
@@ -64,6 +65,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
   let markmap: Markmap | null = null;
   let editor: MarkmapEditor | null = null;
   let toolbar: ReturnType<typeof createToolbar> | null = null;
+  let clipboard: { destroy: () => void } | null = null;
 
   try {
     const source = mount.markdown;
@@ -78,7 +80,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     toolbar = createToolbar(instance);
 
     if (mount.editable) {
-      editor = new MarkmapEditor({
+      const created = new MarkmapEditor({
         source,
         view: createEditView(instance),
         container: mount.surface,
@@ -90,7 +92,13 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
           }),
         onError: (error) => mount.onError(error.message),
       });
-      editor.focus();
+      editor = created;
+      created.focus();
+      clipboard = createClipboard({
+        container: mount.surface,
+        editor: created,
+        onNotice: mount.onError,
+      });
     }
 
     const handleLink = (event: MouseEvent): void => {
@@ -126,6 +134,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       snapshotForSave: () => editor?.commitForSnapshot() ?? null,
       destroy: () => {
         mount.svg.removeEventListener('click', handleLink, true);
+        clipboard?.destroy();
+        clipboard = null;
         editor?.destroy();
         editor = null;
         toolbar?.destroy();
@@ -137,6 +147,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     };
     return { ok: true, view };
   } catch (error) {
+    clipboard?.destroy();
     editor?.destroy();
     toolbar?.destroy();
     markmap?.destroy();

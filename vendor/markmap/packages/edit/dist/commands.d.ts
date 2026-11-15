@@ -18,6 +18,10 @@ export type Command = {
     node: string;
     text?: string;
 } | {
+    type: 'insertBlock';
+    node: string;
+    text: string;
+} | {
     type: 'delete';
     node: string;
 } | {

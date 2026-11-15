@@ -20,6 +20,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
+- **Copy and paste.** Cmd/Ctrl+C and X take the selected subtree with its notes and markers, and Cmd/Ctrl+V puts a copy back as the last child of the selection. Headings renumber and list items reindent to the new depth.
 - **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
@@ -110,6 +111,9 @@ A normal `*.md` file stays in OpenChamber's source editor.
 | Commit and add a child   | Tab while editing                  |
 | Outdent                  | Shift+Tab                          |
 | Delete a subtree         | Delete or Backspace                |
+| Copy a subtree           | Cmd/Ctrl + C                       |
+| Cut a subtree            | Cmd/Ctrl + X                       |
+| Paste as a child         | Cmd/Ctrl + V                       |
 | Move the selection       | Arrow keys                         |
 | Fold or unfold a subtree | Cmd/Ctrl + /                       |
 | Undo or redo             | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
@@ -119,6 +123,8 @@ A normal `*.md` file stays in OpenChamber's source editor.
 | Fit, zoom in, zoom out   | Markmap toolbar                    |
 
 After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
+
+Paste puts a copy last under the selected node. Headings renumber to the child depth and list items reindent; a heading cannot be pasted under a list item, and a level beyond six leaves the file unchanged with a notice. Text copied outside the map becomes one child label with line breaks collapsed. Copy, cut, and paste use DOM clipboard events in the editor frame, so they need no host clipboard permission. Native copy and paste inside an open label field stay unchanged.
 
 ## Markdown format
 

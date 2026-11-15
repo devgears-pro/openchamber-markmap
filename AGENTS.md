@@ -52,6 +52,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 ## Non-negotiables
 
 - Keep extensions in the fork; `src/` is host wiring and UI.
+- Clipboard behavior is DOM `copy`, `cut`, and `paste` events plus a hidden textarea sink; the fork's `insertBlock` carries a block of Markdown. Do not add `navigator.clipboard` or a host clipboard read.
 - Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. It includes an in-progress label without exiting edit mode or moving focus, so typing can continue after autosave. An unchanged text file round-trips byte-for-byte.
@@ -100,7 +101,7 @@ Worktrees, PR sync, fork changes, and issue closure follow `docs/process/sdlc.md
 ## Markmap facts
 
 - `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
-- `new MarkmapEditor({ source, view: createEditView(mm), container, onChange, onError })` adds selection, keyboard, overlay editing, and history over a live `Markmap`.
+- `new MarkmapEditor({ source, view: createEditView(mm), container, onChange, onError })` adds selection, keyboard, overlay editing, and history over a live `Markmap`. It exposes `insertBlock(text)`, `insertLabel(text)`, and `deleteSelected()` for host clipboard actions; `insertBlock` re-levels headings and list indents to the child depth.
 - Apply `frontmatter.markmap` with `resolveViewOptions(base, input)`. The result includes warnings for unknown keys.
 - `Markmap.create(svg, root, options)` already fits the view. The extension caps `fitMaxScale` at 1, so a small map opens at 100% and a large one is fitted; frontmatter can override the cap. The argument order is target, root, options.
 - `mm.setOptions({ ...mm.options, colorScheme })` redraws without replacing the tree or editor history.

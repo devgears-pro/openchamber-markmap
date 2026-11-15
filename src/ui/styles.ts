@@ -37,6 +37,18 @@ const MARKMAP_CSS = `
     right: 8px;
     z-index: 4;
   }
+  .mm-clipboard-sink {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+    resize: none;
+  }
   .mm-marker-menu {
     display: flex;
     justify-content: flex-end;

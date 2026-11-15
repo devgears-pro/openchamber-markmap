@@ -239,6 +239,21 @@ var MarkmapEditor = class {
 		this.history.push(before);
 		return true;
 	}
+	insertBlock(text) {
+		return this.runSelected({
+			type: "insertBlock",
+			text
+		}) !== null;
+	}
+	insertLabel(text) {
+		return this.runSelected({
+			type: "insertChild",
+			text
+		}) !== null;
+	}
+	deleteSelected() {
+		return this.runSelected({ type: "delete" }) !== null;
+	}
 	commit() {
 		this.commitEditing();
 	}
