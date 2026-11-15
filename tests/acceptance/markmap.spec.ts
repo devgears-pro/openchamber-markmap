@@ -146,6 +146,47 @@ test('[R-11] keeps the edit text aligned with the node label', async ({ page }) 
   expect(Math.abs(geometry.contentWidth - geometry.labelWidth)).toBeLessThanOrEqual(2);
 });
 
+test('[R-11] keeps the edit field anchored while the label grows', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Headings and lists become branches', { exact: true }).first().click();
+  await page.keyboard.press('F2');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+
+  const geometry = async (): Promise<{
+    textStart: number;
+    fieldLeft: number;
+    fieldWidth: number;
+  }> =>
+    page.evaluate(() => {
+      const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+      if (!field) throw new Error('Missing editor field');
+      const style = getComputedStyle(field);
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Missing canvas context');
+      context.font = style.font;
+      const textWidth = context.measureText(field.value).width;
+      const rect = field.getBoundingClientRect();
+      const contentWidth =
+        field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const offset = style.textAlign === 'center' ? (contentWidth - textWidth) / 2 : 0;
+      return {
+        textStart: rect.x + parseFloat(style.paddingLeft) + offset,
+        fieldLeft: rect.x,
+        fieldWidth: rect.width,
+      };
+    });
+
+  const before = await geometry();
+  await page.keyboard.type(' with a much longer label');
+  const after = await geometry();
+
+  expect(Math.abs(after.textStart - before.textStart)).toBeLessThanOrEqual(2);
+  expect(Math.abs(after.fieldLeft - before.fieldLeft)).toBeLessThanOrEqual(2);
+  expect(after.fieldWidth).toBeGreaterThan(before.fieldWidth);
+});
+
 test('[R-13] shows an editor error for a line break in a heading', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();

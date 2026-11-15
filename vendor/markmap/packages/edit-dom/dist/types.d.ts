@@ -1,4 +1,4 @@
-import type { MarkmapNode, Rect } from '@markmap/core';
+import type { MarkmapNode, Rect, Side } from '@markmap/core';
 import type { Document } from '@markmap/model';
 export interface EditView {
     readonly element: Element;
@@ -14,6 +14,7 @@ export interface EditView {
         animate?: boolean;
     }): boolean;
     screenRect(id: string): Rect | undefined;
+    direction(id: string): Side | undefined;
     hitAt(x: number, y: number): {
         kind: string;
         nodeId?: string;
