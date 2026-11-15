@@ -20,9 +20,10 @@ markmap:
 ## Controls
 
 - Click a node to select it
-- Enter adds a sibling
+- Enter inserts a sibling in selection; commits while editing
 - Tab adds a child
 - Shift+Tab outdents
-- F2 or Space edits the label
+- Space or double-click edits the label
+- Typing on an empty node starts editing
 - Delete removes the node
 - Cmd/Ctrl+Z undoes

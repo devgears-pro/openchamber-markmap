@@ -17,19 +17,19 @@ test('[R-02] [R-03] captures the README screenshots', async ({ page }) => {
   await page.goto('/dev/?map=showcase&theme=dark');
   await waitForMap(page);
   await select(page, 'Design');
-  await page.screenshot({ path: 'docs/images/editor-dark.png' });
+  await page.screenshot({ path: 'tmp/editor-dark.png' });
 
   await page.goto('/dev/?map=showcase&theme=light');
   await waitForMap(page);
   await select(page, 'Design');
-  await page.screenshot({ path: 'docs/images/editor-light.png' });
+  await page.screenshot({ path: 'tmp/editor-light.png' });
 
   await page.goto('/dev/?map=showcase&theme=dark');
   await waitForMap(page);
   await select(page, 'Private beta');
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
   await page.keyboard.type('Beta plan');
-  await page.screenshot({ path: 'docs/images/editor-editing.png' });
+  await page.screenshot({ path: 'tmp/editor-editing.png' });
 });

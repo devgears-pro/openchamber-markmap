@@ -1,0 +1,38 @@
+name: Dev preview version
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: dev-version
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.3.14'
+      - name: Set preview version
+        id: version
+        run: echo "version=$(bun run --silent dev-version)" >> "$GITHUB_OUTPUT"
+      - name: Commit preview version
+        run: |
+          if git diff --quiet -- package.json; then
+            echo "Preview version is current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore(dev): preview ${{ steps.version.outputs.version }}"
+          git push

@@ -14,9 +14,11 @@ export declare class MarkmapEditor {
     private readonly restoreTabIndex;
     private readonly stops;
     private doc;
+    private title;
     private selectedId;
     private selectionOffset;
     private editing;
+    private previewing;
     private destroyed;
     constructor({ source, view, container, placeholder, onChange, onError }: MarkmapEditorOptions);
     get source(): string;
@@ -31,9 +33,12 @@ export declare class MarkmapEditor {
         selection?: number;
         emit?: boolean;
     }): void;
-    startEditing(nodeId?: string | null, initialText?: string, options?: {
+    startEditing(nodeId?: string | null, options?: {
         selectAll?: boolean;
+        initialText?: string;
     }): void;
+    commitForSnapshot(): string;
+    setLabel(nodeId: string, text: string): boolean;
     commit(): void;
     undo(): boolean;
     redo(): boolean;
@@ -45,12 +50,16 @@ export declare class MarkmapEditor {
     private handleKeyDown;
     private handleEditingKey;
     private insertAndEdit;
+    private editCreated;
     private runSelected;
     private run;
     private apply;
     private commitEditing;
     private cancelEditing;
     private commitAndInsert;
+    private previewEditing;
+    private restorePreview;
+    private setMode;
     private stopEditingUi;
     private positionEditing;
     private navigate;
@@ -58,8 +67,8 @@ export declare class MarkmapEditor {
     private select;
     private ensureVisible;
     private selectedNode;
-    private selectedLabel;
     private isEmptyRoot;
+    private isEmptyLabel;
     private snapshot;
     private restore;
     private captureFolds;

@@ -23,6 +23,7 @@ const MARKMAP_CSS = `
     min-height: 0;
     color: var(--oc-fg, #ececf1);
     font: 400 16px/20px var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+    outline: none;
   }
   .mm-markmap-svg {
     display: block;
@@ -35,6 +36,25 @@ const MARKMAP_CSS = `
     top: 8px;
     right: 8px;
     z-index: 4;
+  }
+  .mm-marker-menu {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 6px;
+  }
+  .mm-marker-select {
+    padding: 4px 8px;
+    border: 1px solid var(--oc-border, #34343c);
+    border-radius: calc(var(--oc-radius, 9px) * 0.7);
+    background: var(--oc-elevated, #25252c);
+    color: var(--oc-fg, #ececf1);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mm-marker-select:focus-visible {
+    outline: 2px solid var(--oc-focus, #6ea8fe);
+    outline-offset: 2px;
   }
   .mm-notice {
     position: absolute;

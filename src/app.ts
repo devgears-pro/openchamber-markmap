@@ -7,6 +7,7 @@ import type {
   MarkmapSourceChange,
   MarkmapView,
 } from './markmap/view';
+import { createMarkerMenu } from './ui/marker-menu';
 import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
@@ -17,6 +18,7 @@ export type MarkmapHost = Pick<
   | 'onFileSaved'
   | 'reportFileChange'
   | 'reportFileUnsupported'
+  | 'openUrl'
 >;
 
 export type MountOptions = {
@@ -138,6 +140,9 @@ export const mountApp = (
         editable: !state.readOnly,
         onSource: handleSource,
         onError: handleError,
+        onOpenUrl: (url) => {
+          void host.openUrl(url).catch(() => undefined);
+        },
       });
       if (!result.ok) {
         state.failure = result.message;
@@ -148,6 +153,9 @@ export const mountApp = (
       state.view = result.view;
       state.renderedScheme = state.colorScheme;
       toolbar.replaceChildren(result.view.toolbar);
+      if (!state.readOnly) {
+        toolbar.append(createMarkerMenu(result.view.addMarker));
+      }
       return;
     }
 
@@ -158,7 +166,8 @@ export const mountApp = (
   };
 
   const snapshot = (): FileEditorSnapshot => {
-    state.view?.commit();
+    const content = state.view?.snapshotForSave();
+    if (content !== null && content !== undefined) state.text = content;
     if (state.bytes !== null) {
       return { bytes: state.bytes, version: textVersion(String(state.bytes.length)) };
     }

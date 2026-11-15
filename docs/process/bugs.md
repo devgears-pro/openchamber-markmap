@@ -2,6 +2,8 @@
 
 A bug is fixed only after a failing regression test proves the defect.
 
+Every bug starts as an issue. No issue, no fix.
+
 ## Report
 
 Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
@@ -10,7 +12,7 @@ Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
 - File name pattern and a synthetic minimal file that reproduces the problem.
 - Steps, expected result, actual result.
 - Console or host output with secrets and user data removed.
-- A screenshot or recording for visual defects.
+- A screenshot, GIF, or video recording for visual defects.
 
 Never attach a real user document. Reduce the case to synthetic Markdown.
 
@@ -34,14 +36,19 @@ A fix without a red test is not accepted, except when a test is genuinely imposs
 - Run `bun run test:acceptance` when rendering, layout, theme, or the toolbar changed.
 - Rebuild and commit `editor/main.js`.
 
-## Evidence
+## Proof
 
-The final report states:
+The closing comment carries the proof:
 
-- `done` or `blocked`.
+- Steps to reproduce and the synthetic file.
+- Expected and actual behavior.
+- A screenshot, GIF, or video recording of the defect.
+- The failing test name, command, and red output.
+- The green output after the fix and a screenshot or GIF of the result.
 - Commit and branch.
-- The regression test name and command.
-- Red output before the fix and green output after.
 - Verification commands and results.
-- Screenshots for visual changes.
 - Any remaining limitation.
+
+Attach screenshots or GIFs to the comment. Do not commit them.
+
+Complete the issue as defined in [`sdlc.md`](sdlc.md). The chat reply follows the chat report there.

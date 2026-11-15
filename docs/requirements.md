@@ -6,15 +6,15 @@ The tree is the contract for this extension. Every requirement has an ID, and ev
 
 ### R-01 Manifest
 
-The package declares one `contributes.fileEditors` entry with display name `Markmap for OpenChamber`, id `markmap`, editor title `Markmap`, the six supported file-name patterns, a text entry, and a valid icon. It parses with the OpenChamber manifest schema.
+The package declares one `contributes.fileEditors` entry with display name `Markmap`, id `markmap`, editor title `Markmap`, the six supported file-name patterns, a text entry, and a valid icon. It parses with the OpenChamber manifest schema.
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; this repository contains no custom Markdown parser, layout, or serializer.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ### R-03 Node selection
 
-A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node.
+A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node. The focused surface draws no browser focus ring; the selection frame is the only focus mark.
 
 ### R-04 Theme
 
@@ -22,7 +22,7 @@ The map uses the host theme mode (`light` or `dark`), not a color scheme from fi
 
 ### R-05 Snapshot fidelity
 
-`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is committed first, so a save during editing cannot lose text. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
+`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is included in the snapshot without exiting edit mode or moving focus, so typing can continue after autosave. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
 
 ### R-06 Unsupported fallback
 
@@ -48,7 +48,7 @@ The map exposes an image role and a name, and the Markmap toolbar keeps labelled
 
 ### R-11 Keyboard editing
 
-Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, F2 or Space edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
+From selection mode, Enter inserts a sibling and Tab a child. While editing, Enter commits and exits to selection; Tab commits and inserts a child. Shift+Tab outdents, Delete removes the selected subtree, Space or a double click edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
 
 ### R-12 Read-only files
 
@@ -56,7 +56,7 @@ A file marked read-only renders the map without the node editor. Its snapshot st
 
 ### R-13 Editor errors
 
-An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. The notice clears on the next successful edit.
+An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. A label that cannot be edited, such as a root title from frontmatter, also keeps the document unchanged and shows a notice. The notice clears on the next successful edit.
 
 ### R-14 Wheel navigation
 
@@ -64,29 +64,49 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 
 ### R-15 Keyboard navigation and history
 
-Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z undoes an edit, Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
+Arrow keys move the selection between related nodes without folding. Cmd/Ctrl+Z while editing resets the field to the original label; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
 
 ### R-16 New files
 
 An empty text file that matches a Markmap suffix opens with an editable first node. Typing a label creates a heading, so the first save produces valid Markmap Markdown without losing frontmatter. A read-only empty file stays blank and exposes no editor field.
 
+### R-17 External links
+
+Clicking an http(s) link in a node asks the host to open it and never navigates the editor frame. Non-http links are ignored. The editor asks for no new host capability.
+
+### R-18 Node markers
+
+An editable map offers a marker menu grouped by status, priority, progress, and flags. Choosing a marker replaces an existing leading marker on the selected node and preserves the rest of the label. Read-only maps show no marker menu. Markers are plain Unicode characters in the Markdown source.
+
+### R-19 Selection and editing modes
+
+A focused node stays in selection mode until the user explicitly edits it. Printable keys do nothing on a non-empty node. Typing a printable key on a selected empty node opens the label field with that character inserted. Space or a double click opens the label field, Escape leaves editing and keeps the node selected, and F2 is not bound. Enter while editing commits the label and returns to selection without inserting a node; the next Enter in selection mode inserts a sibling and opens its field. Tab while editing commits the label and inserts a child. Arrow keys navigate without folding: Left selects the parent, Right unfolds or selects the first child. The editor container carries `mm-editor-mode-select` or `mm-editor-mode-edit`.
+
+### R-20 Autosave preserves editing
+
+When the host requests a snapshot during label editing, the snapshot includes the current label without closing the field, changing its focus, or leaving edit mode. The user can continue typing after autosave.
+
 ## Traceability
 
-| Requirement | Tests                                                         |
-| ----------- | ------------------------------------------------------------- |
-| R-01        | `tests/manifest.test.ts`                                      |
-| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-03        | `tests/markmap-view.test.ts`, acceptance                      |
-| R-04        | `tests/app.test.ts`, acceptance                               |
-| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
-| R-06        | `tests/app.test.ts`                                           |
-| R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`             |
-| R-08        | `tests/bundle.test.ts`                                        |
-| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`          |
-| R-10        | acceptance                                                    |
-| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-14        | `tests/gestures.test.ts`, acceptance                          |
-| R-15        | acceptance                                                    |
-| R-16        | `tests/markmap-view.test.ts`, acceptance                      |
+| Requirement | Tests                                                                                                               |
+| ----------- | ------------------------------------------------------------------------------------------------------------------- |
+| R-01        | `tests/manifest.test.ts`                                                                                            |
+| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-03        | `tests/markmap-view.test.ts`, acceptance                                                                            |
+| R-04        | `tests/app.test.ts`, acceptance                                                                                     |
+| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
+| R-06        | `tests/app.test.ts`                                                                                                 |
+| R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
+| R-08        | `tests/bundle.test.ts`                                                                                              |
+| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`                                                                |
+| R-10        | acceptance                                                                                                          |
+| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-14        | `tests/gestures.test.ts`, acceptance                                                                                |
+| R-15        | acceptance                                                                                                          |
+| R-16        | `tests/markmap-view.test.ts`, acceptance                                                                            |
+| R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`                                                                   |
+| R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
+| R-19        | acceptance                                                                                                          |
+| R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |

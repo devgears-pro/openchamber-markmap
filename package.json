@@ -1,6 +1,6 @@
 {
   "name": "openchamber-markmap",
-  "version": "0.3.1",
+  "version": "0.4.0-dev.107",
   "private": true,
   "type": "module",
   "description": "Markmap for OpenChamber: an OpenChamber file editor that renders and edits Markmap Markdown as a mind map.",
@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "dev": "vite --open /dev/",
+    "dev-version": "bun scripts/dev-version.ts",
     "build": "vite build",
     "check:bundle-fresh": "git diff --exit-code -- editor/main.js",
     "check:requirements": "bun scripts/check-requirements.ts",
@@ -26,7 +27,7 @@
     "format": "prettier --write .",
     "lint": "bun run lint:code && bun run lint:format && bun run lint:docs && bun run check:dead-code",
     "lint:code": "eslint .",
-    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!node_modules/**\" \"!vendor/markmap/packages/**\"",
+    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\"",
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",
     "screenshots": "playwright test -c playwright.screenshots.config.ts",
@@ -42,7 +43,7 @@
       "openchamber": ">=2.7.1"
     },
     "id": "markmap",
-    "name": "Markmap for OpenChamber",
+    "name": "Markmap",
     "icon": "icon.svg",
     "contributes": {
       "fileEditors": [

@@ -47,3 +47,10 @@ output:
 - [ ] `bun run verify` is green.
 - [ ] Acceptance is green for rendering changes.
 - [ ] `editor/main.js` is rebuilt.
+
+## Proof
+
+- [ ] Steps and a synthetic file are in this issue.
+- [ ] A screenshot or recording is attached.
+- [ ] The failing test and red output are posted.
+- [ ] The green output and a result screenshot are posted before closing.

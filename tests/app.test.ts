@@ -41,6 +41,7 @@ const createHost = () => {
   let saved: SavedListener | null = null;
   let unsupported = 0;
   const changes: FileEditorChange[] = [];
+  const urls: string[] = [];
 
   const host: MarkmapHost = {
     onReady: (listener) => {
@@ -73,11 +74,18 @@ const createHost = () => {
     reportFileUnsupported: () => {
       unsupported += 1;
     },
+    openUrl: (url) => {
+      urls.push(url);
+      return url.startsWith('https://reject.')
+        ? Promise.reject(new Error('blocked'))
+        : Promise.resolve();
+    },
   };
 
   return {
     host,
     changes,
+    urls,
     unsupported: () => unsupported,
     emitReady: (context: HostReadyContext) => ready?.(context),
     emitFile: (file: FileEditorDocument) => open?.(file),
@@ -93,8 +101,13 @@ type FakeFactory = {
   factory: MarkmapFactory;
   mounts: MarkmapMount[];
   colorSchemes: MarkmapColorScheme[];
+  markers: string[];
   destroyed: () => number;
   commits: () => number;
+  snapshots: () => number;
+  setSnapshotContent: (content: string) => void;
+  beginEditing: () => void;
+  isEditing: () => boolean;
   fail: string | null;
 };
 
@@ -102,15 +115,29 @@ const createMarkmapFactory = (): FakeFactory => {
   const toolbar = document.createElement('div');
   toolbar.className = 'fake-markmap-toolbar';
   const colorSchemes: MarkmapColorScheme[] = [];
+  const markers: string[] = [];
   let destroyCount = 0;
   let commitCount = 0;
+  let snapshotCount = 0;
+  let snapshotContent: string | null = null;
+  let editing = false;
+  let mounted: MarkmapMount | null = null;
   const view: MarkmapView = {
     toolbar,
     setColorScheme: (scheme) => {
       colorSchemes.push(scheme);
     },
+    addMarker: (marker) => {
+      markers.push(marker);
+    },
     commit: () => {
       commitCount += 1;
+      editing = false;
+    },
+    snapshotForSave: () => {
+      snapshotCount += 1;
+      if (snapshotContent !== null) mounted?.onSource({ source: snapshotContent, selection: 0 });
+      return snapshotContent;
     },
     destroy: () => {
       destroyCount += 1;
@@ -119,12 +146,22 @@ const createMarkmapFactory = (): FakeFactory => {
   const state: FakeFactory = {
     mounts: [],
     colorSchemes,
+    markers,
     destroyed: () => destroyCount,
     commits: () => commitCount,
+    snapshots: () => snapshotCount,
+    setSnapshotContent: (content) => {
+      snapshotContent = content;
+    },
+    beginEditing: () => {
+      editing = true;
+    },
+    isEditing: () => editing,
     fail: null,
     factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
       state.mounts.push(mount);
+      mounted = mount;
       return { ok: true, view };
     },
   };
@@ -189,8 +226,27 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts[0]?.editable).toBe(true);
     expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
     expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
-    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(1);
+    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(2);
     expect(root.querySelector('.mm-error')).toBeNull();
+  });
+
+  test('[R-18] adds the chosen marker from the toolbar', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const select = root.querySelector<HTMLSelectElement>('.mm-marker-select');
+    if (select === null) throw new Error('No marker menu');
+
+    select.value = '✅';
+    select.dispatchEvent(new Event('change'));
+
+    expect(markmaps.markers).toEqual(['✅']);
+  });
+
+  test('[R-18] hides the marker menu on a read-only file', () => {
+    const { host } = mount();
+    host.emitFile(textFile(SOURCE, true));
+
+    expect(root.querySelector('.mm-marker-select')).toBeNull();
   });
 
   test('[R-12] creates a read-only map without the node editor', async () => {
@@ -199,6 +255,25 @@ describe('Markmap file editor', () => {
 
     expect(markmaps.mounts[0]?.editable).toBe(false);
     expect(contentOf(await host.snapshot())).toBe(SOURCE);
+  });
+
+  test('[R-17] forwards a node link to the host', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+
+    markmaps.mounts[0]?.onOpenUrl('https://example.com/docs');
+
+    expect(host.urls).toEqual(['https://example.com/docs']);
+  });
+
+  test('[R-17] ignores a rejected host link', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+
+    markmaps.mounts[0]?.onOpenUrl('https://reject.example/docs');
+    await Promise.resolve();
+
+    expect(host.urls).toEqual(['https://reject.example/docs']);
   });
 
   test('[R-16] passes an empty file through without changing it', async () => {
@@ -231,8 +306,27 @@ describe('Markmap file editor', () => {
 
     const snapshot = await host.snapshot();
     expect(contentOf(snapshot)).toBe(SOURCE);
-    expect(markmaps.commits()).toBe(1);
+    expect(markmaps.commits()).toBe(0);
+    expect(markmaps.snapshots()).toBe(1);
     expect((await host.snapshot()).version).toBe(snapshot.version);
+  });
+
+  test('[R-20] snapshots active edit text without ending editing', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const inProgress = '# Root\n\n## Branch\n\n- Leaf in progress\n';
+    markmaps.setSnapshotContent(inProgress);
+    markmaps.beginEditing();
+
+    const snapshot = await host.snapshot();
+
+    expect(contentOf(snapshot)).toBe(inProgress);
+    expect(markmaps.snapshots()).toBe(1);
+    expect(markmaps.commits()).toBe(0);
+    expect(markmaps.isEditing()).toBe(true);
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    host.saved(snapshot.version);
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {

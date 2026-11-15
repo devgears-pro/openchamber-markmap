@@ -1,8 +1,9 @@
 import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
-import { parseDocument } from '@markmap/model';
+import { labelText, parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 
+import { applyMarker } from './markers';
 import { mapGestures, wheelZoomDelta } from './gestures';
 
 export type MarkmapColorScheme = 'light' | 'dark';
@@ -15,7 +16,9 @@ export type MarkmapSourceChange = {
 export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
+  addMarker: (glyph: string) => void;
   commit: () => void;
+  snapshotForSave: () => string | null;
   destroy: () => void;
 };
 
@@ -27,6 +30,7 @@ export type MarkmapMount = {
   editable: boolean;
   onSource: (change: MarkmapSourceChange) => void;
   onError: (message: string) => void;
+  onOpenUrl: (url: string) => void;
 };
 
 export type MarkmapResult = { ok: true; view: MarkmapView } | { ok: false; message: string };
@@ -35,6 +39,16 @@ export type MarkmapFactory = (mount: MarkmapMount) => MarkmapResult;
 
 const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+const HTTP_URL = /^https?:\/\//iu;
+
+const linkOf = (target: EventTarget | null): string | null => {
+  if (!(target instanceof Element)) return null;
+  const anchor = target.closest('a');
+  if (anchor === null) return null;
+  const href = anchor.getAttribute('href') ?? '';
+  return HTTP_URL.test(href) ? href : null;
+};
 
 const optionsFor = (
   colorScheme: MarkmapColorScheme,
@@ -79,15 +93,39 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       editor.focus();
     }
 
+    const handleLink = (event: MouseEvent): void => {
+      const href = linkOf(event.target);
+      if (href === null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      mount.onOpenUrl(href);
+    };
+    mount.svg.addEventListener('click', handleLink, true);
+
     const view: MarkmapView = {
       toolbar: toolbar.element,
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
       },
+      addMarker: (glyph) => {
+        if (editor === null) return;
+        editor.commit();
+        const id = editor.selected;
+        if (id === null) return;
+        const node = editor.document.nodes.get(id);
+        if (node === undefined) return;
+        const label = labelText(editor.document, node);
+        const next = applyMarker(label, glyph);
+        if (next === label) return;
+        editor.setLabel(id, next);
+        editor.focus();
+      },
       commit: () => {
         editor?.commit();
       },
+      snapshotForSave: () => editor?.commitForSnapshot() ?? null,
       destroy: () => {
+        mount.svg.removeEventListener('click', handleLink, true);
         editor?.destroy();
         editor = null;
         toolbar?.destroy();

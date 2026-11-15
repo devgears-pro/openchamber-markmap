@@ -3,19 +3,30 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 
-const mocks = vi.hoisted(() => ({
-  parseDocument: vi.fn(),
-  create: vi.fn(),
-  resolveViewOptions: vi.fn(),
-  createToolbar: vi.fn(),
-  createEditView: vi.fn(),
-  editorOptions: [] as MarkmapEditorOptions[],
-  editorDestroy: vi.fn(),
-  editorFocus: vi.fn(),
-  editorCommit: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const editorSelected: { value: string | null } = { value: 'root' };
+  return {
+    parseDocument: vi.fn(),
+    labelText: vi.fn(),
+    create: vi.fn(),
+    resolveViewOptions: vi.fn(),
+    createToolbar: vi.fn(),
+    createEditView: vi.fn(),
+    editorOptions: [] as MarkmapEditorOptions[],
+    editorSetLabel: vi.fn(),
+    editorSelected,
+    editorNodes: new Map<string, unknown>([['root', {}]]),
+    editorDestroy: vi.fn(),
+    editorFocus: vi.fn(),
+    editorCommit: vi.fn(),
+    editorSnapshotForSave: vi.fn<() => string>(),
+  };
+});
 
-vi.mock('@markmap/model', () => ({ parseDocument: mocks.parseDocument }));
+vi.mock('@markmap/model', () => ({
+  parseDocument: mocks.parseDocument,
+  labelText: mocks.labelText,
+}));
 vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
   resolveViewOptions: mocks.resolveViewOptions,
@@ -28,12 +39,28 @@ vi.mock('@markmap/edit-dom', () => ({
       mocks.editorOptions.push(options);
     }
 
+    get selected(): string | null {
+      return mocks.editorSelected.value;
+    }
+
+    get document(): { readonly nodes: Map<string, unknown> } {
+      return { nodes: mocks.editorNodes };
+    }
+
+    setLabel(nodeId: string, text: string): void {
+      mocks.editorSetLabel(nodeId, text);
+    }
+
     focus(): void {
       mocks.editorFocus();
     }
 
     commit(): void {
       mocks.editorCommit();
+    }
+
+    commitForSnapshot(): string {
+      return mocks.editorSnapshotForSave();
     }
 
     destroy(): void {
@@ -83,6 +110,7 @@ const setup = () => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const onSource = vi.fn();
   const onError = vi.fn();
+  const onOpenUrl = vi.fn();
   const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
   mocks.parseDocument.mockImplementation((source: string) => ({
     tree:
@@ -96,7 +124,7 @@ const setup = () => {
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
   mocks.createEditView.mockReturnValue({});
-  return { markmap, toolbar, surface, svg, onSource, onError, resolved };
+  return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
 };
 
 const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}) => {
@@ -109,6 +137,7 @@ const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {})
     editable: true,
     onSource: base.onSource,
     onError: base.onError,
+    onOpenUrl: base.onOpenUrl,
     ...overrides,
   };
   const result = createMarkmapView(options);
@@ -118,6 +147,10 @@ const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {})
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.editorOptions.length = 0;
+  mocks.editorSelected.value = 'root';
+  mocks.editorNodes.clear();
+  mocks.editorNodes.set('root', {});
+  mocks.labelText.mockReturnValue('Root');
   document.head.replaceChildren();
 });
 
@@ -150,6 +183,74 @@ describe('Markmap adapter', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  test('[R-17] opens an http link through the host callback', () => {
+    const { svg, onOpenUrl } = mount();
+    const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    anchor.setAttribute('href', 'https://example.com/docs');
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+    anchor.append(text);
+    svg.append(anchor);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    text.dispatchEvent(event);
+
+    expect(onOpenUrl).toHaveBeenCalledWith('https://example.com/docs');
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  test('[R-17] ignores non-http links and non-element targets', () => {
+    const { svg, onOpenUrl } = mount();
+    const anchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    anchor.setAttribute('href', 'mailto:dev@example.com');
+    const textNode = document.createTextNode('mail');
+    anchor.append(textNode);
+    const emptyAnchor = document.createElementNS('http://www.w3.org/2000/svg', 'a');
+    emptyAnchor.textContent = 'plain';
+    svg.append(anchor, emptyAnchor);
+
+    textNode.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    emptyAnchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(onOpenUrl).not.toHaveBeenCalled();
+  });
+
+  test('[R-18] adds a marker to the selected node', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.addMarker('✅');
+
+    expect(mocks.editorSetLabel).toHaveBeenCalledWith('root', '✅ Root');
+    expect(mocks.editorFocus).toHaveBeenCalled();
+  });
+
+  test('[R-18] skips a marker that is already present', () => {
+    mocks.labelText.mockReturnValue('✅ Root');
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.addMarker('✅');
+
+    expect(mocks.editorSetLabel).not.toHaveBeenCalled();
+  });
+
+  test('[R-18] skips markers with no selected node or no editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = null;
+    result.view.addMarker('✅');
+    mocks.editorSelected.value = 'missing';
+    result.view.addMarker('✅');
+
+    const readOnly = mount({ editable: false });
+    if (!readOnly.result.ok) throw new Error(readOnly.result.message);
+    readOnly.result.view.addMarker('✅');
+
+    expect(mocks.editorSetLabel).not.toHaveBeenCalled();
+  });
+
   test('[R-11] [R-13] forwards source changes and editor errors', () => {
     const { onSource, onError } = mount();
     const editor = mocks.editorOptions[0];
@@ -165,8 +266,10 @@ describe('Markmap adapter', () => {
   test('[R-12] skips the editor for a read-only file', () => {
     const { result, markmap } = mount({ editable: false });
 
+    if (!result.ok) throw new Error(result.message);
     expect(result.ok).toBe(true);
     expect(mocks.editorOptions).toHaveLength(0);
+    expect(result.view.snapshotForSave()).toBeNull();
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(markmap.destroy).not.toHaveBeenCalled();
   });
@@ -190,6 +293,17 @@ describe('Markmap adapter', () => {
     result.view.commit();
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+  });
+
+  test('[R-20] snapshots an in-progress label without committing the editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSnapshotForSave.mockReturnValue('# Saved label');
+
+    expect(result.view.snapshotForSave()).toBe('# Saved label');
+
+    expect(mocks.editorSnapshotForSave).toHaveBeenCalledOnce();
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
   });
 
   test('[R-07] destroys the editor, toolbar, view and SVG children', () => {
@@ -219,6 +333,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'invalid yaml' });
@@ -239,6 +354,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'plain text' });
@@ -261,6 +377,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'editor failed' });
@@ -283,6 +400,7 @@ describe('Markmap adapter', () => {
       editable: true,
       onSource: vi.fn(),
       onError: vi.fn(),
+      onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'bad options' });
