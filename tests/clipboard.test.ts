@@ -38,10 +38,10 @@ const setup = (source = SOURCE): Harness => {
   container.tabIndex = 0;
   document.body.append(container);
   const notices: string[] = [];
-  const calls = { blocks: [] as string[], labels: [] as string[], deletes: 0, focus: 0 };
+  const calls: Harness['calls'] = { blocks: [], labels: [], deletes: 0, focus: 0 };
   const editing = { value: false };
   const selected = { value: map.root };
-  const block = { value: null as string | null };
+  const block: Harness['block'] = { value: null };
   const editor: ClipboardEditor = {
     get isEditing() {
       return editing.value;

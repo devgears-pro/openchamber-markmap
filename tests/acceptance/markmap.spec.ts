@@ -125,23 +125,23 @@ test('[R-11] keeps the edit text aligned with the node label', async ({ page }) 
   await expect(field).toBeVisible();
 
   const geometry = await page.evaluate(() => {
-    const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    const input = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
     const selected = document.querySelector('.mm-editor-selected');
     const label = selected?.querySelector('text');
-    if (!field || !selected || !label) return null;
-    const style = getComputedStyle(field);
+    if (!input || !selected || !label) return null;
+    const style = getComputedStyle(input);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) return null;
     context.font = style.font;
-    const textWidth = context.measureText(field.value).width;
-    const fieldRect = field.getBoundingClientRect();
+    const textWidth = context.measureText(input.value).width;
+    const inputRect = input.getBoundingClientRect();
     const labelRect = label.getBoundingClientRect();
     const contentWidth =
-      field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     const offset = style.textAlign === 'center' ? (contentWidth - textWidth) / 2 : 0;
     return {
-      textStart: fieldRect.x + parseFloat(style.paddingLeft) + offset,
+      textStart: inputRect.x + parseFloat(style.paddingLeft) + offset,
       labelStart: labelRect.x,
       contentWidth,
       labelWidth: labelRect.width,
@@ -165,17 +165,17 @@ test('[R-11] keeps the edit field anchored while the label grows', async ({ page
     fieldWidth: number;
   }> =>
     page.evaluate(() => {
-      const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
-      if (!field) throw new Error('Missing editor field');
-      const style = getComputedStyle(field);
+      const input = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+      if (!input) throw new Error('Missing editor field');
+      const style = getComputedStyle(input);
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d');
       if (!context) throw new Error('Missing canvas context');
       context.font = style.font;
-      const textWidth = context.measureText(field.value).width;
-      const rect = field.getBoundingClientRect();
+      const textWidth = context.measureText(input.value).width;
+      const rect = input.getBoundingClientRect();
       const contentWidth =
-        field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
       const offset = style.textAlign === 'center' ? (contentWidth - textWidth) / 2 : 0;
       return {
         textStart: rect.x + parseFloat(style.paddingLeft) + offset,
@@ -202,13 +202,13 @@ test('[R-11] reflows child branches right while the label grows', async ({ page 
 
   const geometry = async (): Promise<{ fieldRight: number; childLeft: number }> =>
     page.evaluate(() => {
-      const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+      const input = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
       const child = [...document.querySelectorAll('.mm-markmap-svg text')].find(
-        (element) => element.textContent?.trim() === 'Inline Markdown works',
+        (element) => element.textContent.trim() === 'Inline Markdown works',
       );
-      if (!field || !child) throw new Error('Missing editor geometry');
+      if (!input || !child) throw new Error('Missing editor geometry');
       return {
-        fieldRight: field.getBoundingClientRect().right,
+        fieldRight: input.getBoundingClientRect().right,
         childLeft: child.getBoundingClientRect().x,
       };
     });

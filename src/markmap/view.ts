@@ -55,7 +55,7 @@ const optionsFor = (
   colorScheme: MarkmapColorScheme,
   frontmatter: Record<string, unknown>,
 ): ViewOptions => ({
-  ...resolveViewOptions({ duration: 0, fitPadding: 24, fitMaxScale: 1 }, frontmatter.markmap)
+  ...resolveViewOptions({ duration: 0, fitPadding: 24, fitMaxScale: 1 }, frontmatter['markmap'])
     .options,
   colorScheme,
   gestures: mapGestures,
@@ -85,12 +85,15 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         view: createEditView(instance),
         container: mount.surface,
         placeholder: '\u200B',
-        onChange: (change) =>
+        onChange: (change) => {
           mount.onSource({
             source: change.source,
             selection: change.selection,
-          }),
-        onError: (error) => mount.onError(error.message),
+          });
+        },
+        onError: (error) => {
+          mount.onError(error.message);
+        },
       });
       editor = created;
       created.focus();

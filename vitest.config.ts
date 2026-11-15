@@ -7,14 +7,13 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/main.ts'],
       reporter: ['text', 'json-summary'],
       reportOnFailure: true,
       thresholds: {
-        statements: 100,
-        branches: 100,
-        functions: 100,
-        lines: 100,
+        100: true,
+        perFile: {
+          100: true,
+        },
       },
     },
   },

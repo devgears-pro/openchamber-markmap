@@ -4,13 +4,13 @@
 
 | Level        | Tool                                 | What it proves                                                                                                |
 | ------------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Types        | `tsc --noEmit`                       | The code satisfies strict TypeScript, including tests and scripts.                                            |
+| Types        | `tsc --noEmit`                       | The code satisfies the strict TypeScript option set, including tests and scripts.                             |
 | Unit         | Vitest                               | The adapter maps Markmap APIs, options, updates, and cleanup correctly.                                       |
 | DOM          | Vitest + happy-dom                   | The host contract, node selection, theme, snapshot, and fallback behavior.                                    |
 | Contract     | Vitest                               | `package.json` parses with the OpenChamber manifest schema.                                                   |
 | Bundle       | Vitest                               | The entry is one classic script and the IIFE stays within budget.                                             |
 | Acceptance   | Playwright                           | The real renderer draws a map, mounts its toolbar, and the keyboard editor inserts, edits, and removes nodes. |
-| Static       | ESLint, Prettier, markdownlint, Knip | Style, formatting, docs, and dead code.                                                                       |
+| Static       | ESLint, Prettier, markdownlint, Knip | Strict type-aware rules, formatting, docs, and dead code.                                                     |
 | Reproducible | `check:reproducible`                 | Two builds from the same tree produce identical bytes.                                                        |
 
 ## Commands
@@ -24,7 +24,7 @@ bun run verify           # all merge-blocking checks
 
 ## Coverage
 
-`vitest.config.ts` requires 100% statements, branches, functions, and lines for `src/`, except `src/main.ts`. The bootstrap connects the host and mounts the app; it cannot be exercised without the OpenChamber frame, so the acceptance path covers it.
+`vitest.config.ts` requires 100% statements, branches, functions, and lines for every file in `src/`, including `src/main.ts`, and checks the thresholds per file. The bootstrap is covered by a unit test that mocks `connectHost`, `mountApp`, and the Markmap factory, so the root lookup and the mount wiring are exercised without the OpenChamber frame.
 
 Coverage is not a substitute for assertions. A test that calls code without checking observable behavior does not count as proof.
 

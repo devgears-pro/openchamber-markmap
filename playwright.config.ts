@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: {
     command: 'bunx vite --host 127.0.0.1 --port 5193 --strictPort',
     url: 'http://127.0.0.1:5193/dev/',
-    reuseExistingServer: process.env.CI === undefined,
+    reuseExistingServer: process.env['CI'] === undefined,
     timeout: 30_000,
   },
 });

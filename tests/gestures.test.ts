@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import type { Markmap } from '@markmap/view';
 
-const mocks = vi.hoisted(() => ({
-  translate: vi.fn(),
-  transform: vi.fn(),
-  stops: [] as string[],
-}));
+const mocks = vi.hoisted(() => {
+  const stops: string[] = [];
+  return {
+    translate: vi.fn<(x: number, y: number) => unknown>(),
+    transform: vi.fn<(selection: unknown, transform: unknown) => void>(),
+    stops,
+  };
+});
 
 vi.mock('@markmap/view', () => ({
   combineGestures:
@@ -29,17 +32,32 @@ vi.mock('@markmap/view', () => ({
 
 const { mapGestures, panDelta, wheelZoomDelta } = await import('../src/markmap/gestures');
 
-const createMap = (pan = true, scale = 1) => {
+const isMarkmap = (value: unknown): value is Markmap =>
+  typeof value === 'object' &&
+  value !== null &&
+  'element' in value &&
+  'options' in value &&
+  'transform' in value &&
+  'zoomBehavior' in value;
+
+type Stub = {
+  element: HTMLDivElement;
+  mm: Markmap;
+  next: { k: number; x: number; y: number };
+};
+
+const createMap = (pan = true, scale = 1): Stub => {
   const element = document.createElement('div');
   const next = { k: scale, x: -10, y: -20 };
   mocks.translate.mockReturnValue(next);
-  const mm = {
+  const candidate: unknown = {
     element,
     options: { pan },
     transform: { k: scale, translate: mocks.translate },
     zoomBehavior: { transform: mocks.transform },
-  } as unknown as Markmap;
-  return { element, mm, next };
+  };
+  if (!isMarkmap(candidate)) throw new Error('Incomplete Markmap stub');
+  return { element, mm: candidate, next };
 };
 
 const wheel = (init: WheelEventInit = {}): WheelEvent =>
@@ -51,13 +69,12 @@ const wheel = (init: WheelEventInit = {}): WheelEvent =>
 
 const nextFrame = (): Promise<void> =>
   new Promise((resolve) => {
-    requestAnimationFrame(() => resolve());
+    requestAnimationFrame(() => {
+      resolve();
+    });
   });
 
-const lastTranslate = (): [number, number] | undefined => {
-  const call = mocks.translate.mock.calls.at(-1);
-  return call === undefined ? undefined : [call[0] as number, call[1] as number];
-};
+const lastTranslate = (): [number, number] | undefined => mocks.translate.mock.calls.at(-1);
 
 beforeEach(() => {
   vi.clearAllMocks();

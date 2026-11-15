@@ -8,8 +8,7 @@ import { describe, expect, test } from 'vitest';
 const root = resolve(import.meta.dirname, '..');
 
 describe('extension manifest', () => {
-  const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as unknown;
-  const result = parseManifestJson(JSON.stringify(packageJson));
+  const result = parseManifestJson(readFileSync(resolve(root, 'package.json'), 'utf8'));
 
   test('[R-01] parses with the host schema', () => {
     expect(result.ok).toBe(true);
@@ -17,9 +16,8 @@ describe('extension manifest', () => {
 
   test('[R-01] declares the Markmap file editor for the chosen suffixes', () => {
     if (!result.ok) throw new Error(result.message);
-    const envelope = packageJson as { openchamber: { name: string } };
-    const editors = result.manifest.contributes?.fileEditors ?? [];
-    expect(envelope.openchamber.name).toBe('Markmap');
+    const editors = result.manifest.contributes.fileEditors ?? [];
+    expect(result.manifest.contributes.panel.name).toBe('Markmap');
     expect(editors).toHaveLength(1);
     expect(editors[0]?.id).toBe('markmap');
     expect(editors[0]?.title).toBe('Markmap');
@@ -36,7 +34,7 @@ describe('extension manifest', () => {
 
   test('[R-01] matches the intended file names and leaves other Markdown alone', () => {
     if (!result.ok) throw new Error(result.message);
-    const patterns = result.manifest.contributes?.fileEditors?.[0]?.match ?? [];
+    const patterns = result.manifest.contributes.fileEditors?.[0]?.match ?? [];
     const matches = (name: string): boolean =>
       patterns.some((pattern) => matchesFileEditorPattern(name, pattern));
 
@@ -58,10 +56,10 @@ describe('extension manifest', () => {
 
   test('[R-01] ships the declared entry and icon', () => {
     if (!result.ok) throw new Error(result.message);
-    const editors = result.manifest.contributes?.fileEditors ?? [];
+    const editors = result.manifest.contributes.fileEditors ?? [];
     const entry = editors[0]?.entry;
-    expect(entry).toBeDefined();
-    expect(() => readFileSync(resolve(root, entry!))).not.toThrow();
+    if (entry === undefined) throw new Error('No editor entry');
+    expect(() => readFileSync(resolve(root, entry))).not.toThrow();
     expect(() => readFileSync(resolve(root, 'icon.svg'))).not.toThrow();
   });
 

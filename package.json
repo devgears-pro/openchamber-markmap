@@ -26,7 +26,7 @@
     "check:reproducible": "bun scripts/check-reproducible.ts",
     "format": "prettier --write .",
     "lint": "bun run lint:code && bun run lint:format && bun run lint:docs && bun run check:dead-code",
-    "lint:code": "eslint .",
+    "lint:code": "eslint --max-warnings 0 .",
     "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\"",
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",

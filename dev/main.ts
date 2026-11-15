@@ -41,19 +41,21 @@ window.addEventListener('dev-file-snapshot', () => {
 
 const host: MarkmapHost = {
   onReady: (listener) => {
-    queueMicrotask(() => listener(devContext(mode)));
+    queueMicrotask(() => {
+      listener(devContext(mode));
+    });
     return () => undefined;
   },
   onFileOpen: (listener) => {
-    queueMicrotask(() =>
+    queueMicrotask(() => {
       listener({
         path: `dev/${name}`,
         name,
         readOnly: params.get('readonly') === '1',
         encoding: 'text',
         content,
-      }),
-    );
+      });
+    });
     return () => undefined;
   },
   onFileSnapshot: (listener) => {
