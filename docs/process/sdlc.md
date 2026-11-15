@@ -81,7 +81,7 @@ After a task or bug fix, the chat reply links the work and its proof:
 - Acceptance is green when rendering changed.
 - `editor/main.js` is rebuilt and committed.
 - Docs and traceability are updated.
-- README screenshots are updated for visible UI changes.
+- README screenshots are uploaded to GitHub for visible UI changes.
 - A visual change has a closing presentation on its issue.
 - Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.

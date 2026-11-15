@@ -56,7 +56,7 @@ A file marked read-only renders the map without the node editor. Its snapshot st
 
 ### R-13 Editor errors
 
-An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. The notice clears on the next successful edit.
+An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. A label that cannot be edited, such as a root title from frontmatter, also keeps the document unchanged and shows a notice. The notice clears on the next successful edit.
 
 ### R-14 Wheel navigation
 
@@ -64,7 +64,7 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 
 ### R-15 Keyboard navigation and history
 
-Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z undoes an edit, Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
+Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z while editing resets the field to the original label; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
 
 ### R-16 New files
 

@@ -16,18 +16,6 @@ Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
 
 Never attach a real user document. Reduce the case to synthetic Markdown.
 
-## Proof
-
-The issue comments carry the proof:
-
-- Steps to reproduce and the synthetic file.
-- Expected and actual behavior.
-- A screenshot or recording of the defect.
-- The failing test name, command, and red output.
-- The green output after the fix and a screenshot of the result.
-
-Attach screenshots to the issue comment. Do not commit them.
-
 ## Regression test first
 
 1. Add or reuse a requirement ID in `docs/requirements.md`.
@@ -52,14 +40,17 @@ A fix without a red test is not accepted, except when a test is genuinely imposs
 
 After the fix, the chat reply links the issue and pull request, states the cause, includes the red and green evidence, and gives the install link for the branch: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
 
-## Evidence
+## Proof
 
-The closing comment states:
+The closing comment carries the proof:
 
-- `done` or `blocked`.
+- Steps to reproduce and the synthetic file.
+- Expected and actual behavior.
+- A screenshot or recording of the defect.
+- The failing test name, command, and red output.
+- The green output after the fix and a screenshot of the result.
 - Commit and branch.
-- The regression test name and command.
-- Red output before the fix and green output after.
 - Verification commands and results.
-- A screenshot of the fixed result attached to the comment.
 - Any remaining limitation.
+
+Attach screenshots to the comment. Do not commit them.

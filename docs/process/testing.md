@@ -24,7 +24,7 @@ bun run verify           # all merge-blocking checks
 
 ## Coverage
 
-`vitest.config.ts` requires 100% statements, branches, functions, and lines for `src/`, except `src/main.ts`. The bootstrap is a three-line host connection and cannot be exercised without the OpenChamber frame; its behavior is covered by the acceptance path.
+`vitest.config.ts` requires 100% statements, branches, functions, and lines for `src/`, except `src/main.ts`. The bootstrap connects the host and mounts the app; it cannot be exercised without the OpenChamber frame, so the acceptance path covers it.
 
 Coverage is not a substitute for assertions. A test that calls code without checking observable behavior does not count as proof.
 

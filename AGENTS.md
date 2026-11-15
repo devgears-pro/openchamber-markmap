@@ -23,23 +23,23 @@ bunx openchamber-guest-check
 
 ## Architecture
 
-- `src/main.ts` — `connectHost()` and mount.
-- `src/app.ts` — host wiring, save tracking, snapshot, theme updates, lifecycle.
-- `src/markmap/view.ts` — the only module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
-- `src/ui/styles.ts` — the injected stylesheet, host tokens only.
-- `vendor/markmap/` — vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
-- `editor/` — installable package: `index.html` and the built `main.js`.
-- `dev/` — Vite harness, synthetic samples, and host theme tokens for screenshots.
-- `tmp/` — generated screenshots from `bun run screenshots`; do not commit.
-- `tests/` — Vitest unit and DOM tests plus Playwright acceptance tests.
-- `scripts/` — requirement traceability and reproducible-build checks.
+- `src/main.ts`: `connectHost()` and mount.
+- `src/app.ts`: host wiring, save tracking, snapshot, theme updates, lifecycle.
+- `src/markmap/view.ts`: the only module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
+- `src/ui/styles.ts`: the injected stylesheet, host tokens only.
+- `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
+- `editor/`: installable package: `index.html` and the built `main.js`.
+- `dev/`: Vite harness, synthetic samples, and host theme tokens for screenshots.
+- `tmp/`: generated screenshots from `bun run screenshots`; do not commit.
+- `tests/`: Vitest unit and DOM tests plus Playwright acceptance tests.
+- `scripts/`: requirement traceability and reproducible-build checks.
 
 The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Nodes are edited directly on the map; there is no Markdown sidebar, custom parser, layout engine, serializer, or palette in `src/`.
 
 ## Non-negotiables
 
 - Keep extensions in the fork; `src/` is host wiring and UI.
-- Files stay readable Markdown; conventions are documented, validator-checked, and rendered by the fork.
+- Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
 - Release data and screenshots live on GitHub.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
