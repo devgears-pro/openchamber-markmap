@@ -499,11 +499,14 @@ var MarkmapEditor = class {
 		}, 0) + 16;
 		const width = Math.max(rect.width / scale, textWidth, 40);
 		const rows = field.value.split("\n").length;
-		const center = rect.x + rect.width / 2;
-		field.style.left = `${center - width * scale / 2 - box.x}px`;
+		const direction = this.view.direction(editing.nodeId);
+		const align = direction === "left" ? "right" : direction === "top" || direction === "bottom" ? "center" : "left";
+		const left = align === "center" ? rect.x + rect.width / 2 - width * scale / 2 : align === "right" ? rect.x + rect.width - width * scale : rect.x;
+		field.style.left = `${left - box.x}px`;
 		field.style.top = `${rect.y - box.y}px`;
 		field.style.width = `${width}px`;
 		field.style.height = `${Math.max(1, rect.height / scale, rows * lineHeight)}px`;
+		field.style.textAlign = align;
 		field.style.transform = `scale(${scale})`;
 	}
 	navigate(key) {
@@ -664,6 +667,7 @@ function createEditView(mm) {
 		toggle: (id) => mm.toggle(id),
 		focusNode: (id, options) => mm.focusNode(id, options),
 		screenRect: (id) => mm.screenRect(id),
+		direction: (id) => mm.result?.layout.byId.get(id)?.direction,
 		hitAt: (x, y) => mm.hitAt(x, y),
 		layoutPoint: (x, y) => mm.layoutPoint(x, y),
 		on: (type, listener) => mm.on(type, listener)
