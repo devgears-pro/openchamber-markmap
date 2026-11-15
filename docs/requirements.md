@@ -100,7 +100,7 @@ An editable map copies the selected node with its whole subtree, notes, and mark
 | R-04        | `tests/app.test.ts`, acceptance                                                                                     |
 | R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
 | R-06        | `tests/app.test.ts`                                                                                                 |
-| R-07        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
+| R-07        | `tests/main.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`                                             |
 | R-08        | `tests/bundle.test.ts`                                                                                              |
 | R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`                                                                |
 | R-10        | acceptance                                                                                                          |

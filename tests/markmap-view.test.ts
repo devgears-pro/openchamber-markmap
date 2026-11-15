@@ -1,18 +1,23 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
 
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
+import type * as MarkmapModel from '@markmap/model';
+import type { ViewOptions } from '@markmap/view';
+
+import type { MarkmapSourceChange } from '../src/markmap/view';
 
 const mocks = vi.hoisted(() => {
   const editorSelected: { value: string | null } = { value: 'root' };
+  const editorOptions: MarkmapEditorOptions[] = [];
   return {
     parseDocument: vi.fn(),
     labelText: vi.fn(),
-    create: vi.fn(),
+    create: vi.fn<(target: SVGSVGElement, root?: MarkmapNode, options?: ViewOptions) => unknown>(),
     resolveViewOptions: vi.fn(),
     createToolbar: vi.fn(),
     createEditView: vi.fn(),
-    editorOptions: [] as MarkmapEditorOptions[],
+    editorOptions,
     editorSetLabel: vi.fn(),
     editorSelected,
     editorEditing: { value: false },
@@ -100,6 +105,8 @@ vi.mock('@markmap/edit-dom', () => ({
 }));
 
 const { createMarkmapView } = await import('../src/markmap/view');
+const { parseDocument: parseRealDocument } =
+  await vi.importActual<typeof MarkmapModel>('@markmap/model');
 
 type FakeMarkmap = {
   options: Record<string, unknown>;
@@ -129,7 +136,26 @@ const fakeMarkmap = (): FakeMarkmap => {
   return markmap;
 };
 
-const setup = () => {
+type Setup = {
+  markmap: FakeMarkmap;
+  toolbar: {
+    element: HTMLDivElement;
+    destroy: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
+  surface: HTMLDivElement;
+  svg: SVGSVGElement;
+  onSource: Mock<(change: MarkmapSourceChange) => void>;
+  onError: Mock<(message: string) => void>;
+  onOpenUrl: Mock<(url: string) => void>;
+  resolved: {
+    options: { colorScheme: string };
+    json: Record<string, unknown>;
+    warnings: string[];
+  };
+};
+
+const setup = (): Setup => {
   const markmap = fakeMarkmap();
   const toolbar = {
     element: document.createElement('div'),
@@ -138,9 +164,9 @@ const setup = () => {
   };
   const surface = document.createElement('div');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  const onSource = vi.fn();
-  const onError = vi.fn();
-  const onOpenUrl = vi.fn();
+  const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
+  const onError = vi.fn<(message: string) => void>();
+  const onOpenUrl = vi.fn<(url: string) => void>();
   const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
   mocks.parseDocument.mockImplementation((source: string) => ({
     tree:
@@ -157,13 +183,18 @@ const setup = () => {
   return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
 };
 
-const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}) => {
+type Mount = Setup & {
+  options: Parameters<typeof createMarkmapView>[0];
+  result: ReturnType<typeof createMarkmapView>;
+};
+
+const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}): Mount => {
   const base = setup();
-  const options = {
+  const options: Parameters<typeof createMarkmapView>[0] = {
     surface: base.surface,
     svg: base.svg,
     markdown: '# Root',
-    colorScheme: 'dark' as const,
+    colorScheme: 'dark',
     editable: true,
     onSource: base.onSource,
     onError: base.onError,
@@ -193,12 +224,9 @@ describe('Markmap adapter', () => {
     const { markmap, toolbar, surface, onSource, onError, resolved } = mount();
 
     expect(mocks.parseDocument).toHaveBeenCalledWith('# Root');
-    const options = mocks.create.mock.calls[0]?.[2] as {
-      colorScheme: string;
-      gestures: unknown;
-    };
-    expect(options.colorScheme).toBe('dark');
-    expect(options.gestures).toBeTypeOf('function');
+    const options = mocks.create.mock.calls[0]?.[2];
+    expect(options?.colorScheme).toBe('dark');
+    expect(options?.gestures).toBeTypeOf('function');
     expect(markmap.zoomBehavior.wheelDelta).toHaveBeenCalledWith(expect.any(Function));
     expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
     expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
@@ -290,7 +318,11 @@ describe('Markmap adapter', () => {
     const editor = mocks.editorOptions[0];
     if (editor === undefined) throw new Error('No editor');
 
-    editor.onChange?.({ source: '# Next', selection: 4, document: {} as never });
+    editor.onChange?.({
+      source: '# Next',
+      selection: 4,
+      document: parseRealDocument('# Next').document,
+    });
     editor.onError?.(new Error('bad label'));
 
     expect(onSource).toHaveBeenCalledWith({ source: '# Next', selection: 4 });
@@ -376,8 +408,9 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-06] reports a non-Error rejection as text', () => {
+    const failure: unknown = 'plain text';
     mocks.parseDocument.mockImplementation(() => {
-      throw 'plain text';
+      throw failure;
     });
 
     const result = createMarkmapView({

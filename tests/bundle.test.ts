@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { Script } from 'node:vm';
 
 import { describe, expect, test } from 'vitest';
 
@@ -18,7 +19,7 @@ describe('built editor', () => {
     const source = readFileSync(resolve(root, 'editor/main.js'), 'utf8');
     expect(source.length).toBeGreaterThan(1000);
     expect(source.length).toBeLessThan(700_000);
-    expect(() => new Function(source)).not.toThrow();
+    expect(() => new Script(source)).not.toThrow();
     expect(source).not.toMatch(/^\s*(?:import|export)\s/mu);
   });
 });

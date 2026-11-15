@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
+import { devContext } from '../dev/theme';
+
 import { mountApp, type MarkmapHost, type MountOptions } from '../src/app';
 import type {
   MarkmapColorScheme,
@@ -8,13 +10,10 @@ import type {
   MarkmapView,
 } from '../src/markmap/view';
 import {
-  EMPTY_GUEST_CONNECTION,
   type FileEditorChange,
   type FileEditorDocument,
   type FileEditorSnapshot,
   type HostReadyContext,
-  type HostThemeMode,
-  type HostThemeTokens,
 } from '@openchamber/sdk';
 
 const SOURCE = `---
@@ -34,7 +33,18 @@ type OpenListener = Parameters<MarkmapHost['onFileOpen']>[0];
 type SnapshotHandler = Parameters<MarkmapHost['onFileSnapshot']>[0];
 type SavedListener = Parameters<MarkmapHost['onFileSaved']>[0];
 
-const createHost = () => {
+type HostHarness = {
+  host: MarkmapHost;
+  changes: FileEditorChange[];
+  urls: string[];
+  unsupported: () => number;
+  emitReady: (context: HostReadyContext) => void;
+  emitFile: (file: FileEditorDocument) => void;
+  snapshot: () => Promise<FileEditorSnapshot>;
+  saved: (version: string) => void;
+};
+
+const createHost = (): HostHarness => {
   let ready: ReadyListener | null = null;
   let open: OpenListener | null = null;
   let snapshot: SnapshotHandler | null = null;
@@ -111,6 +121,12 @@ type FakeFactory = {
   fail: string | null;
 };
 
+type MountedApp = {
+  host: HostHarness;
+  app: ReturnType<typeof mountApp>;
+  markmaps: FakeFactory;
+};
+
 const createMarkmapFactory = (): FakeFactory => {
   const toolbar = document.createElement('div');
   toolbar.className = 'fake-markmap-toolbar';
@@ -168,17 +184,6 @@ const createMarkmapFactory = (): FakeFactory => {
   return state;
 };
 
-const readyContext = (mode: HostThemeMode): HostReadyContext => ({
-  theme: { mode, tokens: {} as HostThemeTokens },
-  locale: 'en',
-  directory: null,
-  session: null,
-  surface: 'file',
-  connection: EMPTY_GUEST_CONNECTION,
-  settings: {},
-  item: null,
-});
-
 const textFile = (content: string, readOnly = false): FileEditorDocument => ({
   path: 'notes.markmap.md',
   name: 'notes.markmap.md',
@@ -206,7 +211,7 @@ describe('Markmap file editor', () => {
     for (const dispose of disposers.splice(0)) dispose();
   });
 
-  const mount = (options: Partial<MountOptions> = {}) => {
+  const mount = (options: Partial<MountOptions> = {}): MountedApp => {
     const host = createHost();
     const markmaps = createMarkmapFactory();
     const app = mountApp(host.host, root, {
@@ -362,20 +367,20 @@ describe('Markmap file editor', () => {
     host.emitFile(textFile(SOURCE));
     expect(markmaps.mounts[0]?.colorScheme).toBe('dark');
 
-    host.emitReady(readyContext('light'));
+    host.emitReady(devContext('light'));
     expect(markmaps.colorSchemes.at(-1)).toBe('light');
 
-    host.emitReady(readyContext('light'));
+    host.emitReady(devContext('light'));
     expect(markmaps.colorSchemes).toHaveLength(1);
 
-    host.emitReady(readyContext('dark'));
+    host.emitReady(devContext('dark'));
     expect(markmaps.colorSchemes.at(-1)).toBe('dark');
     expect(markmaps.mounts).toHaveLength(1);
   });
 
   test('[R-04] uses the ready scheme for the first render', () => {
     const { host, markmaps } = mount();
-    host.emitReady(readyContext('light'));
+    host.emitReady(devContext('light'));
     host.emitFile(textFile(SOURCE));
 
     expect(markmaps.mounts[0]?.colorScheme).toBe('light');
@@ -414,7 +419,7 @@ describe('Markmap file editor', () => {
 
   test('[R-02] keeps the frame empty before a file arrives', () => {
     const { host, markmaps } = mount();
-    host.emitReady(readyContext('light'));
+    host.emitReady(devContext('light'));
 
     expect(markmaps.mounts).toHaveLength(0);
     expect(root.querySelector('.mm-error')).toBeNull();

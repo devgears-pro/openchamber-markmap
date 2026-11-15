@@ -66,7 +66,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - An empty editable document accepts a first heading. Typing on an empty selected node enters editing with the first character; a non-empty selected node remains selection-only. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
 - New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
-- Do not add `any`, type assertions, or non-null assertions in `src/`.
+- Do not add `any`, type assertions, non-null assertions, `@ts-*` comments, or inline `eslint-disable` comments anywhere. `as const` is allowed; every other `as` is not. ESLint runs the strict type-aware preset over `src`, `tests`, `dev`, `scripts`, and the config files.
 - Do not write comments in code. Tests and docs carry the explanation.
 - `editor/main.js` is committed. Rebuild it and keep the stale-bundle check green.
 

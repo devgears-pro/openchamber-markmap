@@ -1,4 +1,4 @@
-import type { Document } from '@markmap/model';
+import type { Document, EditNode } from '@markmap/model';
 
 export type ClipboardEditor = {
   readonly isEditing: boolean;
@@ -45,7 +45,7 @@ export const createClipboard = ({
   sink.setAttribute('autocomplete', 'off');
   container.append(sink);
 
-  const selectedNode = () => {
+  const selectedNode = (): EditNode | undefined => {
     const id = editor.selected;
     return id === null ? undefined : editor.document.nodes.get(id);
   };
@@ -72,9 +72,13 @@ export const createClipboard = ({
     editor.focus();
   };
 
-  const handleCopy = (event: ClipboardEvent): void => copy(event, false);
+  const handleCopy = (event: ClipboardEvent): void => {
+    copy(event, false);
+  };
 
-  const handleCut = (event: ClipboardEvent): void => copy(event, true);
+  const handleCut = (event: ClipboardEvent): void => {
+    copy(event, true);
+  };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
     if (!isPaste(event) || editor.isEditing) return;

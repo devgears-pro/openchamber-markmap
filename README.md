@@ -176,6 +176,8 @@ bun run screenshots
 
 `bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
 
+TypeScript enables every strictness flag the upstream types allow. ESLint uses the strict type-aware preset and bans type assertions (other than `as const`), non-null assertions, `any`, `@ts-*` comments, and inline disables.
+
 `editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green.
 
 ## Quality workflow
