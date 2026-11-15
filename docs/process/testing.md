@@ -41,6 +41,11 @@ When a requirement changes:
 
 ## Test design
 
+Design the cases before writing the first failing test. List the behaviors, the branches, the equivalent inputs, and the boundaries, then keep the smallest set that covers them. A decision table or a short list in the work notes is enough; the design itself need not be committed.
+
+- Add a case only when it proves a behavior or branch that the existing cases do not.
+- Prefer the cheapest level that can prove the behavior: unit and DOM tests for logic and host wiring, acceptance for the real Markmap, layout, and gestures.
+- Keep the test pyramid: many cheap unit and DOM tests, few acceptance tests. Acceptance proves integration once, not every branch.
 - Arrange, act, assert. One observable behavior per test.
 - Prefer real DOM behavior over implementation details.
 - Mock only the Markmap boundary in unit tests; acceptance covers the real library.
