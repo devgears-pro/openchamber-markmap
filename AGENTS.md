@@ -2,6 +2,19 @@
 
 Markmap for OpenChamber is an OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. It is an adaptation of the open-source Markmap library. English is the repository language for code, tests, docs, commits, test names, issues, milestones, release notes, and PR titles. Chat replies follow the user's language.
 
+## Start
+
+Read these before changing code, in this order:
+
+1. `AGENTS.md`, `README.md`, and `docs/requirements.md` for the rules, the product, and the contract.
+2. `docs/process/sdlc.md`, `docs/process/testing.md`, `docs/process/bugs.md`, and `docs/process/releases.md` for the workflow.
+3. `package.json` for scripts and the OpenChamber manifest.
+4. The issue or task, all its comments, the linked decision, and the pull request when they exist. `gh issue view <n> --comments` and `gh pr view <n> --comments` show the full thread.
+5. The code and tests in the area you change.
+6. `vendor/markmap/README.md` and the fork branch when the change reaches the fork.
+
+Read the full issue and comments, not only the title. If a file, issue, or decision is missing, say what is missing before you act.
+
 ## Commands
 
 ```bash
