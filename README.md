@@ -124,7 +124,7 @@ A normal `*.md` file stays in OpenChamber's source editor.
 
 After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
 
-Paste puts a copy last under the selected node. Headings renumber to the child depth and list items reindent; a heading cannot be pasted under a list item, and a level beyond six leaves the file unchanged with a notice. A root that comes from frontmatter `title` copies as a heading with every child block. Text copied outside the map becomes one child label with line breaks collapsed. Copy, cut, and paste use DOM clipboard events in the editor frame, so they need no host clipboard permission. Native copy and paste inside an open label field stay unchanged.
+Paste puts a copy last under the selected node. Headings renumber to the child depth and list items reindent; a heading pasted under a list item becomes a list item with its descendants. A level beyond six leaves the file unchanged with a notice. A root that comes from frontmatter `title` copies as a heading with every child block. Text copied outside the map becomes one child label with line breaks collapsed. Copy, cut, and paste use DOM clipboard events in the editor frame, so they need no host clipboard permission. Native copy and paste inside an open label field stay unchanged.
 
 ## Markdown format
 

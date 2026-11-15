@@ -450,6 +450,22 @@ test('[R-21] cuts a subtree and pastes it back', async ({ page }) => {
   await expect(page.locator('.mm-editor-selected')).toContainText('Links');
 });
 
+test('[R-21] pastes a heading subtree under a list item', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+c`);
+  await page.getByText('Click a node to select it', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+v`);
+
+  await expect(nodes).toHaveCount(before + 3);
+  await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+});
+
 test('[R-21] copies a title root with every child block and pastes it back', async ({
   page,
   context,
