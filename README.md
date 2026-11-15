@@ -14,7 +14,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 ## What you get
 
 - **Edit on the map.** The map is the editing surface. There is no second Markdown pane and no separate model to keep in sync.
-- **Keyboard first.** Enter adds a sibling, Tab a child, Shift+Tab outdents, Delete removes a subtree, F2 or Space edits a label. Arrow keys move the selection; typing a printable character starts a label.
+- **Keyboard first.** Enter adds a sibling, Tab a child, Shift+Tab outdents, Delete removes a subtree, Space or a double click edits a label. Arrow keys move the selection without folding; typing changes nothing until the label is open.
 - **Real Markmap.** Rendering, layout, folding, notes, the toolbar, and the viewport come from Markmap. The extension owns only the editing layer and the host contract.
 - **Canvas navigation.** The map opens at 100% by default; a larger map is fitted to the window, and `fitMaxScale` in frontmatter can change the cap. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
@@ -99,21 +99,21 @@ A normal `*.md` file stays in OpenChamber's source editor.
 
 ## Keyboard and gestures
 
-| Action                                | Input                              |
-| ------------------------------------- | ---------------------------------- |
-| Select a node                         | Click it                           |
-| Edit the label                        | F2, Space, or start typing         |
-| Add a sibling                         | Enter                              |
-| Add a child                           | Tab                                |
-| Outdent                               | Shift+Tab                          |
-| Delete a subtree                      | Delete or Backspace                |
-| Move the selection                    | Arrow keys                         |
-| Fold or unfold a subtree              | Cmd/Ctrl + /                       |
-| Undo or redo                          | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
-| Cancel editing or clear the selection | Escape                             |
-| Pan                                   | Scroll or a trackpad surface       |
-| Zoom around the pointer               | Cmd/Ctrl + scroll                  |
-| Fit, zoom in, zoom out                | Markmap toolbar                    |
+| Action                   | Input                              |
+| ------------------------ | ---------------------------------- |
+| Select a node            | Click it                           |
+| Edit the label           | Space or a double click            |
+| Add a sibling            | Enter                              |
+| Add a child              | Tab                                |
+| Outdent                  | Shift+Tab                          |
+| Delete a subtree         | Delete or Backspace                |
+| Move the selection       | Arrow keys                         |
+| Fold or unfold a subtree | Cmd/Ctrl + /                       |
+| Undo or redo             | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
+| Cancel editing           | Escape                             |
+| Pan                      | Scroll or a trackpad surface       |
+| Zoom around the pointer  | Cmd/Ctrl + scroll                  |
+| Fit, zoom in, zoom out   | Markmap toolbar                    |
 
 While a label field is open, Enter commits and adds a sibling, Tab commits and adds a child, and Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
 

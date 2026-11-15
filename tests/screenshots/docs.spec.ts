@@ -27,7 +27,7 @@ test('[R-02] [R-03] captures the README screenshots', async ({ page }) => {
   await page.goto('/dev/?map=showcase&theme=dark');
   await waitForMap(page);
   await select(page, 'Private beta');
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
   await page.keyboard.type('Beta plan');

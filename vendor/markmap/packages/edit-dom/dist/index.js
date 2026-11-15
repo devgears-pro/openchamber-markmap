@@ -35,6 +35,8 @@ var History = class {
 };
 // src/editor.ts
 var STYLE_ID = "mm-editor-style";
+var MODE_SELECT = "mm-editor-mode-select";
+var MODE_EDIT = "mm-editor-mode-edit";
 var EMPTY_LABEL = "​";
 var STYLE = `
 .mm-editor-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
@@ -118,6 +120,7 @@ var MarkmapEditor = class {
 		this.stops.push(this.view.on("zoom", this.handleViewChange));
 		this.selectedId = this.doc.root;
 		this.selectionOffset = this.doc.nodes.get(this.doc.root)?.label?.start ?? 0;
+		this.setMode(false);
 		this.paintSelection();
 	}
 	get source() {
@@ -158,7 +161,7 @@ var MarkmapEditor = class {
 		} else this.selectAt(offset, { reveal: false });
 		if (options.emit) this.emitChange();
 	}
-	startEditing(nodeId = this.selectedId, initialText, options = {}) {
+	startEditing(nodeId = this.selectedId, options = {}) {
 		if (!nodeId) return;
 		if (this.editing) {
 			if (this.editing.nodeId === nodeId) return;
@@ -174,7 +177,7 @@ var MarkmapEditor = class {
 		if (!this.view.screenRect(nodeId)) return;
 		const label = node.label ? labelText(this.doc, node) : "";
 		const blank = first || label === EMPTY_LABEL;
-		const text = initialText ?? (blank ? "" : label);
+		const text = blank ? "" : label;
 		this.field.value = text;
 		this.field.style.display = "block";
 		this.editing = {
@@ -187,12 +190,24 @@ var MarkmapEditor = class {
 			folds: [...this.view.foldedIds],
 			field: this.field
 		};
+		this.setMode(true);
 		this.paintEditing();
 		this.positionEditing();
 		this.paintSelection();
 		this.field.focus({ preventScroll: true });
 		if (options.selectAll) this.field.select();
 		else this.field.setSelectionRange(text.length, text.length);
+	}
+	setLabel(nodeId, text) {
+		if (!this.doc.nodes.has(nodeId)) return false;
+		const before = this.snapshot();
+		if (!this.apply({
+			type: "setLabel",
+			node: nodeId,
+			text
+		})) return false;
+		this.history.push(before);
+		return true;
 	}
 	commit() {
 		this.commitEditing();
@@ -222,6 +237,7 @@ var MarkmapEditor = class {
 		releaseStyle(this.container.ownerDocument);
 		if (this.restorePosition) this.container.style.position = "";
 		if (this.restoreTabIndex) this.container.removeAttribute("tabindex");
+		this.container.classList.remove(MODE_SELECT, MODE_EDIT);
 		this.editing = null;
 		this.selectedId = null;
 	}
@@ -294,14 +310,13 @@ var MarkmapEditor = class {
 				if (this.isEmptyRoot(this.selectedNode())) return;
 				this.runSelected({ type: "delete" });
 				return;
-			case "F2":
 			case " ":
+				if (event.altKey || mod || event.shiftKey) return;
 				event.preventDefault();
 				this.startEditing();
 				return;
 			case "Escape":
 				event.preventDefault();
-				this.select(null);
 				return;
 			case "ArrowUp":
 			case "ArrowDown":
@@ -309,11 +324,6 @@ var MarkmapEditor = class {
 			case "ArrowRight":
 				event.preventDefault();
 				this.navigate(event.key);
-				return;
-			default:
-				if (event.altKey || mod || event.key.length !== 1) return;
-				this.startEditing(this.selectedId, `${this.selectedLabel()}${event.key}`);
-				event.preventDefault();
 		}
 	};
 	handleEditingKey(event) {
@@ -377,7 +387,7 @@ var MarkmapEditor = class {
 		if (!node) return;
 		if (kind === "insertSibling" && node.kind === "root") {
 			if (this.isEmptyRoot(node)) {
-				this.startEditing(id, "", { selectAll: true });
+				this.startEditing(id, { selectAll: true });
 				return;
 			}
 			kind = "insertChild";
@@ -387,12 +397,13 @@ var MarkmapEditor = class {
 			node: id,
 			text: this.placeholder
 		});
-		if (!result) return;
+		if (result) this.editCreated(result);
+	}
+	editCreated(result) {
 		const created = nodeAtOffset(result.document, result.selection);
-		if (created) {
-			this.select(created.id);
-			this.startEditing(created.id, void 0, { selectAll: true });
-		}
+		if (!created) return;
+		this.select(created.id);
+		this.startEditing(created.id, { selectAll: true });
 	}
 	runSelected(command) {
 		const id = this.selectedId;
@@ -475,12 +486,7 @@ var MarkmapEditor = class {
 			text: this.placeholder
 		});
 		if (result || state === "changed") this.history.push(before);
-		if (!result) return;
-		const created = nodeAtOffset(result.document, result.selection);
-		if (created) {
-			this.select(created.id);
-			this.startEditing(created.id, void 0, { selectAll: true });
-		}
+		if (result) this.editCreated(result);
 	}
 	previewEditing() {
 		const editing = this.editing;
@@ -528,11 +534,16 @@ var MarkmapEditor = class {
 		editing.previewId = editing.nodeId;
 		this.selectedId = editing.nodeId;
 	}
+	setMode(editing) {
+		this.container.classList.toggle(MODE_EDIT, editing);
+		this.container.classList.toggle(MODE_SELECT, !editing);
+	}
 	stopEditingUi(restore = true) {
 		if (!this.editing) return;
 		if (restore) this.restorePreview(this.editing);
 		this.editing.field.style.display = "none";
 		this.editing = null;
+		this.setMode(false);
 		this.paintEditing();
 		this.paintSelection();
 		this.container.focus({ preventScroll: true });
@@ -580,10 +591,6 @@ var MarkmapEditor = class {
 			return;
 		}
 		if (key === "ArrowLeft") {
-			if (node.children.length && !this.view.foldedIds.has(node.id)) {
-				this.view.setFolded(node.id, true);
-				return;
-			}
 			if (node.parent) this.select(node.parent);
 			return;
 		}
@@ -617,12 +624,6 @@ var MarkmapEditor = class {
 	}
 	selectedNode() {
 		return this.selectedId ? this.doc.nodes.get(this.selectedId) : void 0;
-	}
-	selectedLabel() {
-		const node = this.selectedNode();
-		if (!node) return "";
-		const label = labelText(this.doc, node);
-		return label === EMPTY_LABEL ? "" : label;
 	}
 	isEmptyRoot(node) {
 		return node?.kind === "root" && !node.block && !node.label && this.doc.nodes.size === 1 && !this.title;

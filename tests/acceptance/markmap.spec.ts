@@ -114,7 +114,7 @@ test('[R-11] removes a new empty node with Backspace while its field is open', a
 test('[R-11] keeps the edit text aligned with the node label', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Headings and lists become branches', { exact: true }).first().click();
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();
 
@@ -149,7 +149,7 @@ test('[R-11] keeps the edit text aligned with the node label', async ({ page }) 
 test('[R-11] keeps the edit field anchored while the label grows', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Headings and lists become branches', { exact: true }).first().click();
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();
 
@@ -190,7 +190,7 @@ test('[R-11] keeps the edit field anchored while the label grows', async ({ page
 test('[R-11] reflows child branches right while the label grows', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Features', { exact: true }).first().click();
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();
 
@@ -219,7 +219,7 @@ test('[R-13] shows an editor error for a line break in a heading', async ({ page
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
 
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
   await page.keyboard.press('Shift+Enter');
 
@@ -266,7 +266,7 @@ test('[R-04] follows the host light and dark theme', async ({ page }) => {
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
 });
 
-test('[R-15] navigates with arrows, folds a branch, and edits by typing', async ({ page }) => {
+test('[R-15] navigates with arrows, folds a branch, and edits with Space', async ({ page }) => {
   await page.goto('/dev/');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
 
@@ -281,9 +281,11 @@ test('[R-15] navigates with arrows, folds a branch, and edits by typing', async 
   await expect(page.getByText('Source', { exact: true })).toBeHidden();
 
   await page.getByText('Features', { exact: true }).first().click();
-  await page.keyboard.type('x');
+  await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();
+  await expect(field).toHaveValue('Features');
+  await page.keyboard.type('x');
   await expect(field).toHaveValue('Featuresx');
   await page.keyboard.press('Escape');
 });
@@ -292,6 +294,7 @@ test('[R-15] undoes the first typed character while editing', async ({ page }) =
   const label = 'Headings and lists become branches';
   await page.goto('/dev/');
   await page.getByText(label, { exact: true }).first().click();
+  await page.keyboard.press('Space');
   await page.keyboard.type('123');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toHaveValue(`${label}123`);
@@ -299,6 +302,63 @@ test('[R-15] undoes the first typed character while editing', async ({ page }) =
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
   await page.keyboard.press(`${modifier}+z`);
   await expect(field).toHaveValue(label);
+});
+
+test('[R-19] ignores printable keys in selection mode', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Features', { exact: true }).first().click();
+
+  await page.keyboard.type('x');
+
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Features');
+  await expect(page.locator('.mm-markmap-svg')).not.toContainText('Featuresx');
+});
+
+test('[R-19] leaves F2 unbound', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Features', { exact: true }).first().click();
+
+  await page.keyboard.press('F2');
+
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Features');
+});
+
+test('[R-19] enters editing with Space, exits with Escape, and keeps the selection', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  const surface = page.locator('.mm-editor-surface');
+  await page.getByText('Features', { exact: true }).first().click();
+  await expect(surface).toHaveClass(/mm-editor-mode-select/u);
+
+  await page.keyboard.press('Space');
+  await expect(surface).toHaveClass(/mm-editor-mode-edit/u);
+  await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(surface).toHaveClass(/mm-editor-mode-select/u);
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Features');
+});
+
+test('[R-19] enters editing with a double click', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Features', { exact: true }).first().dblclick();
+
+  await expect(page.locator('.mm-editor-surface')).toHaveClass(/mm-editor-mode-edit/u);
+  await expect(page.locator('textarea.mm-editor-field')).toBeVisible();
+});
+
+test('[R-19] navigates with arrows without folding', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+
+  await page.keyboard.press('ArrowLeft');
+
+  await expect(page.locator('.mm-editor-selected')).toContainText('Markmap');
+  await expect(page.getByText('Source', { exact: true })).toBeVisible();
 });
 
 test('[R-15] undoes and redoes an inserted node', async ({ page }) => {
@@ -324,7 +384,7 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
 
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
   await page.getByText('Links', { exact: true }).first().click();
-  await page.keyboard.press('F2');
+  await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
 });
 
@@ -333,6 +393,7 @@ test('[R-16] opens a new empty file with an editable first node', async ({ page 
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
   await expect(page.locator('.mm-editor-selection')).toBeHidden();
 
+  await page.keyboard.press('Space');
   await page.keyboard.type('First note');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();

@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => {
     createToolbar: vi.fn(),
     createEditView: vi.fn(),
     editorOptions: [] as MarkmapEditorOptions[],
-    editorStartEditing: vi.fn(),
+    editorSetLabel: vi.fn(),
     editorSelected,
     editorNodes: new Map<string, unknown>([['root', {}]]),
     editorDestroy: vi.fn(),
@@ -46,8 +46,8 @@ vi.mock('@markmap/edit-dom', () => ({
       return { nodes: mocks.editorNodes };
     }
 
-    startEditing(nodeId: string, text: string): void {
-      mocks.editorStartEditing(nodeId, text);
+    setLabel(nodeId: string, text: string): void {
+      mocks.editorSetLabel(nodeId, text);
     }
 
     focus(): void {
@@ -217,8 +217,7 @@ describe('Markmap adapter', () => {
 
     result.view.addMarker('✅');
 
-    expect(mocks.editorStartEditing).toHaveBeenCalledWith('root', '✅ Root');
-    expect(mocks.editorCommit).toHaveBeenCalled();
+    expect(mocks.editorSetLabel).toHaveBeenCalledWith('root', '✅ Root');
     expect(mocks.editorFocus).toHaveBeenCalled();
   });
 
@@ -229,7 +228,7 @@ describe('Markmap adapter', () => {
 
     result.view.addMarker('✅');
 
-    expect(mocks.editorStartEditing).not.toHaveBeenCalled();
+    expect(mocks.editorSetLabel).not.toHaveBeenCalled();
   });
 
   test('[R-18] skips markers with no selected node or no editor', () => {
@@ -244,7 +243,7 @@ describe('Markmap adapter', () => {
     if (!readOnly.result.ok) throw new Error(readOnly.result.message);
     readOnly.result.view.addMarker('✅');
 
-    expect(mocks.editorStartEditing).not.toHaveBeenCalled();
+    expect(mocks.editorSetLabel).not.toHaveBeenCalled();
   });
 
   test('[R-11] [R-13] forwards source changes and editor errors', () => {

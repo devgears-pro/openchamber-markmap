@@ -23,6 +23,6 @@ markmap:
 - Enter adds a sibling
 - Tab adds a child
 - Shift+Tab outdents
-- F2 or Space edits the label
+- Space or double-click edits the label
 - Delete removes the node
 - Cmd/Ctrl+Z undoes

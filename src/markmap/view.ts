@@ -116,8 +116,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         const label = labelText(editor.document, node);
         const next = applyMarker(label, glyph);
         if (next === label) return;
-        editor.startEditing(id, next);
-        editor.commit();
+        editor.setLabel(id, next);
         editor.focus();
       },
       commit: () => {
