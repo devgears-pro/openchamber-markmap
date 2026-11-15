@@ -8,10 +8,10 @@
 
 ## Release
 
-- [ ] The PR title is a Conventional Commit (`feat:`, `fix:`, `docs:`, `chore:`), and it feeds the generated changelog.
+- [ ] The PR title is a Conventional Commit (`feat:`, `fix:`, `docs:`, `chore:`).
 - [ ] The target branch is `dev` for a feature or fix, and `main` only for a release promotion.
 - [ ] A promotion PR is merged with a merge commit, not squash, so Release Please sees the feature and fix commits.
-- [ ] `CHANGELOG.md` and the `package.json` version were not edited by hand; Release Please and the dev workflow own them.
+- [ ] The `package.json` version was not edited by hand; Release Please and the dev workflow own it.
 
 ## Verification
 

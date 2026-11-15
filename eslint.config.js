@@ -12,6 +12,8 @@ export default tseslint.config(
       'test-results/**',
       'playwright-report/**',
       '.openchamber/**',
+      '.worktrees/**',
+      'tmp/**',
     ],
   },
   js.configs.recommended,

@@ -9,7 +9,7 @@ This is an adaptation of the open-source Markmap library, not an official Markma
 
 Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
 
-![The Markmap editor in the dark theme](docs/images/editor-dark.png)
+![The Markmap editor in the dark theme](https://github.com/user-attachments/assets/f2a1de7d-9fe3-49eb-8bcf-22629e86dd2d)
 
 ## What you get
 
@@ -41,13 +41,13 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 
 ## Screenshots
 
-| Light theme                                                                                                  | Editing a label in place                                                                                 |
-| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| <img src="docs/images/editor-light.png" alt="Markmap editor in the light theme with a selected Design node"> | <img src="docs/images/editor-editing.png" alt="Editing the Private beta node label in an overlay field"> |
+| Light theme                                                                                                                                                     | Editing a label in place                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <img src="https://github.com/user-attachments/assets/bcf08e98-020a-4a12-bbb7-f9d6a6fee990" alt="Markmap editor in the light theme with a selected Design node"> | <img src="https://github.com/user-attachments/assets/0005f886-27a4-464a-95b6-d42d35b82f0f" alt="Editing the Private beta node label in an overlay field"> |
 
 ## Install
 
-Requirements: OpenChamber 2.7.1 or newer on desktop or web. File editors are not loaded in VS Code or the mobile app.
+Requirements: the current OpenChamber release on desktop or web. File editors are not loaded in VS Code or the mobile app.
 
 1. Open **Settings → Extensions**.
 2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
@@ -149,7 +149,7 @@ markmap:
 
 The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
 
-The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` 1.1.1 plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ## Privacy
 
@@ -170,7 +170,7 @@ bun run screenshots
 
 `bun run dev` starts the Vite harness at `/dev/`. Append `?map=showcase&theme=light` to open the screenshot map in the light theme.
 
-`bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run screenshots` regenerates the images in `docs/images/` from the same harness and synthetic data.
+`bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
 
 `editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green.
 
