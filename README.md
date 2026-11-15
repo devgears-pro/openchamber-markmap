@@ -78,11 +78,7 @@ openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fop
 
 The preview follows the `dev` branch. CI bumps its `version` on every push, so **Check for updates** sees it, and it may break. It replaces the stable install because both use the same extension id; remove it and add the plain URL to return to stable. A pinned tag stays on that tag.
 
-A folder install runs from that folder and does not update itself:
-
-```text
-~/Projects/openchamber-markmap
-```
+A folder install runs from the folder you added and does not update itself.
 
 A Git install updates when `version` in `package.json` changes. Open **Settings → Extensions** and choose **Update** on the card.
 
