@@ -22,7 +22,7 @@ The map uses the host theme mode (`light` or `dark`), not a color scheme from fi
 
 ### R-05 Snapshot fidelity
 
-`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is included in the snapshot without exiting edit mode or moving focus, so typing can continue after autosave. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
+`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label or note is included in the snapshot without exiting edit mode or moving focus, so typing can continue after autosave. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
 
 ### R-06 Unsupported fallback
 
@@ -56,7 +56,7 @@ From selection mode, Enter inserts a sibling and Tab a child. While editing, Ent
 
 ### R-12 Read-only files
 
-A file marked read-only renders the map without the node editor. Its snapshot stays byte-for-byte equal to the opened file.
+A file marked read-only renders the map without the node editor or the notes panel. Its note dot opens the sanitized rendered popover. Its snapshot stays byte-for-byte equal to the opened file.
 
 ### R-13 Editor errors
 
@@ -88,7 +88,7 @@ A focused node stays in selection mode until the user explicitly edits it. Print
 
 ### R-20 Autosave preserves editing
 
-When the host requests a snapshot during label editing, the snapshot includes the current label without closing the field, changing its focus, or leaving edit mode. The user can continue typing after autosave.
+When the host requests a snapshot during label or note editing, the snapshot includes the current text without closing the panel, changing its focus, or leaving edit mode. The user can continue typing after autosave.
 
 ### R-21 Clipboard
 
@@ -97,6 +97,10 @@ An editable map copies the selected node with its whole subtree, notes, and mark
 ### R-22 Layout switcher
 
 An editable or read-only map shows labelled layout buttons for `tree`, `two-sided`, and `org-chart`. The active button reflects the current layout. Choosing a layout re-lays out the existing map, keeps the selection and folded nodes, fits the view, and writes no layout value, so the switch itself leaves the file, its snapshot, and its dirty state unchanged. The group is keyboard operable.
+
+### R-26 Notes editing
+
+An editable map opens a notes panel for the selected node from a labelled Edit notes control. The note is one `markmap-note` fenced block under the node, and its content is isolated Markdown, so headings, lists, tables, code, and HTML inside it stay inside the note. The panel is a plain Markdown textarea with bold, italic, inline code, link, quote, and code block actions. Cmd/Ctrl+Enter or a click outside commits, Escape cancels, a commit is one history entry, and an autosave snapshot includes the in-progress text without closing the panel or moving focus. A node without a note gets the block on the first commit. Clearing the text removes the block and its dot. Legacy paragraph notes migrate to one block on the first edit. The block indents under a list item, inserts before the first child of a title root, and keeps frontmatter, children, markers, and line endings unchanged. The note dot opens the sanitized rendered popover in editable and read-only maps. A read-only map shows no Edit notes control. An opaque node or a node with an empty label shows a notice and opens no panel. A file whose notes are not edited stays byte-for-byte identical.
 
 ### R-23 Chat block manifest
 
@@ -108,30 +112,31 @@ An active extension draws a `Mindmap(markdown: string)` call from an assistant r
 
 ## Traceability
 
-| Requirement | Tests                                                                                                               |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| R-01        | `tests/manifest.test.ts`                                                                                            |
-| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/options.test.ts`, acceptance                              |
-| R-03        | `tests/markmap-view.test.ts`, acceptance                                                                            |
-| R-04        | `tests/app.test.ts`, acceptance                                                                                     |
-| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
-| R-06        | `tests/app.test.ts`                                                                                                 |
-| R-07        | `tests/main.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`                                             |
-| R-08        | `tests/bundle.test.ts`                                                                                              |
-| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`                                                                |
-| R-10        | acceptance                                                                                                          |
-| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
-| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
-| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
-| R-14        | `tests/gestures.test.ts`, acceptance                                                                                |
-| R-15        | acceptance                                                                                                          |
-| R-16        | `tests/markmap-view.test.ts`, acceptance                                                                            |
-| R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`                                                                   |
-| R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
-| R-19        | acceptance                                                                                                          |
-| R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
-| R-21        | `tests/clipboard.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                 |
-| R-22        | `tests/layout-menu.test.ts`, `tests/app.test.ts`, acceptance                                                        |
-| R-23        | `tests/manifest.test.ts`                                                                                            |
-| R-24        | `tests/chat.test.ts`, `tests/chat-main.test.ts`, `tests/preview.test.ts`, acceptance                                |
-| R-25        | `tests/bundle.test.ts`                                                                                              |
+| Requirement | Tests                                                                                                                |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| R-01        | `tests/manifest.test.ts`                                                                                             |
+| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/options.test.ts`, acceptance                               |
+| R-03        | `tests/markmap-view.test.ts`, acceptance                                                                             |
+| R-04        | `tests/app.test.ts`, acceptance                                                                                      |
+| R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                    |
+| R-06        | `tests/app.test.ts`                                                                                                  |
+| R-07        | `tests/main.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`                                              |
+| R-08        | `tests/bundle.test.ts`                                                                                               |
+| R-09        | `tests/app.test.ts`, `scripts/check-reproducible.ts`                                                                 |
+| R-10        | acceptance                                                                                                           |
+| R-11        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                        |
+| R-12        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                        |
+| R-13        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                        |
+| R-14        | `tests/gestures.test.ts`, acceptance                                                                                 |
+| R-15        | acceptance                                                                                                           |
+| R-16        | `tests/markmap-view.test.ts`, acceptance                                                                             |
+| R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`                                                                    |
+| R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance  |
+| R-19        | acceptance                                                                                                           |
+| R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                        |
+| R-21        | `tests/clipboard.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                  |
+| R-22        | `tests/layout-menu.test.ts`, `tests/app.test.ts`, acceptance                                                         |
+| R-23        | `tests/manifest.test.ts`                                                                                             |
+| R-24        | `tests/chat.test.ts`, `tests/chat-main.test.ts`, `tests/preview.test.ts`, acceptance                                 |
+| R-25        | `tests/bundle.test.ts`                                                                                               |
+| R-26        | `tests/notes-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/clipboard.test.ts`, acceptance |

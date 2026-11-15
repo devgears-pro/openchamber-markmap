@@ -18,6 +18,7 @@ export declare class MarkmapEditor {
     private selectedId;
     private selectionOffset;
     private editing;
+    private notes;
     private previewing;
     private destroyed;
     constructor({ source, view, container, placeholder, onChange, onError }: MarkmapEditorOptions);
@@ -26,6 +27,7 @@ export declare class MarkmapEditor {
     get selected(): string | null;
     get selection(): number;
     get isEditing(): boolean;
+    get isEditingNotes(): boolean;
     get canUndo(): boolean;
     get canRedo(): boolean;
     focus(): void;
@@ -37,6 +39,7 @@ export declare class MarkmapEditor {
         selectAll?: boolean;
         initialText?: string;
     }): void;
+    editNotes(nodeId?: string | null): boolean;
     commitForSnapshot(): string;
     setLabel(nodeId: string, text: string): boolean;
     selectedBlock(): string | null;
@@ -53,6 +56,14 @@ export declare class MarkmapEditor {
     private handleDoubleClick;
     private handleKeyDown;
     private handleEditingKey;
+    private handleNotesKey;
+    private openNotes;
+    private handleDocumentMouseDown;
+    private closeNotes;
+    private commitNotes;
+    private positionNotes;
+    private formatNotes;
+    private wrapNotes;
     private insertAndEdit;
     private editCreated;
     private runSelected;

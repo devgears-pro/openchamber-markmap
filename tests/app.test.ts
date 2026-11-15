@@ -117,6 +117,7 @@ type FakeFactory = {
   destroyed: () => number;
   commits: () => number;
   snapshots: () => number;
+  notesEdits: () => number;
   setSnapshotContent: (content: string) => void;
   beginEditing: () => void;
   isEditing: () => boolean;
@@ -139,6 +140,7 @@ const createMarkmapFactory = (): FakeFactory => {
   let destroyCount = 0;
   let commitCount = 0;
   let snapshotCount = 0;
+  let notesEditCount = 0;
   let snapshotContent: string | null = null;
   let editing = false;
   let mounted: MarkmapMount | null = null;
@@ -156,6 +158,9 @@ const createMarkmapFactory = (): FakeFactory => {
     },
     addMarker: (marker) => {
       markers.push(marker);
+    },
+    editNotes: () => {
+      notesEditCount += 1;
     },
     commit: () => {
       commitCount += 1;
@@ -178,6 +183,7 @@ const createMarkmapFactory = (): FakeFactory => {
     destroyed: () => destroyCount,
     commits: () => commitCount,
     snapshots: () => snapshotCount,
+    notesEdits: () => notesEditCount,
     setSnapshotContent: (content) => {
       snapshotContent = content;
     },
@@ -243,7 +249,7 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts[0]?.editable).toBe(true);
     expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
     expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
-    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(3);
+    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(4);
     expect(root.querySelector('.mm-error')).toBeNull();
   });
 
@@ -274,6 +280,7 @@ describe('Markmap file editor', () => {
 
     expect(markmaps.layouts).toEqual(['org-chart']);
     expect(root.querySelector('.mm-marker-select')).toBeNull();
+    expect(root.querySelector('.mm-notes-menu')).toBeNull();
   });
 
   test('[R-18] adds the chosen marker from the toolbar', () => {
@@ -293,6 +300,17 @@ describe('Markmap file editor', () => {
     host.emitFile(textFile(SOURCE, true));
 
     expect(root.querySelector('.mm-marker-select')).toBeNull();
+  });
+
+  test('[R-26] opens the notes editor from the toolbar', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const button = root.querySelector<HTMLButtonElement>('button[aria-label="Edit notes"]');
+    if (button === null) throw new Error('No notes button');
+
+    button.click();
+
+    expect(markmaps.notesEdits()).toBe(1);
   });
 
   test('[R-12] creates a read-only map without the node editor', async () => {

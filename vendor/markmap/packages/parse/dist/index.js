@@ -1,8 +1,8 @@
+import { unified } from "unified";
+import { parse as parse$1 } from "yaml";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
-import { unified } from "unified";
-import { parse as parse$1 } from "yaml";
 import { splice } from "micromark-util-chunked";
 import { classifyCharacter } from "micromark-util-classify-character";
 import { resolveAll } from "micromark-util-resolve-all";
@@ -279,6 +279,30 @@ function remarkResolveReferences() {
 		});
 	};
 }
+// src/pipeline.ts
+/**
+* GFM depends on the most third-party code, and old browsers reject syntax it may use, like
+* regex lookbehind before Safari 16.4. A map without GFM is better than no map at all.
+*/
+function parseMdast(markdown, plugins, gfm = true) {
+	const processor = unified().use(remarkParse).use(gfm ? [remarkGfm] : []).use(remarkFrontmatter, ["yaml"]).use(remarkHtmlImages).use(remarkMark).use(remarkResolveReferences).use(plugins);
+	try {
+		const mdast = processor.runSync(processor.parse(markdown));
+		if (!isRoot(mdast)) throw new SyntaxError("The parser did not return a root");
+		return {
+			mdast,
+			gfm
+		};
+	} catch (error) {
+		if (!gfm || !(error instanceof SyntaxError)) throw error;
+		return parseMdast(markdown, plugins, false);
+	}
+}
+function isRoot(value) {
+	if (typeof value !== "object" || value === null) return false;
+	if (!("type" in value) || value.type !== "root") return false;
+	return "children" in value;
+}
 // src/to-tree.ts
 /**
 * Convert an mdast tree into a Markmap tree.
@@ -311,7 +335,7 @@ function toTree(mdast, options = {}) {
 			depth: block.depth,
 			node
 		});
-	} else addBlock(stack.at(-1).node, block);
+	} else addBlock(stack.at(-1).node, block, options);
 	if (!options.title) root = promoteSingleH1(root);
 	return assignIds(root);
 }
@@ -378,35 +402,75 @@ function inlineRange(label) {
 		end
 	} : void 0;
 }
-function addBlock(parent, block) {
+function addBlock(parent, block, options) {
+	if (isNoteFence(block)) {
+		addFence(parent, block, options);
+		return;
+	}
 	switch (block.type) {
 		case "list":
-			addList(parent, block);
+			addList(parent, block, options);
 			return;
 		case "html":
 		case "yaml":
 		case "definition": return;
-		default: attach(parent, block);
+		default: if (isMdastBlock(block)) attach(parent, block, rangeOf(block), false);
 	}
 }
-function addList(parent, list) {
-	for (const item of list.children) parent.children.push(fromListItem(item, list));
+function isNoteFence(block) {
+	return block.type === "code" && block.lang?.trim() === "markmap-note";
 }
-function fromListItem(item, list) {
+function addFence(parent, fence, options) {
+	const source = rangeOf(fence);
+	const { mdast } = parseMdast(fence.value, options.plugins ?? []);
+	for (const block of mdast.children) {
+		if (block.type === "yaml") continue;
+		if (isMdastBlock(block)) attach(parent, block, source, true);
+	}
+}
+function addList(parent, list, options) {
+	for (const item of list.children) parent.children.push(fromListItem(item, list, options));
+}
+function fromListItem(item, list, options) {
 	const [first, ...rest] = item.children;
 	const hasLabel = first?.type === "paragraph" || first?.type === "heading";
 	const node = createNode("listItem", hasLabel ? first.children : [], item, item.position?.end.offset);
 	if (list.ordered) node.data.ordered = true;
 	if (item.checked != null) node.data.checked = item.checked;
-	for (const block of hasLabel ? rest : item.children) addBlock(node, block);
+	for (const block of hasLabel ? rest : item.children) addBlock(node, block, options);
 	return node;
 }
-function attach(node, block) {
+function attach(node, block, source, fence) {
 	const note = {
 		block: stripPositions(block),
-		after: node.children.length
+		after: node.children.length,
+		fence
 	};
+	if (source) note.source = source;
 	node.notes.push(note);
+}
+function rangeOf(node) {
+	const start = node.position?.start.offset;
+	const end = node.position?.end.offset;
+	return start == null || end == null ? void 0 : {
+		start,
+		end
+	};
+}
+function isMdastBlock(block) {
+	switch (block.type) {
+		case "blockquote":
+		case "code":
+		case "definition":
+		case "footnoteDefinition":
+		case "heading":
+		case "html":
+		case "list":
+		case "paragraph":
+		case "table":
+		case "thematicBreak": return true;
+		default: return false;
+	}
 }
 function promoteSingleH1(root) {
 	const [only] = root.children;
@@ -459,26 +523,13 @@ function parse(markdown, options = {}) {
 	const { mdast, gfm } = parseMdast(markdown, options.plugins ?? []);
 	const frontmatter = readFrontmatter(mdast);
 	return {
-		root: toTree(mdast, { title: typeof frontmatter.title === "string" ? frontmatter.title : void 0 }),
+		root: toTree(mdast, {
+			title: typeof frontmatter.title === "string" ? frontmatter.title : void 0,
+			plugins: options.plugins
+		}),
 		frontmatter,
 		gfm
 	};
-}
-/**
-* GFM depends on the most third-party code, and old browsers reject syntax it may use, like
-* regex lookbehind before Safari 16.4. A map without GFM is better than no map at all.
-*/
-function parseMdast(markdown, plugins, gfm = true) {
-	const processor = unified().use(remarkParse).use(gfm ? [remarkGfm] : []).use(remarkFrontmatter, ["yaml"]).use(remarkHtmlImages).use(remarkMark).use(remarkResolveReferences).use(plugins);
-	try {
-		return {
-			mdast: processor.runSync(processor.parse(markdown)),
-			gfm
-		};
-	} catch (error) {
-		if (!gfm || !(error instanceof SyntaxError)) throw error;
-		return parseMdast(markdown, plugins, false);
-	}
 }
 function readFrontmatter(mdast) {
 	const node = mdast.children.find((child) => child.type === "yaml");

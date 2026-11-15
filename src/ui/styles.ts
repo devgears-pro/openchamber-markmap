@@ -113,6 +113,13 @@ const MARKMAP_CSS = `
     padding-left: 4px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
+  .mm-notes-menu {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding-left: 4px;
+    border-left: 1px solid var(--oc-border, #34343c);
+  }
   .mm-marker-select {
     width: 28px;
     height: 28px;

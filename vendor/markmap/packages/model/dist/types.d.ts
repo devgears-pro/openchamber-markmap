@@ -11,12 +11,17 @@ export interface ListInfo {
 }
 export interface Capabilities {
     editLabel: boolean;
+    editNotes: boolean;
     addChild: boolean;
     addSibling: boolean;
     outdent: boolean;
     delete: boolean;
     move: boolean;
     toggleCheck: boolean;
+}
+export interface NoteRange {
+    range: Range;
+    fence: boolean;
 }
 export interface EditNode {
     id: string;
@@ -27,6 +32,7 @@ export interface EditNode {
     label: Range | null;
     block: Range | null;
     list: ListInfo | null;
+    notes: NoteRange[];
     opaque: boolean;
     capabilities: Capabilities;
 }

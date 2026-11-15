@@ -1,4 +1,4 @@
-import { HEADING_MARKER, LIST_MARKER, firstLine, labelText, lineEnd, nodeAtOffset, parseDocument, validateDocument } from "@markmap/model";
+import { HEADING_MARKER, LIST_MARKER, contentIndent, firstLine, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, notesText, parseDocument, validateDocument } from "@markmap/model";
 // src/errors.ts
 var EditError = class extends Error {
 	code;
@@ -291,6 +291,7 @@ function planCommand(doc, command) {
 	const node = nodeOf(doc, command.node);
 	switch (command.type) {
 		case "setLabel": return planSetLabel(doc, node, command.text);
+		case "setNotes": return planSetNotes(doc, node, command.text);
 		case "insertFirst": return planInsertFirst(doc, node, command.text);
 		case "insertChild": return planInsert(doc, node, command.text ?? "", "child");
 		case "insertSibling": return planInsert(doc, node, command.text ?? "", "sibling");
@@ -328,6 +329,119 @@ function planSetLabel(doc, node, raw) {
 			if (!found.label || next.source.slice(found.label.start, found.label.end) !== insert) throw shape("The label did not survive parsing");
 		}
 	};
+}
+function planSetNotes(doc, node, raw) {
+	if (!node.capabilities.editNotes) throw new EditError("E_CAPABILITY", "The node cannot hold notes", node.id);
+	const text = normalizeNoteText(raw);
+	const offset = noteAnchor(node);
+	const notes = [...node.notes].toSorted((a, b) => a.range.start - b.range.start);
+	const verify = (next) => verifyNotes(doc, node, next, text);
+	if (!text) return {
+		edits: noteCuts(doc.source, notes).map((cut) => ({
+			from: cut.start,
+			to: cut.end,
+			insert: ""
+		})),
+		selection: {
+			kind: "source",
+			offset
+		},
+		verify
+	};
+	if (notes.length === 1 && notes[0]?.fence && notesText(doc, node) === text) return {
+		edits: [],
+		selection: {
+			kind: "source",
+			offset
+		},
+		verify
+	};
+	const ending = lineEnding(doc.source);
+	const position = notesInsertion(doc, node);
+	const fence = fenceText(text, contentIndent(node), ending);
+	const atLineStart = position === 0 || doc.source[position - 1] === "\n";
+	let insert = atLineStart ? fence : ending + fence;
+	if (atLineStart || position < doc.source.length) insert += ending;
+	const edits = [{
+		from: position,
+		to: position,
+		insert
+	}];
+	for (const cut of noteCuts(doc.source, notes)) edits.push({
+		from: cut.start,
+		to: cut.end,
+		insert: ""
+	});
+	return {
+		edits,
+		selection: {
+			kind: "source",
+			offset
+		},
+		verify
+	};
+}
+function noteAnchor(node) {
+	return node.label?.start ?? node.block?.start ?? 0;
+}
+function notesInsertion(doc, node) {
+	if (node.kind === "root" && !node.block) {
+		const first = node.children.length ? doc.nodes.get(node.children[0]) : void 0;
+		return first?.block ? lineStart(doc.source, first.block.start) : doc.source.length;
+	}
+	const anchor = node.label?.end ?? node.block?.start ?? 0;
+	const end = lineEnd(doc.source, anchor);
+	if (end >= doc.source.length) return doc.source.length;
+	return end + newlineLengthAt(doc.source, end);
+}
+function noteCuts(source, notes) {
+	const cuts = notes.map((note) => noteCut(source, note.range)).toSorted((a, b) => a.start - b.start);
+	const merged = [];
+	for (const cut of cuts) {
+		const last = merged.at(-1);
+		if (last && cut.start <= last.end) last.end = Math.max(last.end, cut.end);
+		else merged.push({ ...cut });
+	}
+	return merged;
+}
+function noteCut(source, range) {
+	let start = lineStart(source, range.start);
+	let end = lineEnd(source, range.end);
+	const newline = newlineLengthAt(source, end);
+	if (newline) end += newline;
+	if (end < source.length) {
+		const after = lineEnd(source, end);
+		if (!source.slice(end, after).trim()) end = after + newlineLengthAt(source, after);
+	} else if (start > 0) {
+		const before = lineStart(source, start - 1);
+		if (!source.slice(before, start).trim()) start = before;
+	}
+	return {
+		start,
+		end
+	};
+}
+function fenceText(text, indent, ending) {
+	const fence = "`".repeat(fenceLength(text));
+	const lines = text.split("\n").map((line) => line ? indent + line : "");
+	return [
+		indent + fence + "markmap-note",
+		...lines,
+		indent + fence
+	].join(ending);
+}
+function fenceLength(text) {
+	let longest = 0;
+	for (const run of text.match(/`+/gu) ?? []) longest = Math.max(longest, run.length);
+	return Math.max(3, longest + 1);
+}
+function verifyNotes(doc, node, next, text) {
+	const found = node.block ? nodeByBlockStart(next, node.block.start) : next.nodes.get(next.root);
+	const sameChildren = found !== void 0 && found.children.length === node.children.length && found.children.every((id, index) => id === node.children[index]);
+	const notes = found ? found.notes : [];
+	const sameNotes = text ? notes.length === 1 && notes[0]?.fence === true : notes.length === 0;
+	const sameText = !text || found !== void 0 && notesText(next, found) === text;
+	if (!found || next.nodes.size !== doc.nodes.size || !sameChildren || !sameNotes || !sameText) throw shape("The note change did not survive parsing");
 }
 function planInsertFirst(doc, node, raw) {
 	if (node.kind !== "root" || node.block || node.children.length > 0) throw new EditError("E_CAPABILITY", "The node is not an empty root", node.id);

@@ -582,6 +582,58 @@ test('[R-21] pastes external plain text as a child label', async ({ page, contex
   await expect(page.locator('.mm-editor-selected')).toContainText('External note');
 });
 
+test('[R-26] edits a note and keeps its list inside the note', async ({ page }) => {
+  await page.goto('/dev/?map=notes');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.getByText('Deploy', { exact: true }).first().click();
+  await page.getByRole('button', { name: 'Edit notes' }).click();
+  const field = page.locator('.mm-editor-notes-field');
+  await expect(field).toBeVisible();
+  await field.fill('Оновлений опис.\n\n- Новий пункт');
+  await page.keyboard.press(`${modifier}+Enter`);
+  await expect(field).not.toBeVisible();
+
+  const node = nodes.filter({ hasText: 'Deploy' });
+  await node.locator('[data-action="notes"]').click();
+  await expect(page.locator('.markmap-popover')).toContainText('Новий пункт');
+  await expect(nodes).toHaveCount(before);
+});
+
+test('[R-26] moves a note with its node under a list item', async ({ page }) => {
+  await page.goto('/dev/?map=notes');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.getByText('Deploy', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+x`);
+  await page.getByText('Release', { exact: true }).first().click();
+  await page.keyboard.press(`${modifier}+v`);
+
+  await expect(nodes).toHaveCount(before);
+  await expect(page.locator('.mm-markmap-svg')).not.toContainText('Перевірити бекап');
+  const node = nodes.filter({ hasText: 'Deploy' });
+  await expect(node.locator('[data-action="notes"]')).toHaveCount(1);
+  await node.locator('[data-action="notes"]').click();
+  await expect(page.locator('.markmap-popover')).toContainText('Перевірити бекап');
+});
+
+test('[R-12] [R-26] renders a note in a read-only map without the notes editor', async ({
+  page,
+}) => {
+  await page.goto('/dev/?map=notes&readonly=1');
+
+  await expect(page.getByRole('button', { name: 'Edit notes' })).toHaveCount(0);
+  const node = page.locator('.mm-markmap-svg g[data-key^="node:"]').filter({ hasText: 'Deploy' });
+  await node.locator('[data-action="notes"]').click();
+  await expect(page.locator('.markmap-popover')).toContainText('Перевірити бекап');
+});
+
 test('[R-12] renders a read-only file without an editor field', async ({ page }) => {
   await page.goto('/dev/?readonly=1');
 

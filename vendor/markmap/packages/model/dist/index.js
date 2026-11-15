@@ -20,6 +20,21 @@ function indentWidth(indent) {
 }
 var LIST_MARKER = /^([ \t]*)([-+*]|\d{1,9}[.)])(?:[ \t]+|$)(\[[ xX]\][ \t]+)?/;
 var HEADING_MARKER = /^[ \t]{0,3}(#{1,6})(?:[ \t]+|$)/;
+function contentIndent(node) {
+	if (node.kind !== "listItem" || !node.list) return "";
+	return node.list.indent + " ".repeat(node.list.marker.length + 1);
+}
+function normalizeNoteText(text) {
+	return text.replace(/\r\n?/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/u, "")).join("\n").replace(/\n+$/u, "");
+}
+function notesText(doc, node) {
+	const indent = contentIndent(node);
+	return normalizeNoteText([...node.notes].toSorted((a, b) => a.range.start - b.range.start).map((note) => {
+		const raw = doc.source.slice(note.range.start, note.range.end);
+		if (!note.fence) return raw;
+		return raw.replace(/\r\n?/g, "\n").split("\n").slice(1, -1).map((line) => indent && line.startsWith(indent) ? line.slice(indent.length) : line).join("\n");
+	}).join("\n\n"));
+}
 // src/build.ts
 function parseDocument(source) {
 	const { root, frontmatter } = parse(source);
@@ -120,15 +135,33 @@ function buildNode(source, tree, parent) {
 		label,
 		block,
 		list,
+		notes: readNotes(tree, source.length),
 		opaque,
 		capabilities: emptyCapabilities()
 	};
-	node.capabilities = readCapabilities(node, parent);
+	node.capabilities = readCapabilities(node, parent, tree.content.length > 0);
 	return node;
 }
-function readCapabilities(node, parent) {
+function readNotes(tree, length) {
+	const notes = [];
+	const seen = /* @__PURE__ */ new Set();
+	for (const note of tree.notes) {
+		if (!note.source) continue;
+		const range = clampRange(note.source, length);
+		const key = `${range.start}:${range.end}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		notes.push({
+			range,
+			fence: note.fence === true
+		});
+	}
+	return notes;
+}
+function readCapabilities(node, parent, hasTitle) {
 	const base = {
 		editLabel: false,
+		editNotes: false,
 		addChild: false,
 		addSibling: false,
 		outdent: false,
@@ -144,6 +177,7 @@ function readCapabilities(node, parent) {
 	if (node.kind === "root") return {
 		...base,
 		editLabel: Boolean(node.label && node.block),
+		editNotes: Boolean(node.block) || hasTitle,
 		addChild: !node.opaque
 	};
 	if (node.opaque) return {
@@ -154,6 +188,7 @@ function readCapabilities(node, parent) {
 	if (node.kind === "heading") return {
 		...base,
 		editLabel: Boolean(node.label && node.block),
+		editNotes: true,
 		addChild: node.level < 6,
 		addSibling: Boolean(parent),
 		outdent: parent?.kind === "heading",
@@ -163,6 +198,7 @@ function readCapabilities(node, parent) {
 	return {
 		...base,
 		editLabel: Boolean(node.label && node.block),
+		editNotes: true,
 		addChild: true,
 		addSibling: Boolean(parent),
 		outdent: parent?.kind === "listItem",
@@ -174,6 +210,7 @@ function readCapabilities(node, parent) {
 function emptyCapabilities() {
 	return {
 		editLabel: false,
+		editNotes: false,
 		addChild: false,
 		addSibling: false,
 		outdent: false,
@@ -373,4 +410,4 @@ function assertDocument(doc) {
 	const issues = validateDocument(doc);
 	if (issues.length) throw new ModelError(issues);
 }
-export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, nodeAtOffset, parseDocument, validateDocument };
+export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, contentIndent, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, notesText, parseDocument, validateDocument };

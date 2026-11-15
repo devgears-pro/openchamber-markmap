@@ -23,6 +23,7 @@ export type MarkmapView = {
   setLayout: (layout: MarkmapLayout) => void;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
+  editNotes: () => void;
   commit: () => void;
   snapshotForSave: () => string | null;
   destroy: () => void;
@@ -130,6 +131,9 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         if (next === label) return;
         editor.setLabel(id, next);
         editor.focus();
+      },
+      editNotes: () => {
+        editor?.editNotes();
       },
       commit: () => {
         editor?.commit();
