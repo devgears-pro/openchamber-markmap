@@ -187,6 +187,34 @@ test('[R-11] keeps the edit field anchored while the label grows', async ({ page
   expect(after.fieldWidth).toBeGreaterThan(before.fieldWidth);
 });
 
+test('[R-11] reflows child branches right while the label grows', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Features', { exact: true }).first().click();
+  await page.keyboard.press('F2');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+
+  const geometry = async (): Promise<{ fieldRight: number; childLeft: number }> =>
+    page.evaluate(() => {
+      const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+      const child = [...document.querySelectorAll('.mm-markmap-svg text')].find(
+        (element) => element.textContent?.trim() === 'Inline Markdown works',
+      );
+      if (!field || !child) throw new Error('Missing editor geometry');
+      return {
+        fieldRight: field.getBoundingClientRect().right,
+        childLeft: child.getBoundingClientRect().x,
+      };
+    });
+
+  const before = await geometry();
+  await page.keyboard.type(' with a much longer label');
+  const after = await geometry();
+
+  expect(after.childLeft).toBeGreaterThan(before.childLeft + 50);
+  expect(after.fieldRight).toBeLessThanOrEqual(after.childLeft);
+});
+
 test('[R-13] shows an editor error for a line break in a heading', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();

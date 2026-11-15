@@ -48,7 +48,7 @@ The map exposes an image role and a name, and the Markmap toolbar keeps labelled
 
 ### R-11 Keyboard editing
 
-Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, F2 or Space edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor when the label grows, so typing does not slide the text sideways. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
+Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, F2 or Space edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
 
 ### R-12 Read-only files
 
