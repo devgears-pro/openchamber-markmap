@@ -76,6 +76,7 @@ var MarkmapEditor = class {
 	restoreTabIndex;
 	stops = [];
 	doc;
+	title = "";
 	selectedId = null;
 	selectionOffset = 0;
 	editing = null;
@@ -83,7 +84,9 @@ var MarkmapEditor = class {
 	constructor({ source, view, container, placeholder, onChange, onError }) {
 		this.view = view;
 		this.container = container;
-		this.doc = parseDocument(source).document;
+		const parsed = parseDocument(source);
+		this.doc = parsed.document;
+		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.onChange = onChange;
 		this.onError = onError;
 		this.placeholder = placeholder?.trim() || "New topic";
@@ -144,6 +147,7 @@ var MarkmapEditor = class {
 		const parsed = parseDocument(source);
 		this.stopEditingUi();
 		this.doc = parsed.document;
+		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.history.clear();
 		this.view.setTree(parsed.tree);
 		const offset = options.selection ?? this.doc.nodes.get(this.doc.root)?.label?.start ?? 0;
@@ -160,8 +164,12 @@ var MarkmapEditor = class {
 			if (this.commitEditing() === "error") return;
 		}
 		const node = this.doc.nodes.get(nodeId);
+		if (!node) return;
 		const first = this.isEmptyRoot(node);
-		if (!node || !node.label && !first) return;
+		if (!node.label && !first) {
+			if (node.kind === "root" && this.title) this.onError?.(new EditError("E_LABEL", "The root title comes from frontmatter; edit it in the source view", node.id));
+			return;
+		}
 		if (!this.view.screenRect(nodeId)) return;
 		const label = node.label ? labelText(this.doc, node) : "";
 		const blank = first || label === EMPTY_LABEL;
@@ -546,7 +554,7 @@ var MarkmapEditor = class {
 		return label === EMPTY_LABEL ? "" : label;
 	}
 	isEmptyRoot(node) {
-		return node?.kind === "root" && !node.block && !node.label && this.doc.nodes.size === 1;
+		return node?.kind === "root" && !node.block && !node.label && this.doc.nodes.size === 1 && !this.title;
 	}
 	snapshot() {
 		return {
@@ -559,6 +567,7 @@ var MarkmapEditor = class {
 		const parsed = parseDocument(entry.source);
 		this.stopEditingUi();
 		this.doc = parsed.document;
+		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.view.setTree(parsed.tree);
 		this.view.setFoldedIds(entry.folded, { animate: false });
 		this.selectAt(entry.selection, { reveal: false });

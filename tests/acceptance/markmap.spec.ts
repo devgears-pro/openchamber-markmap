@@ -123,6 +123,13 @@ test('[R-13] shows an editor error for a line break in a heading', async ({ page
   await page.keyboard.press('Escape');
 });
 
+test('[R-13] does not edit a title root from frontmatter', async ({ page }) => {
+  await page.goto('/dev/?map=title');
+  await page.getByText('Root title', { exact: true }).first().dblclick();
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-notice')).toContainText('frontmatter');
+});
+
 test('[R-14] pans with the wheel and zooms with the modifier', async ({ page }) => {
   await page.goto('/dev/');
   const root = page.locator('.mm-markmap-svg > g').first();
