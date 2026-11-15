@@ -53,6 +53,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 
 - Keep extensions in the fork; `src/` is host wiring and UI.
 - Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
+- Docs are public. Use placeholders and synthetic examples; never add local paths, usernames, sessions, personal data, or internal-only references.
 - Release data and screenshots live on GitHub.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
@@ -133,7 +134,7 @@ Feature and fix PRs target `dev`; only a release promotion merges into `main`. R
 
 ## Reference
 
-- OpenChamber SDK: `@openchamber/sdk`. A local OpenChamber source checkout is useful for reference but is not part of this repository.
+- OpenChamber SDK: `@openchamber/sdk`. An OpenChamber source checkout is useful for reference but is not part of this repository.
 - Markmap: <https://markmap.js.org/> and <https://github.com/markmap/markmap>.
 - Editable fork: <https://github.com/mmospanenko/markmap/tree/feat/editable-model>.
 - Requirement tree: `docs/requirements.md`.

@@ -9,6 +9,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 - The committed bundle is part of the source of truth.
 - Every check runs locally and in CI with the same command.
 - No user data in the repository, fixtures, logs, or screenshots.
+- Docs are public. Use placeholders and synthetic examples; no local paths, usernames, sessions, or personal data.
 - No comments in code. Tests and docs explain behavior.
 
 ## Change types
