@@ -41,6 +41,10 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The test command, the red output, and the green output. Screenshots for visual changes.
 - The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
 
+## Fork changes
+
+The vendored fork is a separate repository. Get approval for the exact behavior, keep the change minimal, and add tests. Run `pnpm verify` in the fork and confirm the changed files have no uncovered lines. Commit and push before copying `dist` and rebuilding the bundle.
+
 ## Completion
 
 After the PR merges, post the closing proof on the issue and close it. A merged PR with an open issue is unfinished work.
