@@ -2,6 +2,8 @@
 
 A bug is fixed only after a failing regression test proves the defect.
 
+Every bug starts as an issue. No issue, no fix.
+
 ## Report
 
 Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
@@ -13,6 +15,18 @@ Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
 - A screenshot or recording for visual defects.
 
 Never attach a real user document. Reduce the case to synthetic Markdown.
+
+## Proof
+
+The issue comments carry the proof:
+
+- Steps to reproduce and the synthetic file.
+- Expected and actual behavior.
+- A screenshot or recording of the defect.
+- The failing test name, command, and red output.
+- The green output after the fix and a screenshot of the result.
+
+Attach screenshots to the issue comment. Do not commit them.
 
 ## Regression test first
 
@@ -36,12 +50,12 @@ A fix without a red test is not accepted, except when a test is genuinely imposs
 
 ## Evidence
 
-The final report states:
+The closing comment states:
 
 - `done` or `blocked`.
 - Commit and branch.
 - The regression test name and command.
 - Red output before the fix and green output after.
 - Verification commands and results.
-- Screenshots for visual changes.
+- A screenshot of the fixed result attached to the comment.
 - Any remaining limitation.

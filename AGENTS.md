@@ -69,7 +69,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 6. Rebuild `editor/main.js` and commit it with the source change.
 7. Update docs and the requirement traceability table when behavior changes.
 
-Bugs follow the same path, with the regression test first. See `docs/process/bugs.md`.
+Bugs follow the same path, with the regression test first. Every bug has an issue with reproduction proof. See `docs/process/bugs.md`.
 
 ## Branches and releases
 
