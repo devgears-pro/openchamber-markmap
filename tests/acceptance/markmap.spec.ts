@@ -87,6 +87,30 @@ test('[R-11] inserts a child with Tab and deletes it', async ({ page }) => {
   await expect(page.locator('.mm-markmap-svg')).not.toContainText('Child node');
 });
 
+test('[R-11] removes a new empty node with Backspace while its field is open', async ({ page }) => {
+  await page.goto('/dev/');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  const field = page.locator('textarea.mm-editor-field');
+
+  await page.getByText('Links', { exact: true }).first().click();
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.keyboard.press('Enter');
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('');
+  await expect(nodes).toHaveCount(before + 1);
+
+  await page.keyboard.press('Backspace');
+  await expect(field).toBeHidden();
+  await expect(nodes).toHaveCount(before);
+  await expect(page.locator('.mm-editor-selected')).toContainText('Links');
+
+  await page.keyboard.press(`${modifier}+z`);
+  await expect(nodes).toHaveCount(before + 1);
+});
+
 test('[R-11] keeps the edit text aligned with the node label', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Headings and lists become branches', { exact: true }).first().click();

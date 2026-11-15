@@ -119,7 +119,7 @@ A normal `*.md` file stays in OpenChamber's source editor.
 | Zoom around the pointer               | Cmd/Ctrl + scroll                  |
 | Fit, zoom in, zoom out                | Markmap toolbar                    |
 
-While a label field is open, Enter commits and adds a sibling, Tab commits and adds a child, and Shift+Enter inserts a line break in a list item. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
+While a label field is open, Enter commits and adds a sibling, Tab commits and adds a child, and Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
 
 ## Markdown format
 
