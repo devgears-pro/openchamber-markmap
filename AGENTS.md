@@ -75,6 +75,8 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 
 Feature and fix PRs target `dev`; only a release promotion merges into `main`. Release Please owns the version, changelog, tag, and draft release; do not edit `package.json` or `CHANGELOG.md` by hand. See `docs/process/releases.md`.
 
+Worktrees live in `.worktrees/` inside the repository and are gitignored. Create them with the OpenCode worktree tools, not as sibling folders.
+
 ## Markmap facts
 
 - `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
