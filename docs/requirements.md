@@ -48,7 +48,7 @@ The map exposes an image role and a name, and the Markmap toolbar keeps labelled
 
 ### R-11 Keyboard editing
 
-Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, F2 or Space edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
+Enter inserts a sibling, Tab a child, Shift+Tab outdents, Delete removes the selected subtree, Space or a double click edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
 
 ### R-12 Read-only files
 
@@ -64,7 +64,7 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 
 ### R-15 Keyboard navigation and history
 
-Arrow keys move the selection between related nodes. Typing a printable character opens the label field with that character appended to the selected label. Cmd/Ctrl+Z while editing resets the field to the original label; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
+Arrow keys move the selection between related nodes without folding. Cmd/Ctrl+Z while editing resets the field to the original label; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
 
 ### R-16 New files
 
@@ -77,6 +77,10 @@ Clicking an http(s) link in a node asks the host to open it and never navigates 
 ### R-18 Node markers
 
 An editable map offers a marker menu grouped by status, priority, progress, and flags. Choosing a marker replaces an existing leading marker on the selected node and preserves the rest of the label. Read-only maps show no marker menu. Markers are plain Unicode characters in the Markdown source.
+
+### R-19 Selection and editing modes
+
+A focused node stays in selection mode until the user explicitly edits it. Printable keys do nothing. Space or a double click opens the label field, Escape leaves editing and keeps the node selected, and F2 is not bound. Arrow keys navigate without folding: Left selects the parent, Right unfolds or selects the first child. The editor container carries `mm-editor-mode-select` or `mm-editor-mode-edit`.
 
 ## Traceability
 
@@ -100,3 +104,4 @@ An editable map offers a marker menu grouped by status, priority, progress, and 
 | R-16        | `tests/markmap-view.test.ts`, acceptance                                                                            |
 | R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`                                                                   |
 | R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
+| R-19        | acceptance                                                                                                          |

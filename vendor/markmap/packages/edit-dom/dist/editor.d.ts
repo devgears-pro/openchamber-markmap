@@ -33,9 +33,10 @@ export declare class MarkmapEditor {
         selection?: number;
         emit?: boolean;
     }): void;
-    startEditing(nodeId?: string | null, initialText?: string, options?: {
+    startEditing(nodeId?: string | null, options?: {
         selectAll?: boolean;
     }): void;
+    setLabel(nodeId: string, text: string): boolean;
     commit(): void;
     undo(): boolean;
     redo(): boolean;
@@ -47,6 +48,7 @@ export declare class MarkmapEditor {
     private handleKeyDown;
     private handleEditingKey;
     private insertAndEdit;
+    private editCreated;
     private runSelected;
     private run;
     private apply;
@@ -55,6 +57,7 @@ export declare class MarkmapEditor {
     private commitAndInsert;
     private previewEditing;
     private restorePreview;
+    private setMode;
     private stopEditingUi;
     private positionEditing;
     private navigate;
@@ -62,7 +65,6 @@ export declare class MarkmapEditor {
     private select;
     private ensureVisible;
     private selectedNode;
-    private selectedLabel;
     private isEmptyRoot;
     private snapshot;
     private restore;
