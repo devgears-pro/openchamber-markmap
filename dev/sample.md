@@ -20,7 +20,7 @@ markmap:
 ## Controls
 
 - Click a node to select it
-- Enter adds a sibling
+- Enter inserts a sibling in selection; commits while editing
 - Tab adds a child
 - Shift+Tab outdents
 - Space or double-click edits the label

@@ -54,7 +54,7 @@ test('[R-03] draws no browser focus ring around the focused editor surface', asy
   expect(outline).toBe('none');
 });
 
-test('[R-11] inserts a sibling with Enter and edits its label', async ({ page }) => {
+test('[R-19] Enter exits editing before the next Enter inserts a sibling', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
 
@@ -65,6 +65,12 @@ test('[R-11] inserts a sibling with Enter and edits its label', async ({ page })
 
   await page.keyboard.type('Keyboard node');
   await page.keyboard.press('Enter');
+  await expect(field).toBeHidden();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Keyboard node');
+
+  await page.keyboard.press('Enter');
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('');
   await page.keyboard.press('Escape');
 
   await expect(page.locator('.mm-markmap-svg')).toContainText('Keyboard node');
@@ -401,6 +407,9 @@ test('[R-16] opens a new empty file with an editable first node', async ({ page 
   await expect(page.locator('.mm-editor-selection')).toBeVisible();
 
   await page.keyboard.press('Enter');
+  await expect(field).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(field).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.mm-markmap-svg')).toContainText('First note');
 });
