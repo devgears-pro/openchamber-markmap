@@ -38,7 +38,8 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The issue, when there is one, and the pull request.
 - The cause for a bug, or the reason for a task.
 - The test command, the red output, and the green output. Screenshots for visual changes.
-- The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
+- The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`. Always include it, even when the worktree folder is also available.
+- For a visual change, a comment on the issue with a screenshot or a short GIF. Release notes are built from those comments; see `docs/process/releases.md`.
 
 ## Worktrees and sync
 
