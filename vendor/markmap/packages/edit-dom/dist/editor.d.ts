@@ -14,6 +14,7 @@ export declare class MarkmapEditor {
     private readonly restoreTabIndex;
     private readonly stops;
     private doc;
+    private title;
     private selectedId;
     private selectionOffset;
     private editing;

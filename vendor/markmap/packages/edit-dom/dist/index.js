@@ -329,6 +329,15 @@ var MarkmapEditor = class {
 			}
 			return;
 		}
+		const editing = this.editing;
+		if (editing && (event.key === "Backspace" || event.key === "Delete") && editing.blank && editing.field.value === "") {
+			if (this.isEmptyRoot(this.doc.nodes.get(editing.nodeId))) return;
+			event.preventDefault();
+			this.stopEditingUi();
+			this.select(editing.nodeId, { reveal: false });
+			this.runSelected({ type: "delete" });
+			return;
+		}
 		if (event.key === "Escape") {
 			event.preventDefault();
 			this.cancelEditing();
