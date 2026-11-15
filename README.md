@@ -7,6 +7,8 @@ An OpenChamber file editor for Markmap Markdown. Open a `.markmap.md` file in Fi
 
 This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, toolbar, and themes. The editable fork adds the model, commands, and overlay editor that make the diagram editable in OpenChamber.
 
+Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
+
 ![The Markmap editor in the dark theme](docs/images/editor-dark.png)
 
 ## What you get
@@ -18,7 +20,7 @@ This is an adaptation of the open-source Markmap library, not an official Markma
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag emoji to a node label. Tasks use ordinary GFM checkboxes, and every marker stays readable in the Markdown source.
-- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, `colorFreezeLevel`, and `fitMaxScale`, still apply.
+- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, `colorDepth`, and `fitMaxScale`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Local only.** No network requests, telemetry, external assets, or stored file contents. The extension asks for no capabilities.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
@@ -66,8 +68,10 @@ https://github.com/mmospanenko/openchamber-markmap#dev
 Pinned release:
 
 ```text
-https://github.com/mmospanenko/openchamber-markmap#v0.4.0
+https://github.com/mmospanenko/openchamber-markmap#vX.Y.Z
 ```
+
+Replace `X.Y.Z` with a tag from the Releases page.
 
 ```text
 openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap
@@ -125,7 +129,7 @@ The file is ordinary Markmap Markdown. Headings and list items become branches, 
 ```markdown
 ---
 markmap:
-  colorFreezeLevel: 2
+  colorDepth: 2
 ---
 
 # Release
@@ -145,7 +149,7 @@ markmap:
 
 The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
 
-The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` 1.1.1 plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). The repository contains no custom Markdown parser, layout engine, or serializer.
+The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` 1.1.1 plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ## Privacy
 
@@ -178,7 +182,7 @@ The process is documented in:
 - [`docs/process/testing.md`](docs/process/testing.md) — test levels and coverage.
 - [`docs/process/bugs.md`](docs/process/bugs.md) — failing test first.
 - [`docs/process/release.md`](docs/process/release.md) — directory submission and post-release checks.
-- [`docs/process/releases.md`](docs/process/releases.md) — branches, versions, tags, and changelogs.
+- [`docs/process/releases.md`](docs/process/releases.md) — branches, versions, tags, and release notes.
 - [`docs/requirements.md`](docs/requirements.md) — requirement tree and traceability.
 
 Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
@@ -187,7 +191,7 @@ Every behavior change starts with a requirement and a test. Every bug starts wit
 
 Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.
 
-The editable fork is public at <https://github.com/mmospanenko/markmap/tree/feat/editable-model>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes stay upstream Markmap.
+The editable fork is public at <https://github.com/mmospanenko/markmap/tree/feat/editable-model>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes start from upstream Markmap; the fork carries the extensions this editor adds.
 
 ## License
 

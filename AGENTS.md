@@ -1,6 +1,6 @@
 # Agent guide
 
-Markmap for OpenChamber is an OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. It is an adaptation of the open-source Markmap library. English is the repository language for code, tests, docs, commits, and test names. Chat replies follow the user's language.
+Markmap for OpenChamber is an OpenChamber file editor that renders and edits Markmap Markdown as an editable mind map. It is an adaptation of the open-source Markmap library. English is the repository language for code, tests, docs, commits, test names, issues, milestones, release notes, and PR titles. Chat replies follow the user's language.
 
 ## Commands
 
@@ -34,11 +34,13 @@ bunx openchamber-guest-check
 - `tests/` — Vitest unit and DOM tests plus Playwright acceptance tests.
 - `scripts/` — requirement traceability and reproducible-build checks.
 
-The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Nodes are edited directly on the map; there is no Markdown sidebar, custom parser, layout engine, serializer, or palette in this repository.
+The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Nodes are edited directly on the map; there is no Markdown sidebar, custom parser, layout engine, serializer, or palette in `src/`.
 
 ## Non-negotiables
 
-- Keep the extension Markmap-only. Use the vendored editable fork; do not add a custom Markdown parser, serializer, or layout.
+- Keep extensions in the fork; `src/` is host wiring and UI.
+- Files stay readable Markdown; conventions are documented, validator-checked, and rendered by the fork.
+- Release data and screenshots live on GitHub.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
@@ -63,17 +65,15 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 2. Write a failing test with `[R-xx]` in its name.
 3. Implement the smallest change that makes it pass.
 4. Run `bun run verify`, then `bun run test:acceptance` when rendering or layout changed.
-5. Rebuild `editor/main.js` and commit it with the source change.
-6. Update docs and the requirement traceability table when behavior changes.
+5. Post the closing presentation on the issue when the change is visual.
+6. Rebuild `editor/main.js` and commit it with the source change.
+7. Update docs and the requirement traceability table when behavior changes.
 
 Bugs follow the same path, with the regression test first. See `docs/process/bugs.md`.
 
 ## Branches and releases
 
-- Feature and fix PRs target `dev`; only a release promotion merges into `main`.
-- CI writes the `-dev.N` preview version on every push to `dev`. Release Please writes the stable version, changelog, tag, and release on `main`.
-- Do not edit the `package.json` version or the generated `CHANGELOG.md` sections by hand. PR titles are Conventional Commits because they become the changelog.
-- The process and first-time setup are in `docs/process/releases.md`.
+Feature and fix PRs target `dev`; only a release promotion merges into `main`. Release Please owns the version, changelog, tag, and draft release; do not edit `package.json` or `CHANGELOG.md` by hand. See `docs/process/releases.md`.
 
 ## Markmap facts
 
@@ -85,7 +85,9 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 - The `<svg>` needs a non-zero CSS box and no `viewBox`.
 - The toolbar must live in the same document as the map so it can use the map's `--mm-*` tokens.
 - `colorScheme` accepts `light`, `dark`, or `auto`. Pass the host mode explicitly; `auto` follows the OS, not OpenChamber.
-- Paragraphs become notes in a popover; headings and list items become branches.
+- Paragraphs become notes in a sanitized popover; headings and list items become branches. The view exposes no notes editing API.
+- `@markmap/render` 1.1.1 provides `tree`, `two-sided`, and `org-chart`; frontmatter key `markmap.layout` selects one. The view passes no custom layout resolver today.
+- `colorDepth` replaced the legacy `colorFreezeLevel` from Markmap 0.18.
 
 ## Reference
 
@@ -93,6 +95,6 @@ Bugs follow the same path, with the regression test first. See `docs/process/bug
 - Markmap: <https://markmap.js.org/> and <https://github.com/markmap/markmap>.
 - Editable fork: <https://github.com/mmospanenko/markmap/tree/feat/editable-model>.
 - Requirement tree: `docs/requirements.md`.
-- Process: `docs/process/sdlc.md`, `docs/process/testing.md`, `docs/process/bugs.md`, `docs/process/release.md`.
+- Process: `docs/process/sdlc.md`, `docs/process/testing.md`, `docs/process/bugs.md`, `docs/process/release.md`, `docs/process/releases.md`.
 - Directory copy: `docs/listing.md`.
 - Screenshots: `docs/images/`, generated by `tests/screenshots/docs.spec.ts` from synthetic `dev/showcase.md`.
