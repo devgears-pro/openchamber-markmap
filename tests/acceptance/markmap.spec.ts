@@ -450,6 +450,31 @@ test('[R-21] cuts a subtree and pastes it back', async ({ page }) => {
   await expect(page.locator('.mm-editor-selected')).toContainText('Links');
 });
 
+test('[R-21] copies a title root with every child block and pastes it back', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/dev/?map=title-body');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const before = await nodes.count();
+
+  await page.keyboard.press(`${modifier}+c`);
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+
+  expect(text).toContain('# Root title');
+  expect(text).toContain('## Branch');
+  expect(text).toContain('- Leaf');
+  expect(text).toContain('## Second');
+  expect(text).not.toContain('---');
+
+  await page.keyboard.press(`${modifier}+v`);
+  await expect(nodes).toHaveCount(before + 5);
+  await expect(page.locator('.mm-editor-selected')).toContainText('Root title');
+});
+
 test('[R-21] pastes external plain text as a child label', async ({ page, context }) => {
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/dev/');

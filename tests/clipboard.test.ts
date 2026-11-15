@@ -17,6 +17,7 @@ type Harness = {
   };
   editing: { value: boolean };
   selected: { value: string | null };
+  block: { value: string | null };
   sink: HTMLTextAreaElement;
   destroy: () => void;
 };
@@ -40,12 +41,10 @@ const setup = (source = SOURCE): Harness => {
   const calls = { blocks: [] as string[], labels: [] as string[], deletes: 0, focus: 0 };
   const editing = { value: false };
   const selected = { value: map.root };
+  const block = { value: null as string | null };
   const editor: ClipboardEditor = {
     get isEditing() {
       return editing.value;
-    },
-    get source() {
-      return map.source;
     },
     get selected() {
       return selected.value;
@@ -56,6 +55,7 @@ const setup = (source = SOURCE): Harness => {
     focus: () => {
       calls.focus += 1;
     },
+    selectedBlock: () => block.value,
     insertBlock: (text) => {
       calls.blocks.push(text);
       return true;
@@ -84,6 +84,7 @@ const setup = (source = SOURCE): Harness => {
     calls,
     editing,
     selected,
+    block,
     sink,
     destroy: clipboard.destroy,
   };
@@ -139,6 +140,7 @@ describe('clipboard', () => {
   test('[R-21] copies the selected subtree with its notes', () => {
     harness = setup();
     harness.selected.value = idOf(harness.map, 'Links');
+    harness.block.value = '- Links\n  note';
     const copied = event('copy');
 
     harness.container.dispatchEvent(copied);
@@ -149,6 +151,7 @@ describe('clipboard', () => {
 
   test('[R-21] copies the root and refuses to cut it', () => {
     harness = setup();
+    harness.block.value = SOURCE;
     const cut = event('cut');
 
     harness.container.dispatchEvent(cut);
@@ -158,9 +161,22 @@ describe('clipboard', () => {
     expect(harness.notices).toEqual(['The root cannot be cut, so it stays in the map.']);
   });
 
+  test('[R-21] copies a title root from the editor block', () => {
+    harness = setup('---\ntitle: Root title\n---\n\n## Branch\n\n- Leaf\n');
+    harness.block.value = '# Root title\n\n## Branch\n\n- Leaf\n';
+    const copied = event('copy');
+
+    harness.container.dispatchEvent(copied);
+
+    expect(copied.clipboardData?.getData('text/plain')).toBe(
+      '# Root title\n\n## Branch\n\n- Leaf\n',
+    );
+  });
+
   test('[R-21] cuts a subtree with one delete', () => {
     harness = setup();
     harness.selected.value = idOf(harness.map, 'Links');
+    harness.block.value = '- Links\n  note';
     const cut = event('cut');
 
     harness.container.dispatchEvent(cut);
@@ -188,6 +204,19 @@ describe('clipboard', () => {
     harness.container.dispatchEvent(copied);
 
     expect(harness.notices).toEqual(['This node has nothing to copy.']);
+  });
+
+  test('[R-21] refuses to cut without a selected node', () => {
+    harness = setup();
+    harness.selected.value = null;
+    harness.block.value = '- Links\n  note';
+    const cut = event('cut');
+
+    harness.container.dispatchEvent(cut);
+
+    expect(cut.clipboardData?.getData('text/plain')).toBe('- Links\n  note');
+    expect(harness.calls.deletes).toBe(0);
+    expect(harness.notices).toEqual(['The root cannot be cut, so it stays in the map.']);
   });
 
   test('[R-21] leaves native clipboard alone while editing', () => {
@@ -218,6 +247,7 @@ describe('clipboard', () => {
   test('[R-21] copies without a clipboard data object', () => {
     harness = setup();
     harness.selected.value = idOf(harness.map, 'Links');
+    harness.block.value = '- Links\n  note';
     const copied = new ClipboardEvent('copy', { bubbles: true, cancelable: true });
 
     harness.container.dispatchEvent(copied);
@@ -229,6 +259,7 @@ describe('clipboard', () => {
   test('[R-21] pastes an in-map copy as a block', () => {
     harness = setup();
     harness.selected.value = idOf(harness.map, 'Links');
+    harness.block.value = '- Links\n  note';
     harness.container.dispatchEvent(event('copy'));
 
     paste(harness, '- Links\r\n  note\r\n');
