@@ -95,11 +95,27 @@ Before the final reply:
 - Leave files, branches, and worktrees owned by other people or sessions.
 - If something must stay, list it in the chat report with its path and purpose.
 
+## Fork
+
+The vendored fork is a separate public repository. Change it only with explicit approval for the exact behavior, and keep the change minimal.
+
+Before copying `dist` to `vendor/markmap`:
+
+- Add tests for every changed behavior.
+- Run `pnpm verify` in the fork. It must pass, and the changed files must have no uncovered lines or branches.
+- Commit and push the fork change.
+
+Then copy `dist`, rebuild `editor/main.js`, and run `bun run verify` and `bun run test:acceptance`.
+
+## Worktrees and sync
+
+All work happens in `.worktrees/<name>`, never in the main checkout; agents run in parallel. The directory is gitignored and the OpenCode project config points there. Create worktrees with the OpenCode tools, not as sibling folders.
+
+When the work is done, push the worktree branch and open a PR into `dev`. Merge through GitHub after CI. Do not commit or merge directly into `dev`.
+
 ## Branches and releases
 
 Feature and fix PRs target `dev`; only a release promotion merges into `main`. Release Please owns the version, tag, and draft release; do not edit `package.json` by hand. See `docs/process/releases.md`.
-
-Worktrees live in `.worktrees/` inside the repository and are gitignored. Create them with the OpenCode worktree tools, not as sibling folders.
 
 ## Markmap facts
 

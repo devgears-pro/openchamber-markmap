@@ -15,6 +15,6 @@ Vendored packages:
 - `edit`: source-preserving commands.
 - `edit-dom`: selection, keyboard, overlay field, and history.
 
-Only `dist` is copied. Build the fork first with `pnpm verify` or `pnpm build`, then copy `dist` again when the fork changes. The vendored `package.json` stays on the published `@markmap/view`.
+Only `dist` is copied. Run `pnpm verify` in the fork before copying `dist`. Tests and coverage must pass, including every changed line and branch. Do not copy a partial build. Then copy `dist` again when the fork changes. The vendored `package.json` stays on the published `@markmap/view`.
 
 The vendored packages are MIT licensed. See [`LICENSE`](LICENSE).
