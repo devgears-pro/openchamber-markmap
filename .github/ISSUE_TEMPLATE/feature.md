@@ -1,7 +1,7 @@
 ---
 name: Feature
 about: Propose a behavior change
-labels: feature
+labels: enhancement
 ---
 
 ## Problem

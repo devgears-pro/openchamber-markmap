@@ -1,8 +1,3 @@
----
-markmap:
-  colorFreezeLevel: 2
----
-
 # Atlas release
 
 ## Product

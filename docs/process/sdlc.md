@@ -18,7 +18,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 | Feature | Requirement ID in `docs/requirements.md` | Failing test with `[R-xx]`, then green |
 | Bug     | Issue with reproduction steps            | Failing regression test, then green    |
 | Chore   | No behavior change                       | Existing checks stay green             |
-| Docs    | No behavior change                       | Markdownlint and link check            |
+| Docs    | No behavior change                       | Markdownlint                           |
 
 ## Steps
 
@@ -73,5 +73,6 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 - `editor/main.js` is rebuilt and committed.
 - Docs and traceability are updated.
 - README screenshots are regenerated for visible UI changes.
-- A published version follows [`releases.md`](releases.md).
+- A visual change has a closing presentation on its issue.
+- Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.
