@@ -54,3 +54,5 @@ The closing comment carries the proof:
 - Any remaining limitation.
 
 Attach screenshots to the comment. Do not commit them.
+
+Close the issue after posting the proof. A merged fix with an open issue is unfinished work.

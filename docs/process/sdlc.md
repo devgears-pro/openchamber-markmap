@@ -41,6 +41,10 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The test command, the red output, and the green output. Screenshots for visual changes.
 - The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
 
+## Completion
+
+After the PR merges, post the closing proof on the issue and close it. A merged PR with an open issue is unfinished work.
+
 ## Gates
 
 | Gate             | Command                      | Blocks merge |
@@ -83,5 +87,6 @@ After a task or bug fix, the chat reply links the work and its proof:
 - Docs and traceability are updated.
 - README screenshots are uploaded to GitHub for visible UI changes.
 - A visual change has a closing presentation on its issue.
+- An issue that tracked the change is closed after merge and proof.
 - Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.
