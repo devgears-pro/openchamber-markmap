@@ -85,6 +85,15 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 
 Bugs follow the same path, with the regression test first. Every bug has an issue with reproduction proof. See `docs/process/bugs.md`.
 
+## Cleanup
+
+Before the final reply:
+
+- Remove what this task created: temporary files, screenshots, fixtures, test output, local branches, and worktrees.
+- Keep the working tree clean.
+- Leave files, branches, and worktrees owned by other people or sessions.
+- If something must stay, list it in the chat report with its path and purpose.
+
 ## Branches and releases
 
 Feature and fix PRs target `dev`; only a release promotion merges into `main`. Release Please owns the version, tag, and draft release; do not edit `package.json` by hand. See `docs/process/releases.md`.
