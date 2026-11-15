@@ -634,6 +634,57 @@ test('[R-12] [R-26] renders a note in a read-only map without the notes editor',
   await expect(page.locator('.markmap-popover')).toContainText('Перевірити бекап');
 });
 
+test('[R-27] styles notes and toolbar icons for dark and light themes', async ({ page }) => {
+  for (const theme of ['dark', 'light']) {
+    await page.goto(`/dev/?map=notes&theme=${theme}`);
+    await page.getByText('Deploy', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Edit notes' }).click();
+    await expect(page.getByRole('dialog', { name: 'Notes' })).toBeVisible();
+
+    const result = await page.evaluate(() => {
+      const panel = document.querySelector('.mm-editor-notes');
+      const field = document.querySelector('.mm-editor-notes-field');
+      if (!(panel instanceof HTMLElement) || !(field instanceof HTMLTextAreaElement)) {
+        throw new Error('Notes editor is missing');
+      }
+      const probe = document.createElement('div');
+      probe.style.backgroundColor = 'var(--oc-elevated)';
+      probe.style.color = 'var(--oc-fg)';
+      document.body.append(probe);
+      const expectedBackground = getComputedStyle(probe).backgroundColor;
+      const expectedForeground = getComputedStyle(probe).color;
+      probe.remove();
+      const icons = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar button svg, .mm-layout-menu button svg, .mm-marker-menu svg, .mm-notes-menu button svg, .mm-editor-notes-toolbar button svg',
+        ),
+      ];
+      return {
+        panelBackground: getComputedStyle(panel).backgroundColor,
+        panelForeground: getComputedStyle(panel).color,
+        fieldForeground: getComputedStyle(field).color,
+        expectedBackground,
+        expectedForeground,
+        iconCount: icons.length,
+        outlineIcons: icons.every((icon) => {
+          const path = icon.querySelector('path');
+          if (path === null) return false;
+          const style = getComputedStyle(path);
+          return (
+            style.fill === 'none' && style.stroke !== 'none' && style.strokeLinecap === 'round'
+          );
+        }),
+      };
+    });
+
+    expect(result.panelBackground).toBe(result.expectedBackground);
+    expect(result.panelForeground).toBe(result.expectedForeground);
+    expect(result.fieldForeground).toBe(result.expectedForeground);
+    expect(result.iconCount).toBeGreaterThanOrEqual(15);
+    expect(result.outlineIcons).toBe(true);
+  }
+});
+
 test('[R-12] renders a read-only file without an editor field', async ({ page }) => {
   await page.goto('/dev/?readonly=1');
 

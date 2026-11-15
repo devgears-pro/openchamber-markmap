@@ -20,6 +20,15 @@ describe('notes menu', () => {
     expect(button.querySelector('svg')).not.toBeNull();
   });
 
+  test('[R-27] uses a consistent outline pencil icon', () => {
+    const menu = createNotesMenu(vi.fn());
+    const icon = menu.querySelector('button svg');
+
+    expect(icon?.getAttribute('viewBox')).toBe('0 0 20 20');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.querySelector('path')?.getAttribute('d')).toBeTruthy();
+  });
+
   test('[R-26] forwards the edit request', () => {
     const onEdit = vi.fn();
     const menu = createNotesMenu(onEdit);

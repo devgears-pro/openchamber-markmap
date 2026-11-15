@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 import type * as MarkmapModel from '@markmap/model';
+import type { ToolbarOptions } from '@markmap/toolbar';
 import type { ViewOptions } from '@markmap/view';
 
 import { layoutFor } from '../src/markmap/layouts';
@@ -16,7 +17,18 @@ const mocks = vi.hoisted(() => {
     labelText: vi.fn(),
     create: vi.fn<(target: SVGSVGElement, root?: MarkmapNode, options?: ViewOptions) => unknown>(),
     resolveViewOptions: vi.fn(),
-    createToolbar: vi.fn(),
+    createToolbar: vi.fn<(target: unknown, options?: ToolbarOptions) => unknown>(),
+    builtinButtons: {
+      'zoom-in': { label: 'Zoom in', icon: 'old-in', disabled: vi.fn(), onClick: vi.fn() },
+      'zoom-out': { label: 'Zoom out', icon: 'old-out', disabled: vi.fn(), onClick: vi.fn() },
+      fit: { label: 'Fit to view', icon: 'old-fit', disabled: vi.fn(), onClick: vi.fn() },
+      'expand-all': {
+        label: 'Expand all',
+        icon: 'old-expand',
+        disabled: vi.fn(),
+        onClick: vi.fn(),
+      },
+    },
     createEditView: vi.fn(),
     editorOptions,
     editorSetLabel: vi.fn(),
@@ -45,7 +57,10 @@ vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
   resolveViewOptions: mocks.resolveViewOptions,
 }));
-vi.mock('@markmap/toolbar', () => ({ createToolbar: mocks.createToolbar }));
+vi.mock('@markmap/toolbar', () => ({
+  builtinButtons: mocks.builtinButtons,
+  createToolbar: mocks.createToolbar,
+}));
 vi.mock('@markmap/edit-dom', () => ({
   createEditView: mocks.createEditView,
   MarkmapEditor: class {
@@ -249,7 +264,17 @@ describe('Markmap adapter', () => {
     expect(options?.colorScheme).toBe('dark');
     expect(options?.gestures).toBeTypeOf('function');
     expect(markmap.zoomBehavior.wheelDelta).toHaveBeenCalledWith(expect.any(Function));
-    expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
+    const toolbarCall = mocks.createToolbar.mock.calls[0];
+    expect(toolbarCall?.[0]).toBe(markmap);
+    const toolbarOptions = toolbarCall?.[1];
+    const items = toolbarOptions?.items ?? [];
+    expect(items.map((item) => (typeof item === 'string' ? item : item.label))).toEqual([
+      'Zoom in',
+      'Zoom out',
+      'Fit to view',
+      'Expand all',
+      'fold-level',
+    ]);
     expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
     expect(mocks.editorOptions).toHaveLength(1);
     expect(mocks.editorOptions[0]?.source).toBe('# Root');

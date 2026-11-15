@@ -48,6 +48,10 @@ When the work is done, push the worktree branch and open a PR into `dev`. Merge 
 
 The fork follows the same rule with its integration branch `feat/editable-model`.
 
+## Human UI acceptance
+
+Do not merge a UI change into `dev` until the user has tested and explicitly accepted its appearance on the installable feature branch. Before asking for acceptance, provide the branch install link, the changed states to check, and screenshots for a static change or a short GIF for an interaction. Green CI does not count as visual acceptance. If the user requests changes, update the same branch and provide fresh evidence before asking again.
+
 ## Fork changes
 
 The vendored fork is a separate repository. Get approval for the exact behavior, keep the change minimal, and add tests. Run `pnpm verify` in the fork and confirm the changed files have no uncovered lines. Commit and push before copying `dist` and rebuilding the bundle.

@@ -30,6 +30,20 @@ describe('layout menu', () => {
     expect(buttonOf(menu, 'org-chart').getAttribute('aria-pressed')).toBe('false');
   });
 
+  test('[R-27] uses consistent 20-unit outline icons for each layout', () => {
+    const menu = createLayoutMenu('tree', vi.fn());
+    document.body.append(menu);
+
+    const icons = [...menu.querySelectorAll('button svg')];
+    expect(icons).toHaveLength(3);
+    expect(icons.map((icon) => icon.getAttribute('viewBox'))).toEqual([
+      '0 0 20 20',
+      '0 0 20 20',
+      '0 0 20 20',
+    ]);
+    expect(icons.every((icon) => icon.querySelector('path') !== null)).toBe(true);
+  });
+
   test('[R-22] forwards a choice and updates the active button', () => {
     const onSelect = vi.fn();
     const menu = createLayoutMenu('two-sided', onSelect);
