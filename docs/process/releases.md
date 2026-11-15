@@ -20,8 +20,8 @@ A merge into `dev` is not a release. `dev` is tested by hand. A stable release p
 - Release history lives in GitHub Releases. No changelog file is committed.
 - A visual feature closes with a presentation comment on its issue: what changed, why it matters, how to see it, screenshots, and the `R-xx` ID.
 - Release Please creates a **draft** release. Build its body from the presentation comments: highlights with value and screenshots first, then features, improvements, fixes, breaking changes, and upgrade. Link each presentation.
-- Release data and screenshots live on GitHub. Do not commit release notes, per-release pages, or per-release images.
-- One 1200 × 800 dark screenshot per highlight is enough. Attach it to the issue and link it from the body. Synthetic content only.
+- Release data, screenshots, and GIFs live on GitHub. Do not commit release notes, per-release pages, or per-release images.
+- A static change needs one 1200 × 800 dark screenshot. A motion or interaction change needs a short GIF. Attach it to the issue and link it from the body. Synthetic content only. Recording is in [`testing.md`](testing.md).
 
 ## Stable release
 

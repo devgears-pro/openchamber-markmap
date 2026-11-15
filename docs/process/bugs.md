@@ -12,7 +12,7 @@ Open an issue from `.github/ISSUE_TEMPLATE/bug.md` and include:
 - File name pattern and a synthetic minimal file that reproduces the problem.
 - Steps, expected result, actual result.
 - Console or host output with secrets and user data removed.
-- A screenshot or recording for visual defects.
+- A screenshot, GIF, or video recording for visual defects.
 
 Never attach a real user document. Reduce the case to synthetic Markdown.
 
@@ -42,13 +42,13 @@ The closing comment carries the proof:
 
 - Steps to reproduce and the synthetic file.
 - Expected and actual behavior.
-- A screenshot or recording of the defect.
+- A screenshot, GIF, or video recording of the defect.
 - The failing test name, command, and red output.
-- The green output after the fix and a screenshot of the result.
+- The green output after the fix and a screenshot or GIF of the result.
 - Commit and branch.
 - Verification commands and results.
 - Any remaining limitation.
 
-Attach screenshots to the comment. Do not commit them.
+Attach screenshots or GIFs to the comment. Do not commit them.
 
 Complete the issue as defined in [`sdlc.md`](sdlc.md). The chat reply follows the chat report there.

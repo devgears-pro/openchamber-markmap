@@ -52,6 +52,32 @@ When a requirement changes:
 
 Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, arrow navigation, folding, undo and redo, theme state, read-only rendering, new empty file editing, editor errors, wheel gestures, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
 
+## Demo GIFs
+
+When a presentation needs a GIF, use a throwaway Playwright spec. Typical cases are editing, keyboard, pan and zoom, markers, folding, and drag.
+
+Use the spec with a video:
+
+```ts
+test.use({
+  video: {
+    mode: 'on',
+    size: { width: 1200, height: 800 },
+    show: { actions: { duration: 600 } },
+  },
+});
+```
+
+Keep the scenario to 3-6 seconds and pause between actions. The video is written after the context closes. Convert the WebM:
+
+```bash
+ffmpeg -y -i <video>.webm \
+  -vf "fps=12,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+  -loop 0 tmp/demo.gif
+```
+
+Write the result to `tmp/` and upload it to the issue or release comment. Do not commit the spec, video, or GIF.
+
 ## What not to do
 
 - Do not lower coverage thresholds to merge a change.
