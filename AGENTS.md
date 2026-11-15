@@ -82,6 +82,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 6. Rebuild `editor/main.js` and commit it with the source change.
 7. Update docs and the requirement traceability table when behavior changes.
 8. Post a chat report: the issue when there is one and PR links, the cause or reason, test evidence, and the branch install link (`https://github.com/mmospanenko/openchamber-markmap#<branch>` or `#dev`).
+9. After the PR merges, post the closing proof and close the issue.
 
 Bugs follow the same path, with the regression test first. Every bug has an issue with reproduction proof. See `docs/process/bugs.md`.
 

@@ -31,7 +31,8 @@ A merge into `dev` is not a release. `dev` is tested by hand. A stable release p
 4. Merge the release PR. Release Please creates the tag and a **draft** release.
 5. Edit the draft body from the presentation comments, then publish with `gh release edit <tag> --draft=false`.
 6. Install from the tag in a clean profile and confirm the update.
-7. Do not merge `main` back into `dev`.
+7. Close the release issue after the tag install is verified.
+8. Do not merge `main` back into `dev`.
 
 ## Hotfix
 
