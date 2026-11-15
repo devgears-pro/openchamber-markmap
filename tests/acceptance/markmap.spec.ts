@@ -331,6 +331,22 @@ test('[R-19] leaves F2 unbound', async ({ page }) => {
   await expect(page.locator('.mm-editor-selected')).toContainText('Features');
 });
 
+test('[R-19] starts editing when typing on an empty selected node', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press('Tab');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(field).toBeHidden();
+
+  await page.keyboard.type('x');
+
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('x');
+  await expect(page.locator('.mm-editor-surface')).toHaveClass(/mm-editor-mode-edit/u);
+});
+
 test('[R-19] enters editing with Space, exits with Escape, and keeps the selection', async ({
   page,
 }) => {
@@ -367,6 +383,23 @@ test('[R-19] navigates with arrows without folding', async ({ page }) => {
   await expect(page.getByText('Source', { exact: true })).toBeVisible();
 });
 
+test('[R-20] keeps editing active during an autosave snapshot', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Markmap', { exact: true }).first().click();
+  await page.keyboard.press('Tab');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Child node');
+
+  await page.evaluate(() => window.dispatchEvent(new Event('dev-file-snapshot')));
+
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Child node');
+  await page.keyboard.type(' continued');
+  await expect(field).toHaveValue('Child node continued');
+});
+
 test('[R-15] undoes and redoes an inserted node', async ({ page }) => {
   await page.goto('/dev/');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -399,7 +432,6 @@ test('[R-16] opens a new empty file with an editable first node', async ({ page 
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
   await expect(page.locator('.mm-editor-selection')).toBeHidden();
 
-  await page.keyboard.press('Space');
   await page.keyboard.type('First note');
   const field = page.locator('textarea.mm-editor-field');
   await expect(field).toBeVisible();

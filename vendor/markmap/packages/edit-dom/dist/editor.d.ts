@@ -35,7 +35,9 @@ export declare class MarkmapEditor {
     }): void;
     startEditing(nodeId?: string | null, options?: {
         selectAll?: boolean;
+        initialText?: string;
     }): void;
+    commitForSnapshot(): string;
     setLabel(nodeId: string, text: string): boolean;
     commit(): void;
     undo(): boolean;
@@ -66,6 +68,7 @@ export declare class MarkmapEditor {
     private ensureVisible;
     private selectedNode;
     private isEmptyRoot;
+    private isEmptyLabel;
     private snapshot;
     private restore;
     private captureFolds;

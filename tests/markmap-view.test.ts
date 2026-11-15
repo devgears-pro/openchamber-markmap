@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
     editorCommit: vi.fn(),
+    editorSnapshotForSave: vi.fn<() => string>(),
   };
 });
 
@@ -56,6 +57,10 @@ vi.mock('@markmap/edit-dom', () => ({
 
     commit(): void {
       mocks.editorCommit();
+    }
+
+    commitForSnapshot(): string {
+      return mocks.editorSnapshotForSave();
     }
 
     destroy(): void {
@@ -261,8 +266,10 @@ describe('Markmap adapter', () => {
   test('[R-12] skips the editor for a read-only file', () => {
     const { result, markmap } = mount({ editable: false });
 
+    if (!result.ok) throw new Error(result.message);
     expect(result.ok).toBe(true);
     expect(mocks.editorOptions).toHaveLength(0);
+    expect(result.view.snapshotForSave()).toBeNull();
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(markmap.destroy).not.toHaveBeenCalled();
   });
@@ -286,6 +293,17 @@ describe('Markmap adapter', () => {
     result.view.commit();
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+  });
+
+  test('[R-20] snapshots an in-progress label without committing the editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSnapshotForSave.mockReturnValue('# Saved label');
+
+    expect(result.view.snapshotForSave()).toBe('# Saved label');
+
+    expect(mocks.editorSnapshotForSave).toHaveBeenCalledOnce();
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
   });
 
   test('[R-07] destroys the editor, toolbar, view and SVG children', () => {

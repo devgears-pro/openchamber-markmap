@@ -22,6 +22,11 @@ const name = emptyMode
       ? 'showcase.markmap.md'
       : 'sample.markmap.md';
 
+let snapshotListener: Parameters<MarkmapHost['onFileSnapshot']>[0] | null = null;
+window.addEventListener('dev-file-snapshot', () => {
+  if (snapshotListener !== null) void Promise.resolve(snapshotListener('save'));
+});
+
 const host: MarkmapHost = {
   onReady: (listener) => {
     queueMicrotask(() => listener(devContext(mode)));
@@ -39,7 +44,12 @@ const host: MarkmapHost = {
     );
     return () => undefined;
   },
-  onFileSnapshot: () => () => undefined,
+  onFileSnapshot: (listener) => {
+    snapshotListener = listener;
+    return () => {
+      snapshotListener = null;
+    };
+  },
   onFileSaved: () => () => undefined,
   reportFileChange: () => undefined,
   reportFileUnsupported: () => {

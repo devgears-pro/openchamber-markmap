@@ -18,6 +18,7 @@ export type MarkmapView = {
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
   commit: () => void;
+  snapshotForSave: () => string | null;
   destroy: () => void;
 };
 
@@ -122,6 +123,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       commit: () => {
         editor?.commit();
       },
+      snapshotForSave: () => editor?.commitForSnapshot() ?? null,
       destroy: () => {
         mount.svg.removeEventListener('click', handleLink, true);
         editor?.destroy();

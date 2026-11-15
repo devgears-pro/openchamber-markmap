@@ -54,7 +54,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - Keep extensions in the fork; `src/` is host wiring and UI.
 - Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
-- `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
+- `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. It includes an in-progress label without exiting edit mode or moving focus, so typing can continue after autosave. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
 - Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
@@ -62,7 +62,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`.
 - Unmodified wheel events pan by screen pixels, coalesced once per animation frame; line/page deltas use 40/800, and Shift maps vertical to horizontal. Cmd/Ctrl + wheel zooms with clamped deltas. The custom gesture layer is in `src/markmap/gestures.ts`.
 - A node click selects the node, draws the selection frame, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
-- An empty editable document accepts a first heading. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
+- An empty editable document accepts a first heading. Typing on an empty selected node enters editing with the first character; a non-empty selected node remains selection-only. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
 - New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
 - Do not add `any`, type assertions, or non-null assertions in `src/`.
