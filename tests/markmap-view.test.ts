@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => {
     editorSetLabel: vi.fn(),
     editorSelected,
     editorEditing: { value: false },
+    editorEditingNotes: { value: false },
+    editorEditNotes: vi.fn<(nodeId?: string | null) => boolean>(() => true),
     editorSource: { value: '# Root' },
     editorSelectedBlock: vi.fn<() => string | null>(() => '# Root'),
     editorNodes: new Map<string, unknown>([['root', {}]]),
@@ -63,6 +65,10 @@ vi.mock('@markmap/edit-dom', () => ({
       return mocks.editorEditing.value;
     }
 
+    get isEditingNotes(): boolean {
+      return mocks.editorEditingNotes.value;
+    }
+
     get source(): string {
       return mocks.editorSource.value;
     }
@@ -85,6 +91,10 @@ vi.mock('@markmap/edit-dom', () => ({
 
     setLabel(nodeId: string, text: string): void {
       mocks.editorSetLabel(nodeId, text);
+    }
+
+    editNotes(nodeId?: string | null): boolean {
+      return mocks.editorEditNotes(nodeId);
     }
 
     focus(): void {
@@ -219,6 +229,8 @@ beforeEach(() => {
   mocks.editorOptions.length = 0;
   mocks.editorSelected.value = 'root';
   mocks.editorEditing.value = false;
+  mocks.editorEditingNotes.value = false;
+  mocks.editorEditNotes.mockClear();
   mocks.editorSource.value = '# Root';
   mocks.editorSelectedBlock.mockReturnValue('# Root');
   mocks.editorNodes.clear();
@@ -418,6 +430,24 @@ describe('Markmap adapter', () => {
     expect(result.view.snapshotForSave()).toBeNull();
     expect(mocks.create).toHaveBeenCalledOnce();
     expect(markmap.destroy).not.toHaveBeenCalled();
+  });
+
+  test('[R-26] opens the notes editor for the selected node', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.editNotes();
+
+    expect(mocks.editorEditNotes).toHaveBeenCalledOnce();
+  });
+
+  test('[R-12] [R-26] skips the notes editor for a read-only file', () => {
+    const { result } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.editNotes();
+
+    expect(mocks.editorEditNotes).not.toHaveBeenCalled();
   });
 
   test('[R-04] updates the color scheme without recreating the view', () => {

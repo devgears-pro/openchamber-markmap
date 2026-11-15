@@ -2,6 +2,7 @@ import type { Document, EditNode } from '@markmap/model';
 
 export type ClipboardEditor = {
   readonly isEditing: boolean;
+  readonly isEditingNotes: boolean;
   readonly selected: string | null;
   readonly document: Document;
   focus: () => void;
@@ -53,7 +54,7 @@ export const createClipboard = ({
   const focused = (): boolean => doc.activeElement === container;
 
   const copy = (event: ClipboardEvent, cut: boolean): void => {
-    if (editor.isEditing || !focused()) return;
+    if (editor.isEditing || editor.isEditingNotes || !focused()) return;
     const text = editor.selectedBlock();
     if (text === null) {
       onNotice(COPY_NOTICE);
@@ -81,7 +82,7 @@ export const createClipboard = ({
   };
 
   const handleKeyDown = (event: KeyboardEvent): void => {
-    if (!isPaste(event) || editor.isEditing) return;
+    if (!isPaste(event) || editor.isEditing || editor.isEditingNotes) return;
     sink.focus({ preventScroll: true });
   };
 

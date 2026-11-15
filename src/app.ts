@@ -9,6 +9,7 @@ import type {
 } from './markmap/view';
 import { createLayoutMenu } from './ui/layout-menu';
 import { createMarkerMenu } from './ui/marker-menu';
+import { createNotesMenu } from './ui/notes-menu';
 import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
@@ -161,6 +162,11 @@ export const mountApp = (
       );
       if (!state.readOnly) {
         toolbar.append(createMarkerMenu(result.view.addMarker));
+        toolbar.append(
+          createNotesMenu(() => {
+            result.view.editNotes();
+          }),
+        );
       }
       return;
     }

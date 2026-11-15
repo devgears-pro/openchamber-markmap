@@ -1,8 +1,10 @@
 import { type MarkmapNode } from '@markmap/core';
 import type { Root } from 'mdast';
+import type { PluggableList } from 'unified';
 export interface ToTreeOptions {
     /** Title for a synthesized root, usually from frontmatter. */
     title?: string;
+    plugins?: PluggableList;
 }
 /**
  * Convert an mdast tree into a Markmap tree.

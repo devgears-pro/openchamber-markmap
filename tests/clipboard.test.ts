@@ -16,6 +16,7 @@ type Harness = {
     focus: number;
   };
   editing: { value: boolean };
+  notesEditing: { value: boolean };
   selected: { value: string | null };
   block: { value: string | null };
   sink: HTMLTextAreaElement;
@@ -40,11 +41,15 @@ const setup = (source = SOURCE): Harness => {
   const notices: string[] = [];
   const calls: Harness['calls'] = { blocks: [], labels: [], deletes: 0, focus: 0 };
   const editing = { value: false };
+  const notesEditing = { value: false };
   const selected = { value: map.root };
   const block: Harness['block'] = { value: null };
   const editor: ClipboardEditor = {
     get isEditing() {
       return editing.value;
+    },
+    get isEditingNotes() {
+      return notesEditing.value;
     },
     get selected() {
       return selected.value;
@@ -83,6 +88,7 @@ const setup = (source = SOURCE): Harness => {
     notices,
     calls,
     editing,
+    notesEditing,
     selected,
     block,
     sink,
@@ -229,6 +235,24 @@ describe('clipboard', () => {
     harness.container.dispatchEvent(cut);
 
     expect(copied.clipboardData?.getData('text/plain')).toBe('');
+    expect(harness.calls.deletes).toBe(0);
+    expect(harness.notices).toEqual([]);
+  });
+
+  test('[R-26] leaves clipboard keys native inside the notes panel', () => {
+    harness = setup();
+    harness.block.value = '# Root';
+    harness.notesEditing.value = true;
+    const copied = event('copy');
+    const pressed = key(harness.container, 'v', { metaKey: true });
+
+    harness.container.dispatchEvent(copied);
+
+    expect(copied.defaultPrevented).toBe(false);
+    expect(pressed.defaultPrevented).toBe(false);
+    expect(document.activeElement).not.toBe(harness.sink);
+    expect(harness.calls.blocks).toEqual([]);
+    expect(harness.calls.labels).toEqual([]);
     expect(harness.calls.deletes).toBe(0);
     expect(harness.notices).toEqual([]);
   });

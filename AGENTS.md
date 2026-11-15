@@ -63,7 +63,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
 - Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
-- The map is the only editing surface. Read-only files render without `MarkmapEditor`.
+- The map is the only editing surface. Read-only files render without `MarkmapEditor`. Notes use the fork's panel and one `markmap-note` fenced block under the node; the dot popover stays read-only.
 - Unmodified wheel events pan by screen pixels, coalesced once per animation frame; line/page deltas use 40/800, and Shift maps vertical to horizontal. Cmd/Ctrl + wheel zooms with clamped deltas. The custom gesture layer is in `src/markmap/gestures.ts`.
 - A node click selects the node, draws the selection frame, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
 - An empty editable document accepts a first heading. Typing on an empty selected node enters editing with the first character; a non-empty selected node remains selection-only. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
@@ -112,7 +112,7 @@ Worktrees, PR sync, fork changes, and issue closure follow `docs/process/sdlc.md
 - The `<svg>` needs a non-zero CSS box and no `viewBox`.
 - The toolbar must live in the same document as the map so it can use the map's `--mm-*` tokens.
 - `colorScheme` accepts `light`, `dark`, or `auto`. Pass the host mode explicitly; `auto` follows the OS, not OpenChamber.
-- Paragraphs become notes in a sanitized popover; headings and list items become branches. The view exposes no notes editing API.
+- A `markmap-note` fenced block under a node is an isolated Markdown note; a paragraph renders as a legacy note. Headings and list items become branches. The view exposes no notes editing API; the fork's `@markmap/edit-dom` owns the notes panel.
 - `@markmap/render` provides `tree`, `two-sided`, and `org-chart`; frontmatter key `markmap.layout` selects one. The view passes no custom layout resolver today.
 - `colorDepth` replaced the legacy `colorFreezeLevel` from Markmap 0.18.
 

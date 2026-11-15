@@ -2,6 +2,7 @@ import { mountApp, type MarkmapHost } from '../src/app';
 import { createMarkmapView } from '../src/markmap/view';
 import { devContext } from './theme';
 import sample from './sample.md?raw';
+import notes from './notes.md?raw';
 import showcase from './showcase.md?raw';
 import title from './title.md?raw';
 import titleBody from './title-body.md?raw';
@@ -12,6 +13,7 @@ if (root === null) throw new Error('Missing #root');
 const params = new URLSearchParams(window.location.search);
 const mode = params.get('theme') === 'light' ? 'light' : 'dark';
 const showcaseMode = params.get('map') === 'showcase';
+const notesMode = params.get('map') === 'notes';
 const titleMode = params.get('map') === 'title';
 const titleBodyMode = params.get('map') === 'title-body';
 const emptyMode = params.get('map') === 'empty';
@@ -21,18 +23,22 @@ const content = emptyMode
     ? titleBody
     : titleMode
       ? title
-      : showcaseMode
-        ? showcase
-        : sample;
+      : notesMode
+        ? notes
+        : showcaseMode
+          ? showcase
+          : sample;
 const name = emptyMode
   ? 'empty.markmap.md'
   : titleBodyMode
     ? 'title-body.markmap.md'
     : titleMode
       ? 'title.markmap.md'
-      : showcaseMode
-        ? 'showcase.markmap.md'
-        : 'sample.markmap.md';
+      : notesMode
+        ? 'notes.markmap.md'
+        : showcaseMode
+          ? 'showcase.markmap.md'
+          : 'sample.markmap.md';
 
 let snapshotListener: Parameters<MarkmapHost['onFileSnapshot']>[0] | null = null;
 window.addEventListener('dev-file-snapshot', () => {

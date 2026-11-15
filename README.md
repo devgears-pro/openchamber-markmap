@@ -21,6 +21,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
 - **Copy and paste.** Cmd/Ctrl+C and X take the selected subtree with its notes and markers, and Cmd/Ctrl+V puts a copy back as the last child of the selection. Headings renumber and list items reindent to the new depth.
+- **Notes.** The note dot opens the rendered note. The Edit notes button opens a Markdown panel, and a note is one `markmap-note` fenced block under the node, so lists and headings stay inside it. Paragraph notes from other tools convert to a block on the first edit.
 - **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
