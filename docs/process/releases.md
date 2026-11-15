@@ -1,6 +1,6 @@
 # Release process
 
-This page is the contract for versions, branches, tags, release notes, and promotions. The directory submission is in [`release.md`](release.md).
+This page is the contract for versions, branches, tags, release notes, and promotions.
 
 ## Branches
 

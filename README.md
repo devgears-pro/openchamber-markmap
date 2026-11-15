@@ -181,7 +181,6 @@ The process is documented in:
 - [`docs/process/sdlc.md`](docs/process/sdlc.md) — change lifecycle and gates.
 - [`docs/process/testing.md`](docs/process/testing.md) — test levels and coverage.
 - [`docs/process/bugs.md`](docs/process/bugs.md) — failing test first.
-- [`docs/process/release.md`](docs/process/release.md) — directory submission and post-release checks.
 - [`docs/process/releases.md`](docs/process/releases.md) — branches, versions, tags, and release notes.
 - [`docs/requirements.md`](docs/requirements.md) — requirement tree and traceability.
 
