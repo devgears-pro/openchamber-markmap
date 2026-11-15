@@ -14,7 +14,7 @@ A matching text file opens as an interactive Markmap. The renderer receives the 
 
 ### R-03 Node selection
 
-A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node.
+A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node. The focused surface draws no browser focus ring; the selection frame is the only focus mark.
 
 ### R-04 Theme
 

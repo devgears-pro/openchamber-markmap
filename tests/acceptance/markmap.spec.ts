@@ -43,6 +43,17 @@ test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page 
   await expect(page.locator('.mm-editor-surface')).toBeFocused();
 });
 
+test('[R-03] draws no browser focus ring around the focused editor surface', async ({ page }) => {
+  await page.goto('/dev/');
+
+  const surface = page.locator('.mm-editor-surface');
+  await expect(surface).toBeFocused();
+
+  const outline = await surface.evaluate((node) => getComputedStyle(node).outlineStyle);
+
+  expect(outline).toBe('none');
+});
+
 test('[R-11] inserts a sibling with Enter and edits its label', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
