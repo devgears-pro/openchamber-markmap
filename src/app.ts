@@ -166,7 +166,8 @@ export const mountApp = (
   };
 
   const snapshot = (): FileEditorSnapshot => {
-    state.view?.commit();
+    const content = state.view?.snapshotForSave();
+    if (content !== null && content !== undefined) state.text = content;
     if (state.bytes !== null) {
       return { bytes: state.bytes, version: textVersion(String(state.bytes.length)) };
     }

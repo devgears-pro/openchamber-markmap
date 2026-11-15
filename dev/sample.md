@@ -24,5 +24,6 @@ markmap:
 - Tab adds a child
 - Shift+Tab outdents
 - Space or double-click edits the label
+- Typing on an empty node starts editing
 - Delete removes the node
 - Cmd/Ctrl+Z undoes

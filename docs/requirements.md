@@ -22,7 +22,7 @@ The map uses the host theme mode (`light` or `dark`), not a color scheme from fi
 
 ### R-05 Snapshot fidelity
 
-`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is committed first, so a save during editing cannot lose text. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
+`onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An in-progress node label is included in the snapshot without exiting edit mode or moving focus, so typing can continue after autosave. Saving unchanged text returns the same bytes as the opened file, and a read-only file cannot be changed.
 
 ### R-06 Unsupported fallback
 
@@ -80,7 +80,11 @@ An editable map offers a marker menu grouped by status, priority, progress, and 
 
 ### R-19 Selection and editing modes
 
-A focused node stays in selection mode until the user explicitly edits it. Printable keys do nothing. Space or a double click opens the label field, Escape leaves editing and keeps the node selected, and F2 is not bound. Enter while editing commits the label and returns to selection without inserting a node; the next Enter in selection mode inserts a sibling and opens its field. Tab while editing commits the label and inserts a child. Arrow keys navigate without folding: Left selects the parent, Right unfolds or selects the first child. The editor container carries `mm-editor-mode-select` or `mm-editor-mode-edit`.
+A focused node stays in selection mode until the user explicitly edits it. Printable keys do nothing on a non-empty node. Typing a printable key on a selected empty node opens the label field with that character inserted. Space or a double click opens the label field, Escape leaves editing and keeps the node selected, and F2 is not bound. Enter while editing commits the label and returns to selection without inserting a node; the next Enter in selection mode inserts a sibling and opens its field. Tab while editing commits the label and inserts a child. Arrow keys navigate without folding: Left selects the parent, Right unfolds or selects the first child. The editor container carries `mm-editor-mode-select` or `mm-editor-mode-edit`.
+
+### R-20 Autosave preserves editing
+
+When the host requests a snapshot during label editing, the snapshot includes the current label without closing the field, changing its focus, or leaving edit mode. The user can continue typing after autosave.
 
 ## Traceability
 
@@ -105,3 +109,4 @@ A focused node stays in selection mode until the user explicitly edits it. Print
 | R-17        | `tests/markmap-view.test.ts`, `tests/app.test.ts`                                                                   |
 | R-18        | `tests/markers.test.ts`, `tests/marker-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance |
 | R-19        | acceptance                                                                                                          |
+| R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |

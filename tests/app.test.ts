@@ -104,6 +104,10 @@ type FakeFactory = {
   markers: string[];
   destroyed: () => number;
   commits: () => number;
+  snapshots: () => number;
+  setSnapshotContent: (content: string) => void;
+  beginEditing: () => void;
+  isEditing: () => boolean;
   fail: string | null;
 };
 
@@ -114,6 +118,10 @@ const createMarkmapFactory = (): FakeFactory => {
   const markers: string[] = [];
   let destroyCount = 0;
   let commitCount = 0;
+  let snapshotCount = 0;
+  let snapshotContent: string | null = null;
+  let editing = false;
+  let mounted: MarkmapMount | null = null;
   const view: MarkmapView = {
     toolbar,
     setColorScheme: (scheme) => {
@@ -124,6 +132,12 @@ const createMarkmapFactory = (): FakeFactory => {
     },
     commit: () => {
       commitCount += 1;
+      editing = false;
+    },
+    snapshotForSave: () => {
+      snapshotCount += 1;
+      if (snapshotContent !== null) mounted?.onSource({ source: snapshotContent, selection: 0 });
+      return snapshotContent;
     },
     destroy: () => {
       destroyCount += 1;
@@ -135,10 +149,19 @@ const createMarkmapFactory = (): FakeFactory => {
     markers,
     destroyed: () => destroyCount,
     commits: () => commitCount,
+    snapshots: () => snapshotCount,
+    setSnapshotContent: (content) => {
+      snapshotContent = content;
+    },
+    beginEditing: () => {
+      editing = true;
+    },
+    isEditing: () => editing,
     fail: null,
     factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
       state.mounts.push(mount);
+      mounted = mount;
       return { ok: true, view };
     },
   };
@@ -283,8 +306,27 @@ describe('Markmap file editor', () => {
 
     const snapshot = await host.snapshot();
     expect(contentOf(snapshot)).toBe(SOURCE);
-    expect(markmaps.commits()).toBe(1);
+    expect(markmaps.commits()).toBe(0);
+    expect(markmaps.snapshots()).toBe(1);
     expect((await host.snapshot()).version).toBe(snapshot.version);
+  });
+
+  test('[R-20] snapshots active edit text without ending editing', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const inProgress = '# Root\n\n## Branch\n\n- Leaf in progress\n';
+    markmaps.setSnapshotContent(inProgress);
+    markmaps.beginEditing();
+
+    const snapshot = await host.snapshot();
+
+    expect(contentOf(snapshot)).toBe(inProgress);
+    expect(markmaps.snapshots()).toBe(1);
+    expect(markmaps.commits()).toBe(0);
+    expect(markmaps.isEditing()).toBe(true);
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    host.saved(snapshot.version);
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {
