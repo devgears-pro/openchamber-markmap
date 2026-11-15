@@ -9,7 +9,7 @@ This is an adaptation of the open-source Markmap library, not an official Markma
 
 Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
 
-![The Markmap editor in the dark theme](https://github.com/user-attachments/assets/f2a1de7d-9fe3-49eb-8bcf-22629e86dd2d)
+![The Markmap editor in the dark theme](https://github.com/user-attachments/assets/c7a2fe0d-6e82-44c1-81c7-a9cba9f24e79)
 
 ## What you get
 
@@ -42,7 +42,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 
 | Light theme                                                                                                                                                     | Editing a label in place                                                                                                                                  |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <img src="https://github.com/user-attachments/assets/bcf08e98-020a-4a12-bbb7-f9d6a6fee990" alt="Markmap editor in the light theme with a selected Design node"> | <img src="https://github.com/user-attachments/assets/0005f886-27a4-464a-95b6-d42d35b82f0f" alt="Editing the Private beta node label in an overlay field"> |
+| <img src="https://github.com/user-attachments/assets/42a29687-19a5-431a-aa3b-a4d735547ed4" alt="Markmap editor in the light theme with a selected Design node"> | <img src="https://github.com/user-attachments/assets/5556c59f-088a-46d3-96b0-d3746d47cee0" alt="Editing the Private beta node label in an overlay field"> |
 
 ## Install
 
