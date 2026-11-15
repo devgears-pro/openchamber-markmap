@@ -8,9 +8,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 - The same source and lockfile produce the same bundle.
 - The committed bundle is part of the source of truth.
 - Every check runs locally and in CI with the same command.
-- No user data in the repository, fixtures, logs, or screenshots.
 - Docs are public. Use placeholders and synthetic examples; no local paths, usernames, sessions, or personal data.
-- No comments in code. Tests and docs explain behavior.
 
 ## Change types
 
@@ -31,7 +29,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 6. **Run acceptance when rendering changes.** `bun run test:acceptance` drives a real browser and the real Markmap packages.
 7. **Rebuild the artifact.** `bun run build` updates `editor/main.js`; commit it with the source.
 8. **Update traceability.** Keep `docs/requirements.md` aligned with the tests.
-9. **Report evidence.** Include the command, result, commit, and screenshots for UI changes.
+9. **Report evidence.** Use the chat report below.
 
 ## Chat report
 
@@ -86,7 +84,7 @@ After the PR merges, post the closing proof on the issue and close it. A merged 
 
 ## Privacy
 
-- Never commit a real user document, even as a fixture.
+- Never commit a real user document, tokens, or generated reports.
 - Dev and test data must be synthetic.
 - Do not add logging of file contents.
 - Do not add network access or external assets.
@@ -99,7 +97,5 @@ After the PR merges, post the closing proof on the issue and close it. A merged 
 - `editor/main.js` is rebuilt and committed.
 - Docs and traceability are updated.
 - README screenshots are uploaded to GitHub for visible UI changes.
-- A visual change has a closing presentation on its issue.
-- An issue that tracked the change is closed after merge and proof.
 - Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.

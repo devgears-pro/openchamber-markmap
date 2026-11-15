@@ -36,10 +36,6 @@ A fix without a red test is not accepted, except when a test is genuinely imposs
 - Run `bun run test:acceptance` when rendering, layout, theme, or the toolbar changed.
 - Rebuild and commit `editor/main.js`.
 
-## Chat report
-
-After the fix, the chat reply links the issue and pull request, states the cause, includes the red and green evidence, and gives the install link for the branch: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
-
 ## Proof
 
 The closing comment carries the proof:
@@ -55,4 +51,4 @@ The closing comment carries the proof:
 
 Attach screenshots to the comment. Do not commit them.
 
-Close the issue after posting the proof. A merged fix with an open issue is unfinished work.
+Complete the issue as defined in [`sdlc.md`](sdlc.md). The chat reply follows the chat report there.

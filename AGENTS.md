@@ -53,8 +53,6 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 
 - Keep extensions in the fork; `src/` is host wiring and UI.
 - Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
-- Docs are public. Use placeholders and synthetic examples; never add local paths, usernames, sessions, personal data, or internal-only references.
-- Release data and screenshots live on GitHub.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
@@ -67,11 +65,9 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - An empty editable document accepts a first heading. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
 - New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
-- Do not add network access, external assets, `any`, type assertions, or non-null assertions in `src/`.
+- Do not add `any`, type assertions, or non-null assertions in `src/`.
 - Do not write comments in code. Tests and docs carry the explanation.
-- Every requirement ID in `docs/requirements.md` must appear as `[R-xx]` in at least one test name. Every test file needs at least one ID.
 - `editor/main.js` is committed. Rebuild it and keep the stale-bundle check green.
-- Do not commit user documents, real business data, tokens, or generated reports. The dev sample is synthetic.
 
 ## Workflow
 
@@ -79,11 +75,10 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 2. Write a failing test with `[R-xx]` in its name.
 3. Implement the smallest change that makes it pass.
 4. Run `bun run verify`, then `bun run test:acceptance` when rendering or layout changed.
-5. Post the closing presentation on the issue when the change is visual.
+5. Follow the presentation rule in `docs/process/releases.md` when the change is visual.
 6. Rebuild `editor/main.js` and commit it with the source change.
 7. Update docs and the requirement traceability table when behavior changes.
-8. Post a chat report: the issue when there is one and PR links, the cause or reason, test evidence, and the branch install link (`https://github.com/mmospanenko/openchamber-markmap#<branch>` or `#dev`).
-9. After the PR merges, post the closing proof and close the issue.
+8. Post the chat report and complete the issue as defined in `docs/process/sdlc.md`.
 
 Bugs follow the same path, with the regression test first. Every bug has an issue with reproduction proof. See `docs/process/bugs.md`.
 
@@ -96,27 +91,11 @@ Before the final reply:
 - Leave files, branches, and worktrees owned by other people or sessions.
 - If something must stay, list it in the chat report with its path and purpose.
 
-## Fork
-
-The vendored fork is a separate public repository. Change it only with explicit approval for the exact behavior, and keep the change minimal.
-
-Before copying `dist` to `vendor/markmap`:
-
-- Add tests for every changed behavior.
-- Run `pnpm verify` in the fork. It must pass, and the changed files must have no uncovered lines or branches.
-- Commit and push the fork change.
-
-Then copy `dist`, rebuild `editor/main.js`, and run `bun run verify` and `bun run test:acceptance`.
-
-## Worktrees and sync
-
-All work happens in `.worktrees/<name>`, never in the main checkout; agents run in parallel. The directory is gitignored and the OpenCode project config points there. Create worktrees with the OpenCode tools, not as sibling folders.
-
-When the work is done, push the worktree branch and open a PR into `dev`. Merge through GitHub after CI. Do not commit or merge directly into `dev`.
-
 ## Branches and releases
 
 Feature and fix PRs target `dev`; only a release promotion merges into `main`. Release Please owns the version, tag, and draft release; do not edit `package.json` by hand. See `docs/process/releases.md`.
+
+Worktrees, PR sync, fork changes, and issue closure follow `docs/process/sdlc.md`.
 
 ## Markmap facts
 
