@@ -6,6 +6,7 @@ import { Markmap, resolveViewOptions, type ViewOptions } from '@markmap/view';
 import { createClipboard } from './clipboard';
 import { applyMarker } from './markers';
 import { mapGestures, wheelZoomDelta } from './gestures';
+import { layoutFor, type MarkmapLayout } from './layouts';
 
 export type MarkmapColorScheme = 'light' | 'dark';
 
@@ -15,7 +16,9 @@ export type MarkmapSourceChange = {
 };
 
 export type MarkmapView = {
+  readonly layout: MarkmapLayout;
   readonly toolbar: HTMLDivElement;
+  setLayout: (layout: MarkmapLayout) => void;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
   commit: () => void;
@@ -51,15 +54,35 @@ const linkOf = (target: EventTarget | null): string | null => {
   return HTTP_URL.test(href) ? href : null;
 };
 
+type ResolvedView = {
+  options: ViewOptions;
+  warnings: string[];
+  layout: MarkmapLayout;
+};
+
+const layoutNameOf = (layout: ViewOptions['layout']): MarkmapLayout => {
+  if (layout === layoutFor('tree')) return 'tree';
+  if (layout === layoutFor('org-chart')) return 'org-chart';
+  return 'two-sided';
+};
+
 const optionsFor = (
   colorScheme: MarkmapColorScheme,
   frontmatter: Record<string, unknown>,
-): ViewOptions => ({
-  ...resolveViewOptions({ duration: 0, fitPadding: 24, fitMaxScale: 1 }, frontmatter['markmap'])
-    .options,
-  colorScheme,
-  gestures: mapGestures,
-});
+): ResolvedView => {
+  const base: ViewOptions = {
+    duration: 0,
+    fitPadding: 24,
+    fitMaxScale: 1,
+    layout: layoutFor('two-sided'),
+  };
+  const resolved = resolveViewOptions(base, frontmatter['markmap']);
+  return {
+    options: { ...resolved.options, colorScheme, gestures: mapGestures },
+    warnings: resolved.warnings,
+    layout: layoutNameOf(resolved.options.layout),
+  };
+};
 
 export const createMarkmapView: MarkmapFactory = (mount) => {
   let markmap: Markmap | null = null;
@@ -70,12 +93,11 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
   try {
     const source = mount.markdown;
     const parsed = parseDocument(source);
-    markmap = Markmap.create(
-      mount.svg,
-      parsed.tree,
-      optionsFor(mount.colorScheme, parsed.frontmatter),
-    );
+    const resolved = optionsFor(mount.colorScheme, parsed.frontmatter);
+    for (const warning of resolved.warnings) mount.onError(warning);
+    markmap = Markmap.create(mount.svg, parsed.tree, resolved.options);
     const instance = markmap;
+    let layoutName = resolved.layout;
     instance.zoomBehavior.wheelDelta(wheelZoomDelta);
     toolbar = createToolbar(instance);
 
@@ -114,7 +136,16 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     mount.svg.addEventListener('click', handleLink, true);
 
     const view: MarkmapView = {
+      get layout() {
+        return layoutName;
+      },
       toolbar: toolbar.element,
+      setLayout: (layout) => {
+        editor?.commit();
+        instance.setOptions({ ...instance.options, layout: layoutFor(layout) });
+        instance.fit();
+        layoutName = layout;
+      },
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
       },

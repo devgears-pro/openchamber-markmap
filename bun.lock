@@ -8,6 +8,7 @@
         "@markmap/core": "workspace:*",
         "@markmap/edit-dom": "workspace:*",
         "@markmap/model": "workspace:*",
+        "@markmap/render": "1.1.1",
         "@markmap/toolbar": "1.1.1",
         "@markmap/view": "1.1.1",
         "@openchamber/sdk": "^2.7.1",

@@ -49,6 +49,31 @@ const MARKMAP_CSS = `
     pointer-events: none;
     resize: none;
   }
+  .mm-layout-menu {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .mm-layout-button {
+    padding: 4px 8px;
+    border: 1px solid var(--oc-border, #34343c);
+    border-radius: calc(var(--oc-radius, 9px) * 0.7);
+    background: var(--oc-elevated, #25252c);
+    color: var(--oc-fg, #ececf1);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mm-layout-button[aria-pressed="true"] {
+    border-color: var(--oc-focus, #6ea8fe);
+    background: var(--oc-focus, #6ea8fe);
+    color: var(--oc-bg, #1b1b1f);
+  }
+  .mm-layout-button:focus-visible {
+    outline: 2px solid var(--oc-focus, #6ea8fe);
+    outline-offset: 2px;
+  }
   .mm-marker-menu {
     display: flex;
     justify-content: flex-end;
