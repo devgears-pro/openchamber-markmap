@@ -23,6 +23,7 @@ const MARKMAP_CSS = `
     min-height: 0;
     color: var(--oc-fg, #ececf1);
     font: 400 16px/20px var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif);
+    outline: none;
   }
   .mm-markmap-svg {
     display: block;
