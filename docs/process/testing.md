@@ -28,8 +28,6 @@ bun run verify           # all merge-blocking checks
 
 Coverage is not a substitute for assertions. A test that calls code without checking observable behavior does not count as proof.
 
-Type assertions are banned in `src/`, `tests/`, `dev/`, `scripts/`, and the config files. `as const` is the only allowed `as`. Non-null assertions, `any`, `@ts-*` comments, and inline `eslint-disable` comments are banned too.
-
 ## Requirement traceability
 
 Every requirement ID from `docs/requirements.md` appears in at least one test name as `[R-xx]`. Every test file has at least one ID. `bun run check:requirements` enforces both directions and fails on unknown IDs.
@@ -83,7 +81,6 @@ Write the result to `tmp/` and upload it to the issue or release comment. Do not
 ## What not to do
 
 - Do not lower coverage thresholds to merge a change.
-- Do not add type assertions (other than `as const`), non-null assertions, `any`, `@ts-*` comments, or inline `eslint-disable` comments.
 - Do not add `v8 ignore` comments or exclude files without a written reason.
 - Do not assert on generated bundle text beyond the IIFE and budget checks.
 - Do not replace the real Markmap adapter with a permanent mock in production code.
