@@ -72,7 +72,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 - Acceptance is green when rendering changed.
 - `editor/main.js` is rebuilt and committed.
 - Docs and traceability are updated.
-- README screenshots are regenerated for visible UI changes.
+- README screenshots are updated for visible UI changes.
 - A visual change has a closing presentation on its issue.
 - Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.
