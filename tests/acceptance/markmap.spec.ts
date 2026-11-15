@@ -76,6 +76,41 @@ test('[R-11] inserts a child with Tab and deletes it', async ({ page }) => {
   await expect(page.locator('.mm-markmap-svg')).not.toContainText('Child node');
 });
 
+test('[R-11] keeps the edit text aligned with the node label', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Headings and lists become branches', { exact: true }).first().click();
+  await page.keyboard.press('F2');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+
+  const geometry = await page.evaluate(() => {
+    const field = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    const selected = document.querySelector('.mm-editor-selected');
+    const label = selected?.querySelector('text');
+    if (!field || !selected || !label) return null;
+    const style = getComputedStyle(field);
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    context.font = style.font;
+    const textWidth = context.measureText(field.value).width;
+    const fieldRect = field.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const contentWidth =
+      field.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const offset = style.textAlign === 'center' ? (contentWidth - textWidth) / 2 : 0;
+    return {
+      textStart: fieldRect.x + parseFloat(style.paddingLeft) + offset,
+      labelStart: labelRect.x,
+      contentWidth,
+      labelWidth: labelRect.width,
+    };
+  });
+  if (!geometry) throw new Error('Missing editor geometry');
+  expect(Math.abs(geometry.textStart - geometry.labelStart)).toBeLessThanOrEqual(2);
+  expect(Math.abs(geometry.contentWidth - geometry.labelWidth)).toBeLessThanOrEqual(2);
+});
+
 test('[R-13] shows an editor error for a line break in a heading', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
