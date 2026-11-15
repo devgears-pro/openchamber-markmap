@@ -177,6 +177,19 @@ test('[R-15] navigates with arrows, folds a branch, and edits by typing', async 
   await page.keyboard.press('Escape');
 });
 
+test('[R-15] undoes the first typed character while editing', async ({ page }) => {
+  const label = 'Headings and lists become branches';
+  await page.goto('/dev/');
+  await page.getByText(label, { exact: true }).first().click();
+  await page.keyboard.type('123');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toHaveValue(`${label}123`);
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+z`);
+  await expect(field).toHaveValue(label);
+});
+
 test('[R-15] undoes and redoes an inserted node', async ({ page }) => {
   await page.goto('/dev/');
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
