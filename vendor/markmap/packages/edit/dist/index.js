@@ -1,4 +1,4 @@
-import { HEADING_MARKER, LIST_MARKER, firstLine, labelText, lineEnd, parseDocument, validateDocument } from "@markmap/model";
+import { HEADING_MARKER, LIST_MARKER, firstLine, labelText, lineEnd, nodeAtOffset, parseDocument, validateDocument } from "@markmap/model";
 // src/errors.ts
 var EditError = class extends Error {
 	code;
@@ -176,6 +176,56 @@ function shiftHeadings(text, delta, ending) {
 		return line.replace(/^([ \t]{0,3})(#{1,6})(?=[ \t]|$)/, (_, space) => {
 			return `${space}${"#".repeat(level)}`;
 		});
+	}).join(ending);
+}
+function listStartLine(line, node, base) {
+	if (node.kind === "heading" || node.kind === "root") {
+		const match = /^[ \t]{0,3}(#{1,6})(?:[ \t]+|$)/.exec(line);
+		if (!match) return line;
+		return `${base}- ${line.slice(match[0].length)}`;
+	}
+	if (node.kind === "listItem") {
+		const match = /^[ \t]*([-+*]|\d{1,9}[.)])(?:[ \t]+|$)(\[[ xX]\][ \t]+)?/.exec(line);
+		if (!match) return line;
+		return `${base}${match[1]} ${match[2] ?? ""}${line.slice(match[0].length)}`;
+	}
+	return line;
+}
+function listContinuationLine(line, node, base) {
+	const list = node.list;
+	const originalBase = list ? list.indent.length : 0;
+	const originalWidth = list ? list.marker.length + 1 : 0;
+	const width = list ? list.marker.length + 1 : 2;
+	const prefix = /^[ \t]*/.exec(line)?.[0] ?? "";
+	const relative = Math.max(0, prefix.length - originalBase - originalWidth);
+	return `${base}${" ".repeat(width + relative)}${line.slice(prefix.length)}`;
+}
+function headingsToList(text, indent, unit, ending) {
+	const { document } = parseDocument(text);
+	const root = document.nodes.get(document.root);
+	if (!root) throw new EditError("E_SHAPE", "The pasted text has no root");
+	const top = root.block ? root : root.children.map((id) => document.nodes.get(id)).find((child) => Boolean(child?.block));
+	if (!top) throw new EditError("E_SHAPE", "The pasted text has no editable node");
+	const depths = /* @__PURE__ */ new Map();
+	const visit = (node, depth) => {
+		depths.set(node.id, depth);
+		for (const id of node.children) {
+			const child = document.nodes.get(id);
+			if (child) visit(child, depth + 1);
+		}
+	};
+	visit(top, 0);
+	let offset = 0;
+	return text.split(ending).map((line) => {
+		const start = offset;
+		offset += line.length + ending.length;
+		if (!line.trim()) return line;
+		const owner = nodeAtOffset(document, start);
+		const depth = owner ? depths.get(owner.id) : void 0;
+		if (!owner || depth === void 0) return line;
+		const base = indent + unit.repeat(depth);
+		if (owner.block?.start === start) return listStartLine(line, owner, base);
+		return listContinuationLine(line, owner, base);
 	}).join(ending);
 }
 function reindentList(text, delta, ending) {
@@ -410,8 +460,8 @@ function planInsertBlock(doc, node, raw) {
 	const count = fragment.nodes.size - (fragmentRoot.block ? 0 : 1);
 	let moved;
 	if (top.kind === "heading" || top.kind === "root") {
-		if (node.kind === "listItem") throw new EditError("E_CAPABILITY", "A heading cannot be pasted under a list item", node.id);
-		moved = shiftHeadings(block, (node.kind === "root" ? node.block ? node.level : 0 : node.level) + 1 - top.level, ending);
+		if (node.kind === "listItem") moved = headingsToList(block, childIndent(doc, node), doc.unit, ending);
+		else moved = shiftHeadings(block, (node.kind === "root" ? node.block ? node.level : 0 : node.level) + 1 - top.level, ending);
 	} else if (top.kind === "listItem") {
 		if (!top.list) throw shape("The pasted list item has no list info");
 		moved = reindentList(block, (node.kind === "listItem" ? childIndent(doc, node) : "").length - top.list.indent.length, ending);
