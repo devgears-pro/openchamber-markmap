@@ -39,6 +39,7 @@ export declare class MarkmapEditor {
     }): void;
     commitForSnapshot(): string;
     setLabel(nodeId: string, text: string): boolean;
+    selectedBlock(): string | null;
     insertBlock(text: string): boolean;
     insertLabel(text: string): boolean;
     deleteSelected(): boolean;

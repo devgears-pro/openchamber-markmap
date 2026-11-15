@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => {
     editorSelected,
     editorEditing: { value: false },
     editorSource: { value: '# Root' },
+    editorSelectedBlock: vi.fn<() => string | null>(() => '# Root'),
     editorNodes: new Map<string, unknown>([['root', {}]]),
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
@@ -58,6 +59,10 @@ vi.mock('@markmap/edit-dom', () => ({
 
     get source(): string {
       return mocks.editorSource.value;
+    }
+
+    selectedBlock(): string | null {
+      return mocks.editorSelectedBlock();
     }
 
     insertBlock(text: string): boolean {
@@ -175,6 +180,7 @@ beforeEach(() => {
   mocks.editorSelected.value = 'root';
   mocks.editorEditing.value = false;
   mocks.editorSource.value = '# Root';
+  mocks.editorSelectedBlock.mockReturnValue('# Root');
   mocks.editorNodes.clear();
   mocks.editorNodes.set('root', {});
   mocks.labelText.mockReturnValue('Root');
@@ -417,10 +423,6 @@ describe('Markmap adapter', () => {
   test('[R-21] copies and pastes from the mounted map', () => {
     const { surface, result } = mount();
     if (!result.ok) throw new Error(result.message);
-    mocks.editorNodes.set('root', {
-      block: { start: 0, end: 6 },
-      capabilities: { delete: false },
-    });
     document.body.append(surface);
     surface.tabIndex = 0;
     surface.focus();

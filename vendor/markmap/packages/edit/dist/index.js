@@ -567,4 +567,4 @@ function countSubtree(doc, node) {
 function shape(message) {
 	return new EditError("E_SHAPE", message);
 }
-export { EditError, applyCommand, applySplices, mapOffset };
+export { EditError, applyCommand, applySplices, lineEnding, mapOffset };

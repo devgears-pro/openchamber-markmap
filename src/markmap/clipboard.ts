@@ -2,10 +2,10 @@ import type { Document } from '@markmap/model';
 
 export type ClipboardEditor = {
   readonly isEditing: boolean;
-  readonly source: string;
   readonly selected: string | null;
   readonly document: Document;
   focus: () => void;
+  selectedBlock: () => string | null;
   insertBlock: (text: string) => boolean;
   insertLabel: (text: string) => boolean;
   deleteSelected: () => boolean;
@@ -54,17 +54,17 @@ export const createClipboard = ({
 
   const copy = (event: ClipboardEvent, cut: boolean): void => {
     if (editor.isEditing || !focused()) return;
-    const node = selectedNode();
-    if (!node?.block) {
+    const text = editor.selectedBlock();
+    if (text === null) {
       onNotice(COPY_NOTICE);
       return;
     }
-    const text = editor.source.slice(node.block.start, node.block.end);
     event.clipboardData?.setData('text/plain', text);
     event.preventDefault();
     copied = text;
     if (!cut) return;
-    if (!node.capabilities.delete) {
+    const node = selectedNode();
+    if (!node?.capabilities.delete) {
       onNotice(ROOT_CUT_NOTICE);
       return;
     }

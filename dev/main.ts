@@ -4,6 +4,7 @@ import { devContext } from './theme';
 import sample from './sample.md?raw';
 import showcase from './showcase.md?raw';
 import title from './title.md?raw';
+import titleBody from './title-body.md?raw';
 
 const root = document.querySelector<HTMLElement>('#root');
 if (root === null) throw new Error('Missing #root');
@@ -12,15 +13,26 @@ const params = new URLSearchParams(window.location.search);
 const mode = params.get('theme') === 'light' ? 'light' : 'dark';
 const showcaseMode = params.get('map') === 'showcase';
 const titleMode = params.get('map') === 'title';
+const titleBodyMode = params.get('map') === 'title-body';
 const emptyMode = params.get('map') === 'empty';
-const content = emptyMode ? '' : titleMode ? title : showcaseMode ? showcase : sample;
+const content = emptyMode
+  ? ''
+  : titleBodyMode
+    ? titleBody
+    : titleMode
+      ? title
+      : showcaseMode
+        ? showcase
+        : sample;
 const name = emptyMode
   ? 'empty.markmap.md'
-  : titleMode
-    ? 'title.markmap.md'
-    : showcaseMode
-      ? 'showcase.markmap.md'
-      : 'sample.markmap.md';
+  : titleBodyMode
+    ? 'title-body.markmap.md'
+    : titleMode
+      ? 'title.markmap.md'
+      : showcaseMode
+        ? 'showcase.markmap.md'
+        : 'sample.markmap.md';
 
 let snapshotListener: Parameters<MarkmapHost['onFileSnapshot']>[0] | null = null;
 window.addEventListener('dev-file-snapshot', () => {
