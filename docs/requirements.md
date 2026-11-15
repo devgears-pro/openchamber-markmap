@@ -38,6 +38,10 @@ The previous view is destroyed when another file opens and when the editor dispo
 
 `editor/index.html` loads one classic script. `editor/main.js` is a self-contained IIFE without top-level module syntax and stays under the bundle budget.
 
+### R-25 Chat bundle
+
+`chat/index.html` loads one classic script. `chat/main.js` is a self-contained IIFE without top-level module syntax and stays under the bundle budget.
+
 ### R-09 Deterministic output
 
 The same source and lockfile produce the same bundle. Snapshot versions depend only on content. `bun run check:reproducible` builds twice and compares the bytes.
@@ -94,12 +98,20 @@ An editable map copies the selected node with its whole subtree, notes, and mark
 
 An editable or read-only map shows labelled layout buttons for `tree`, `two-sided`, and `org-chart`. The active button reflects the current layout. Choosing a layout re-lays out the existing map, keeps the selection and folded nodes, fits the view, and writes no layout value, so the switch itself leaves the file, its snapshot, and its dirty state unchanged. The group is keyboard operable.
 
+### R-23 Chat block manifest
+
+The package declares one `contributes.blocks` entry named `Mindmap`. Its description names Markmap, and the one argument is `markdown`. The entry is the chat page, the default height is 480 px, and the block declares no `answers`. It parses with the OpenChamber manifest schema.
+
+### R-24 Chat render
+
+An active extension draws a `Mindmap(markdown: string)` call from an assistant reply as a read-only Markmap in its sandboxed frame. The argument is the whole map source. The map is fitted with the editor options and follows the host light or dark mode; a host theme change redraws it without recreating the view. The frame exposes an image role and a name. An empty or missing argument draws an empty map. A Markmap failure shows a notice instead of a blank frame, and a frontmatter warning shows the same notice while the map stays. A later call replaces the drawn map, and dispose releases the preview, listeners, and DOM.
+
 ## Traceability
 
 | Requirement | Tests                                                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | R-01        | `tests/manifest.test.ts`                                                                                            |
-| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
+| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/options.test.ts`, acceptance                              |
 | R-03        | `tests/markmap-view.test.ts`, acceptance                                                                            |
 | R-04        | `tests/app.test.ts`, acceptance                                                                                     |
 | R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                   |
@@ -120,3 +132,6 @@ An editable or read-only map shows labelled layout buttons for `tree`, `two-side
 | R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
 | R-21        | `tests/clipboard.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                 |
 | R-22        | `tests/layout-menu.test.ts`, `tests/app.test.ts`, acceptance                                                        |
+| R-23        | `tests/manifest.test.ts`                                                                                            |
+| R-24        | `tests/chat.test.ts`, `tests/chat-main.test.ts`, `tests/preview.test.ts`, acceptance                                |
+| R-25        | `tests/bundle.test.ts`                                                                                              |

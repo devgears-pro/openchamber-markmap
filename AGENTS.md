@@ -38,10 +38,13 @@ bunx openchamber-guest-check
 
 - `src/main.ts`: `connectHost()` and mount.
 - `src/app.ts`: host wiring, save tracking, snapshot, theme updates, lifecycle.
-- `src/markmap/view.ts`: the only module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
-- `src/ui/styles.ts`: the injected stylesheet, host tokens only.
+- `src/chat/block.ts`: host wiring for the read-only chat block: the `onBlock` call, theme updates, notice, and teardown.
+- `src/markmap/view.ts`: the only editor module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
+- `src/markmap/preview.ts`: the read-only Markmap for the chat block; shares the view options with the editor.
+- `src/ui/styles.ts`, `src/chat/styles.ts`: injected stylesheets, host tokens only.
 - `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
-- `editor/`: installable package: `index.html` and the built `main.js`.
+- `editor/`: installable editor entry: `index.html` and the built `main.js`.
+- `chat/`: installable chat block entry: `index.html` and the built `main.js`.
 - `dev/`: Vite harness, synthetic samples, and host theme tokens for screenshots.
 - `tmp/`: generated screenshots from `bun run screenshots`; do not commit.
 - `tests/`: Vitest unit and DOM tests plus Playwright acceptance tests.
@@ -68,7 +71,8 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.
 - Do not add `any`, type assertions, non-null assertions, `@ts-*` comments, or inline `eslint-disable` comments anywhere. `as const` is allowed; every other `as` is not. ESLint runs the strict type-aware preset over `src`, `tests`, `dev`, `scripts`, and the config files.
 - Do not write comments in code. Tests and docs carry the explanation.
-- `editor/main.js` is committed. Rebuild it and keep the stale-bundle check green.
+- `editor/main.js` and `chat/main.js` are committed. Rebuild both and keep the stale-bundle check green.
+- The chat block is read-only. It parses the `markdown` argument and draws a fitted map; it never edits, saves, answers, or reads a file.
 
 ## Workflow
 
@@ -77,7 +81,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 3. Implement the smallest change that makes it pass.
 4. Run `bun run verify`, then `bun run test:acceptance` when rendering or layout changed.
 5. Follow the presentation rule in `docs/process/releases.md` when the change is visual.
-6. Rebuild `editor/main.js` and commit it with the source change.
+6. Rebuild the bundles. `bun run build` updates `editor/main.js` and `chat/main.js`; commit them with the source.
 7. Update docs and the requirement traceability table when behavior changes.
 8. Post the chat report and complete the issue as defined in `docs/process/sdlc.md`.
 

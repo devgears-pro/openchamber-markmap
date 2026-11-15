@@ -27,7 +27,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 4. **Refactor with the test green.** Remove duplication and dead code. Do not add comments.
 5. **Run the gate.** `bun run verify` must pass. It includes typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and 100% coverage.
 6. **Run acceptance when rendering changes.** `bun run test:acceptance` drives a real browser and the real Markmap packages.
-7. **Rebuild the artifact.** `bun run build` updates `editor/main.js`; commit it with the source.
+7. **Rebuild the artifact.** `bun run build` updates `editor/main.js` and `chat/main.js`; commit both with the source.
 8. **Update traceability.** Keep `docs/requirements.md` aligned with the tests.
 9. **Report evidence.** Use the chat report below.
 
