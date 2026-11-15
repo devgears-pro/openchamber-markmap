@@ -5,6 +5,7 @@ import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 import type * as MarkmapModel from '@markmap/model';
 import type { ViewOptions } from '@markmap/view';
 
+import { layoutFor } from '../src/markmap/layouts';
 import type { MarkmapSourceChange } from '../src/markmap/view';
 
 const mocks = vi.hoisted(() => {
@@ -112,6 +113,7 @@ type FakeMarkmap = {
   options: Record<string, unknown>;
   zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
+  fit: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
 };
 
@@ -131,6 +133,7 @@ const fakeMarkmap = (): FakeMarkmap => {
     setOptions: vi.fn((next: Record<string, unknown>) => {
       markmap.options = next;
     }),
+    fit: vi.fn(),
     destroy: vi.fn(),
   };
   return markmap;
@@ -149,8 +152,7 @@ type Setup = {
   onError: Mock<(message: string) => void>;
   onOpenUrl: Mock<(url: string) => void>;
   resolved: {
-    options: { colorScheme: string };
-    json: Record<string, unknown>;
+    options: ViewOptions;
     warnings: string[];
   };
 };
@@ -167,7 +169,10 @@ const setup = (): Setup => {
   const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
   const onError = vi.fn<(message: string) => void>();
   const onOpenUrl = vi.fn<(url: string) => void>();
-  const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
+  const resolved: Setup['resolved'] = {
+    options: { colorScheme: 'light', layout: layoutFor('two-sided') },
+    warnings: [],
+  };
   mocks.parseDocument.mockImplementation((source: string) => ({
     tree:
       source.trim() === ''
@@ -188,8 +193,12 @@ type Mount = Setup & {
   result: ReturnType<typeof createMarkmapView>;
 };
 
-const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}): Mount => {
+const mount = (
+  overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {},
+  configure?: (setup: Setup) => void,
+): Mount => {
   const base = setup();
+  configure?.(base);
   const options: Parameters<typeof createMarkmapView>[0] = {
     surface: base.surface,
     svg: base.svg,
@@ -236,13 +245,84 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions[0]?.view).toEqual({});
     expect(mocks.editorFocus).toHaveBeenCalledOnce();
     expect(mocks.resolveViewOptions).toHaveBeenCalledWith(
-      { duration: 0, fitPadding: 24, fitMaxScale: 1 },
+      {
+        duration: 0,
+        fitPadding: 24,
+        fitMaxScale: 1,
+        layout: layoutFor('two-sided'),
+      },
       undefined,
     );
     expect(resolved.options).toBeDefined();
     expect(toolbar.destroy).not.toHaveBeenCalled();
     expect(onSource).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  test('[R-02] opens a file without a layout as two-sided', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.view.layout).toBe('two-sided');
+    expect(mocks.create.mock.calls[0]?.[2]?.layout).toBe(layoutFor('two-sided'));
+  });
+
+  test('[R-02] honors explicit layouts', () => {
+    const tree = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('tree');
+    });
+    if (!tree.result.ok) throw new Error(tree.result.message);
+
+    const chart = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('org-chart');
+    });
+    if (!chart.result.ok) throw new Error(chart.result.message);
+
+    expect(tree.result.view.layout).toBe('tree');
+    expect(chart.result.view.layout).toBe('org-chart');
+  });
+
+  test('[R-02] falls back to two-sided and reports an unknown layout', () => {
+    const { result, onError } = mount({}, (base) => {
+      base.resolved.warnings.push(
+        'Unknown layout `fishbone`; available: `tree`, `two-sided`, `org-chart`',
+      );
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.view.layout).toBe('two-sided');
+    expect(onError).toHaveBeenCalledWith(
+      'Unknown layout `fishbone`; available: `tree`, `two-sided`, `org-chart`',
+    );
+  });
+
+  test('[R-22] switches the layout and fits the map', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.setLayout('tree');
+
+    expect(mocks.editorCommit).toHaveBeenCalledOnce();
+    expect(markmap.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: layoutFor('tree') }),
+    );
+    expect(markmap.fit).toHaveBeenCalledOnce();
+    expect(result.view.layout).toBe('tree');
+    expect(mocks.create).toHaveBeenCalledOnce();
+  });
+
+  test('[R-22] switches a read-only map without committing an editor', () => {
+    const { result, markmap } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.setLayout('org-chart');
+
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
+    expect(markmap.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: layoutFor('org-chart') }),
+    );
+    expect(markmap.fit).toHaveBeenCalledOnce();
+    expect(result.view.layout).toBe('org-chart');
   });
 
   test('[R-17] opens an http link through the host callback', () => {

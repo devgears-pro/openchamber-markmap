@@ -6,9 +6,10 @@ export const createMarkerMenu = (onMarker: (glyph: string) => void): HTMLElement
   const select = document.createElement('select');
   select.className = 'mm-marker-select';
   select.setAttribute('aria-label', 'Add marker');
+  select.title = 'Marker';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Marker';
+  placeholder.textContent = '🙂';
   placeholder.disabled = true;
   placeholder.selected = true;
   select.append(placeholder);

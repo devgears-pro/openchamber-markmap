@@ -10,7 +10,7 @@ The package declares one `contributes.fileEditors` entry with display name `Mark
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. It honors `markmap.layout` for `tree`, `two-sided`, and `org-chart`, opens a file without the key as `two-sided`, and falls back to `two-sided` with a non-blocking notice for an unknown value. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ### R-03 Node selection
 
@@ -90,6 +90,10 @@ When the host requests a snapshot during label editing, the snapshot includes th
 
 An editable map copies the selected node with its whole subtree, notes, and markers as its exact Markdown block, and cuts it with one delete history entry. A root that comes from frontmatter `title` or a synthetic root copies the title as a level-one heading followed by every child block, without frontmatter. Paste inserts an in-map copy as the last child of the selection, renumbers headings and reindents list items to the child depth, and selects the pasted root. A heading subtree pasted under a list item becomes a list subtree: heading nodes become list items, existing list items keep their markers, and notes and continuation lines re-indent. An impossible heading level or a block with several top-level nodes leaves the file unchanged and shows a notice. Plain text from outside becomes one child label with line breaks collapsed. DOM copy, cut, and paste events drive the behavior, and a hidden editable sink receives paste, so the editor asks for no new host capability and keeps native clipboard behavior inside an open label field. An empty clipboard, a cut of the root, or a node without a block shows a notice.
 
+### R-22 Layout switcher
+
+An editable or read-only map shows labelled layout buttons for `tree`, `two-sided`, and `org-chart`. The active button reflects the current layout. Choosing a layout re-lays out the existing map, keeps the selection and folded nodes, fits the view, and writes no layout value, so the switch itself leaves the file, its snapshot, and its dirty state unchanged. The group is keyboard operable.
+
 ## Traceability
 
 | Requirement | Tests                                                                                                               |
@@ -115,3 +119,4 @@ An editable map copies the selected node with its whole subtree, notes, and mark
 | R-19        | acceptance                                                                                                          |
 | R-20        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                       |
 | R-21        | `tests/clipboard.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                 |
+| R-22        | `tests/layout-menu.test.ts`, `tests/app.test.ts`, acceptance                                                        |

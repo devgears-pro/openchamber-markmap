@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { devContext } from '../dev/theme';
 
 import { mountApp, type MarkmapHost, type MountOptions } from '../src/app';
+import type { MarkmapLayout } from '../src/markmap/layouts';
 import type {
   MarkmapColorScheme,
   MarkmapFactory,
@@ -112,6 +113,7 @@ type FakeFactory = {
   mounts: MarkmapMount[];
   colorSchemes: MarkmapColorScheme[];
   markers: string[];
+  layouts: MarkmapLayout[];
   destroyed: () => number;
   commits: () => number;
   snapshots: () => number;
@@ -132,6 +134,8 @@ const createMarkmapFactory = (): FakeFactory => {
   toolbar.className = 'fake-markmap-toolbar';
   const colorSchemes: MarkmapColorScheme[] = [];
   const markers: string[] = [];
+  const layouts: MarkmapLayout[] = [];
+  let currentLayout: MarkmapLayout = 'two-sided';
   let destroyCount = 0;
   let commitCount = 0;
   let snapshotCount = 0;
@@ -139,7 +143,14 @@ const createMarkmapFactory = (): FakeFactory => {
   let editing = false;
   let mounted: MarkmapMount | null = null;
   const view: MarkmapView = {
+    get layout() {
+      return currentLayout;
+    },
     toolbar,
+    setLayout: (layout) => {
+      currentLayout = layout;
+      layouts.push(layout);
+    },
     setColorScheme: (scheme) => {
       colorSchemes.push(scheme);
     },
@@ -163,6 +174,7 @@ const createMarkmapFactory = (): FakeFactory => {
     mounts: [],
     colorSchemes,
     markers,
+    layouts,
     destroyed: () => destroyCount,
     commits: () => commitCount,
     snapshots: () => snapshotCount,
@@ -231,8 +243,37 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts[0]?.editable).toBe(true);
     expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
     expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
-    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(2);
+    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(3);
     expect(root.querySelector('.mm-error')).toBeNull();
+  });
+
+  test('[R-22] switches the layout from the toolbar without changing the file', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const tree = root.querySelector<HTMLButtonElement>('button[data-layout="tree"]');
+    const twoSided = root.querySelector<HTMLButtonElement>('button[data-layout="two-sided"]');
+    if (tree === null || twoSided === null) throw new Error('No layout buttons');
+
+    expect(twoSided.getAttribute('aria-pressed')).toBe('true');
+    tree.click();
+
+    expect(markmaps.layouts).toEqual(['tree']);
+    expect(tree.getAttribute('aria-pressed')).toBe('true');
+    expect(twoSided.getAttribute('aria-pressed')).toBe('false');
+    expect(host.changes).toHaveLength(0);
+    expect(contentOf(await host.snapshot())).toBe(SOURCE);
+  });
+
+  test('[R-22] keeps the layout buttons on a read-only file', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE, true));
+    const chart = root.querySelector<HTMLButtonElement>('button[data-layout="org-chart"]');
+    if (chart === null) throw new Error('No layout buttons');
+
+    chart.click();
+
+    expect(markmaps.layouts).toEqual(['org-chart']);
+    expect(root.querySelector('.mm-marker-select')).toBeNull();
   });
 
   test('[R-18] adds the chosen marker from the toolbar', () => {

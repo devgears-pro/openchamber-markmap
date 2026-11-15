@@ -21,6 +21,82 @@ test('[R-02] opens a map at no more than 100% scale', async ({ page }) => {
   expect(scaleOf(transform ?? '')).toBeLessThanOrEqual(1);
 });
 
+test('[R-02] opens a file as a two-sided map by default', async ({ page }) => {
+  await page.goto('/dev/');
+
+  await expect(page.getByRole('group', { name: 'Layout' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Two-sided' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const positions = await page.evaluate(() => {
+    const labels = [...document.querySelectorAll('.mm-markmap-svg text')];
+    const find = (label: string): DOMRect | undefined =>
+      labels.find((element) => element.textContent.trim() === label)?.getBoundingClientRect();
+    const root = find('Markmap');
+    const features = find('Features');
+    const controls = find('Controls');
+    if (!root || !features || !controls) throw new Error('Missing labels');
+    return { rootX: root.x, featuresX: features.x, controlsX: controls.x };
+  });
+
+  expect(positions.featuresX).toBeGreaterThan(positions.rootX);
+  expect(positions.controlsX).toBeLessThan(positions.rootX);
+});
+
+test('[R-22] switches the live map between the native layouts', async ({ page }) => {
+  await page.goto('/dev/');
+  await expect(page.getByRole('button', { name: 'Tree' })).toBeVisible();
+
+  const positions = async (): Promise<{
+    rootX: number;
+    rootY: number;
+    featuresX: number;
+    featuresY: number;
+    controlsX: number;
+    controlsY: number;
+  }> =>
+    page.evaluate(() => {
+      const labels = [...document.querySelectorAll('.mm-markmap-svg text')];
+      const find = (label: string): DOMRect | undefined =>
+        labels.find((element) => element.textContent.trim() === label)?.getBoundingClientRect();
+      const root = find('Markmap');
+      const features = find('Features');
+      const controls = find('Controls');
+      if (!root || !features || !controls) throw new Error('Missing labels');
+      return {
+        rootX: root.x,
+        rootY: root.y,
+        featuresX: features.x,
+        featuresY: features.y,
+        controlsX: controls.x,
+        controlsY: controls.y,
+      };
+    });
+
+  await page.getByRole('button', { name: 'Tree' }).click();
+  await expect(page.getByRole('button', { name: 'Tree' })).toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresX > next.rootX && next.controlsX > next.rootX;
+    })
+    .toBe(true);
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresY > next.rootY && next.controlsY > next.rootY;
+    })
+    .toBe(true);
+});
+
 test('[R-18] adds a marker from the toolbar', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
@@ -119,6 +195,7 @@ test('[R-11] removes a new empty node with Backspace while its field is open', a
 
 test('[R-11] keeps the edit text aligned with the node label', async ({ page }) => {
   await page.goto('/dev/');
+  await page.getByRole('button', { name: 'Tree' }).click();
   await page.getByText('Headings and lists become branches', { exact: true }).first().click();
   await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
@@ -154,6 +231,7 @@ test('[R-11] keeps the edit text aligned with the node label', async ({ page }) 
 
 test('[R-11] keeps the edit field anchored while the label grows', async ({ page }) => {
   await page.goto('/dev/');
+  await page.getByRole('button', { name: 'Tree' }).click();
   await page.getByText('Headings and lists become branches', { exact: true }).first().click();
   await page.keyboard.press('Space');
   const field = page.locator('textarea.mm-editor-field');
@@ -508,6 +586,7 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
   await page.goto('/dev/?readonly=1');
 
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Tree' })).toBeVisible();
   await page.getByText('Links', { exact: true }).first().click();
   await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
