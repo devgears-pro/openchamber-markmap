@@ -364,7 +364,7 @@ var MarkmapEditor = class {
 		}
 		if (event.key === "Enter" && !event.shiftKey) {
 			event.preventDefault();
-			this.commitAndInsert("insertSibling");
+			this.commitEditing();
 			return;
 		}
 		if (event.key === "Tab") {
@@ -481,7 +481,7 @@ var MarkmapEditor = class {
 			return;
 		}
 		const result = this.apply({
-			type: kind === "insertSibling" && node.kind === "root" ? "insertChild" : kind,
+			type: kind,
 			node: node.id,
 			text: this.placeholder
 		});
