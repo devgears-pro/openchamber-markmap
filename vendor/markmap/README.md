@@ -1,6 +1,6 @@
 # Vendored Markmap fork
 
-These packages come from the local Markmap fork:
+These packages come from the Markmap fork:
 
 - Source: <https://github.com/mmospanenko/markmap>
 - Branch: `feat/editable-model`
@@ -9,11 +9,11 @@ The fork adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, extend
 
 Vendored packages:
 
-- `core` — types with `source` ranges.
-- `parse` — parser that emits `source.label` and `source.block`.
-- `model` — editable document projection and validator.
-- `edit` — source-preserving commands.
-- `edit-dom` — selection, keyboard, overlay field, and history.
+- `core`: types with `source` ranges.
+- `parse`: parser that emits `source.label` and `source.block`.
+- `model`: editable document projection and validator.
+- `edit`: source-preserving commands.
+- `edit-dom`: selection, keyboard, overlay field, and history.
 
 Only `dist` is copied. Build the fork first with `pnpm verify` or `pnpm build`, then copy `dist` again when the fork changes. The vendored `package.json` stays on the published `@markmap/view`.
 

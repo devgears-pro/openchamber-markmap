@@ -16,20 +16,19 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Edit on the map.** The map is the editing surface. There is no second Markdown pane and no separate model to keep in sync.
 - **Keyboard first.** Enter adds a sibling, Tab a child, Shift+Tab outdents, Delete removes a subtree, F2 or Space edits a label. Arrow keys move the selection; typing a printable character starts a label.
 - **Real Markmap.** Rendering, layout, folding, notes, the toolbar, and the viewport come from Markmap. The extension owns only the editing layer and the host contract.
-- **Canvas navigation.** The map opens at 100% and is never magnified; a map larger than the window is fitted to it. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
+- **Canvas navigation.** The map opens at 100% by default; a larger map is fitted to the window, and `fitMaxScale` in frontmatter can change the cap. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
-- **Markers.** A toolbar menu adds status, priority, progress, and flag emoji to a node label. Tasks use ordinary GFM checkboxes, and every marker stays readable in the Markdown source.
-- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, `colorDepth`, and `fitMaxScale`, still apply.
+- **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
+- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
-- **Local only.** No network requests, telemetry, external assets, or stored file contents. The extension asks for no capabilities.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
 
 ## Use cases
 
 **Plans that live with the code.** Keep a release, architecture, or migration map next to the repository as `plan.markmap.md`. Humans edit it visually; agents read and write the same Markdown with their normal file tools.
 
-**Working sessions.** Edit branches while a discussion is live: rename a workstream, add a child, delete a rejected branch. The map keeps the context visible instead of hiding it in a text outline.
+**Working sessions.** Edit branches while a discussion is live: rename a workstream, add a child, delete a rejected branch. The map keeps the context visible.
 
 **Agent handoff.** Ask an agent to produce a Markmap file for a plan or investigation, then open it in Files to review, restructure, and correct it without leaving OpenChamber.
 
@@ -37,7 +36,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 
 **Outline review.** Fit the map, fold finished branches, and navigate with the keyboard when a document grows past a screen. The source view is one toggle away for exact text edits.
 
-**Read-only maps.** A shared repository can expose a map for viewing without an edit affordance when OpenChamber opens the file as read-only.
+**Read-only maps.** OpenChamber opens a read-only file as a map without editing.
 
 ## Screenshots
 
@@ -47,7 +46,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 
 ## Install
 
-Requirements: the current OpenChamber release on desktop or web. File editors are not loaded in VS Code or the mobile app.
+Requirements: an OpenChamber release with file editors, on desktop or web. File editors are not loaded in VS Code or the mobile app.
 
 1. Open **Settings → Extensions**.
 2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
@@ -178,11 +177,11 @@ bun run screenshots
 
 The process is documented in:
 
-- [`docs/process/sdlc.md`](docs/process/sdlc.md) — change lifecycle and gates.
-- [`docs/process/testing.md`](docs/process/testing.md) — test levels and coverage.
-- [`docs/process/bugs.md`](docs/process/bugs.md) — failing test first.
-- [`docs/process/releases.md`](docs/process/releases.md) — branches, versions, tags, and release notes.
-- [`docs/requirements.md`](docs/requirements.md) — requirement tree and traceability.
+- [`docs/process/sdlc.md`](docs/process/sdlc.md) (change lifecycle and gates).
+- [`docs/process/testing.md`](docs/process/testing.md) (test levels and coverage).
+- [`docs/process/bugs.md`](docs/process/bugs.md) (failing test first).
+- [`docs/process/releases.md`](docs/process/releases.md) (branches, versions, tags, and release notes).
+- [`docs/requirements.md`](docs/requirements.md) (requirement tree and traceability).
 
 Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
 
