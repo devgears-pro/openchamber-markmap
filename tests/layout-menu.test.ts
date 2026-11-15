@@ -20,11 +20,11 @@ describe('layout menu', () => {
 
     expect(menu.getAttribute('role')).toBe('group');
     expect(menu.getAttribute('aria-label')).toBe('Layout');
-    expect([...menu.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
-      'Tree',
-      'Two-sided',
-      'Org chart',
-    ]);
+    expect(
+      [...menu.querySelectorAll('button')].map((button) => button.getAttribute('aria-label')),
+    ).toEqual(['Tree', 'Two-sided', 'Org chart']);
+    expect(buttonOf(menu, 'tree').querySelector('svg')).not.toBeNull();
+    expect(buttonOf(menu, 'two-sided').title).toBe('Two-sided');
     expect(buttonOf(menu, 'tree').getAttribute('aria-pressed')).toBe('false');
     expect(buttonOf(menu, 'two-sided').getAttribute('aria-pressed')).toBe('true');
     expect(buttonOf(menu, 'org-chart').getAttribute('aria-pressed')).toBe('false');

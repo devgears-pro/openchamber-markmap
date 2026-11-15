@@ -20,6 +20,8 @@ describe('marker menu', () => {
     const select = selectOf(menu);
 
     expect(select.getAttribute('aria-label')).toBe('Add marker');
+    expect(select.title).toBe('Marker');
+    expect(select.selectedOptions[0]?.textContent).toBe('🙂');
     expect(select.querySelectorAll('optgroup')).toHaveLength(4);
     select.value = '✅';
     select.dispatchEvent(new Event('change'));
