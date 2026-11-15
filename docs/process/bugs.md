@@ -48,6 +48,10 @@ A fix without a red test is not accepted, except when a test is genuinely imposs
 - Run `bun run test:acceptance` when rendering, layout, theme, or the toolbar changed.
 - Rebuild and commit `editor/main.js`.
 
+## Chat report
+
+After the fix, the chat reply links the issue and pull request, states the cause, includes the red and green evidence, and gives the install link for the branch: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
+
 ## Evidence
 
 The closing comment states:

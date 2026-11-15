@@ -32,6 +32,15 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 8. **Update traceability.** Keep `docs/requirements.md` aligned with the tests.
 9. **Report evidence.** Include the command, result, commit, and screenshots for UI changes.
 
+## Chat report
+
+After a task or bug fix, the chat reply links the work and its proof:
+
+- The issue, when there is one, and the pull request.
+- The cause for a bug, or the reason for a task.
+- The test command, the red output, and the green output. Screenshots for visual changes.
+- The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`.
+
 ## Gates
 
 | Gate             | Command                      | Blocks merge |
