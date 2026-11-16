@@ -19,20 +19,21 @@ A merge into `dev` is not a release. `dev` is tested by hand. A stable release p
 
 - Release history lives in GitHub Releases. No changelog file is committed.
 - A visual feature closes with a presentation comment on its issue: what changed, why it matters, how to see it, screenshots, and the `R-xx` ID.
-- Release Please creates a **draft** release. Build its body from the presentation comments: highlights with value and screenshots first, then features, improvements, fixes, breaking changes, and upgrade. Link each presentation.
-- Release data, screenshots, and GIFs live on GitHub. Do not commit release notes, per-release pages, or per-release images.
+- Release Please creates a **draft** release. Build its body from the presentation comments and one milestone demo: a short screencast across the release features, or the screenshots on the issues or new ones. Put the demo and brief highlights first, then features, improvements, fixes, breaking changes, and upgrade. Link the demo and each presentation.
+- Release data, screenshots, GIFs, and recordings live on GitHub. Do not commit release notes, per-release pages, or per-release images.
 - A static change needs one 1200 × 800 dark screenshot. A motion or interaction change needs a short GIF. Attach it to the issue and link it from the body. Synthetic content only. Recording is in [`testing.md`](testing.md).
 
 ## Stable release
 
-1. Make sure `dev` is green, tested, and every visual feature has a presentation comment.
-2. Open a PR from `dev` into `main` and merge it with a **merge commit, not squash**.
-3. Release Please opens the release PR. Review the version; CI must be green.
-4. Merge the release PR. Release Please creates the tag and a **draft** release.
-5. Edit the draft body from the presentation comments, then publish with `gh release edit <tag> --draft=false`.
-6. Install from the tag in a clean profile and confirm the update.
-7. Close the release issue after the tag install is verified.
-8. Do not merge `main` back into `dev`.
+1. Make sure `dev` is green and tested, and every visual feature has a presentation comment.
+2. Refresh the roadmap issue, README, and docs. Prepare the release notes and milestone demo.
+3. Open a PR from `dev` into `main` and merge it with a **merge commit, not squash**.
+4. Release Please opens the release PR. Review the version; CI must be green.
+5. Merge the release PR. Release Please creates the tag and a **draft** release.
+6. Edit the draft body, then publish with `gh release edit <tag> --draft=false`.
+7. Install from the tag in a clean profile and confirm the update.
+8. Close the release issue after the tag install is verified.
+9. Do not merge `main` back into `dev`.
 
 ## Hotfix
 

@@ -54,7 +54,7 @@ Do not restate the requirement or walk through the code. Do not rewrite an accep
 5. **Run the gate.** `bun run verify` must pass. It includes typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and 100% coverage.
 6. **Run acceptance when rendering changes.** `bun run test:acceptance` drives a real browser and the real Markmap packages.
 7. **Rebuild the artifact.** `bun run build` updates `editor/main.js` and `chat/main.js`; commit both with the source.
-8. **Update traceability.** Keep `docs/requirements.md` aligned with the tests.
+8. **Update docs and traceability.** Keep the README and `docs/` aligned with the behavior, and `docs/requirements.md` aligned with the tests.
 9. **Review before the PR.** Start two fresh subagents: a core review of the code, and a design review of the solution and its architecture against the original story and its decision. Give both the story, the ADR when one exists, and the code. Address findings before opening the PR.
 10. **Report evidence.** Use the chat report below.
 
