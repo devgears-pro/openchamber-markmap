@@ -162,6 +162,7 @@ const createMarkmapFactory = (): FakeFactory => {
     editNotes: () => {
       notesEditCount += 1;
     },
+    resetView: () => undefined,
     commit: () => {
       commitCount += 1;
       editing = false;

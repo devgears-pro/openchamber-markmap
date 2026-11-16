@@ -135,10 +135,12 @@ const { parseDocument: parseRealDocument } =
   await vi.importActual<typeof MarkmapModel>('@markmap/model');
 
 type FakeMarkmap = {
+  element: SVGSVGElement;
   options: Record<string, unknown>;
   zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
   fit: ReturnType<typeof vi.fn>;
+  focusNode: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
 };
 
@@ -151,14 +153,16 @@ const root: MarkmapNode = {
   children: [],
 };
 
-const fakeMarkmap = (): FakeMarkmap => {
+const fakeMarkmap = (svg: SVGSVGElement): FakeMarkmap => {
   const markmap: FakeMarkmap = {
+    element: svg,
     options: {},
     zoomBehavior: { wheelDelta: vi.fn() },
     setOptions: vi.fn((next: Record<string, unknown>) => {
       markmap.options = next;
     }),
     fit: vi.fn(),
+    focusNode: vi.fn(() => true),
     destroy: vi.fn(),
   };
   return markmap;
@@ -183,14 +187,15 @@ type Setup = {
 };
 
 const setup = (): Setup => {
-  const markmap = fakeMarkmap();
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
+  const markmap = fakeMarkmap(svg);
   const toolbar = {
     element: document.createElement('div'),
     destroy: vi.fn(),
     update: vi.fn(),
   };
   const surface = document.createElement('div');
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
   const onError = vi.fn<(message: string) => void>();
   const onOpenUrl = vi.fn<(url: string) => void>();
@@ -263,6 +268,7 @@ describe('Markmap adapter', () => {
     const options = mocks.create.mock.calls[0]?.[2];
     expect(options?.colorScheme).toBe('dark');
     expect(options?.gestures).toBeTypeOf('function');
+    expect(markmap.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
     expect(markmap.zoomBehavior.wheelDelta).toHaveBeenCalledWith(expect.any(Function));
     const toolbarCall = mocks.createToolbar.mock.calls[0];
     expect(toolbarCall?.[0]).toBe(markmap);
@@ -272,6 +278,7 @@ describe('Markmap adapter', () => {
       'Zoom in',
       'Zoom out',
       'Fit to view',
+      'Reset view',
       'Expand all',
       'fold-level',
     ]);
@@ -294,6 +301,42 @@ describe('Markmap adapter', () => {
     expect(toolbar.destroy).not.toHaveBeenCalled();
     expect(onSource).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  test('[R-30] resets the view to 100% on the selected node', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = 'child';
+    markmap.focusNode.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode).toHaveBeenCalledWith('child', { scale: 1, animate: false });
+  });
+
+  test('[R-30] falls back to the root when the selection is gone', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = 'gone';
+    markmap.focusNode.mockReturnValueOnce(false);
+    markmap.focusNode.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode.mock.calls).toEqual([
+      ['gone', { scale: 1, animate: false }],
+      ['root', { scale: 1, animate: false }],
+    ]);
+  });
+
+  test('[R-30] resets a read-only map to the root', () => {
+    const { result, markmap } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+    markmap.focusNode.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
   });
 
   test('[R-02] opens a file without a layout as two-sided', () => {

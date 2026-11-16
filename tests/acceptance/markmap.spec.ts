@@ -36,6 +36,38 @@ const startDrag = async (page: Page, label: string): Promise<{ x: number; y: num
   return from;
 };
 
+type MapMetrics = {
+  transform: string;
+  svg: { x: number; y: number; width: number; height: number };
+  node: { x: number; y: number; width: number; height: number };
+};
+
+const mapMetrics = async (page: Page, label: string): Promise<MapMetrics> => {
+  const metrics = await page.evaluate((text) => {
+    const svg = document.querySelector('.mm-markmap-svg');
+    const node = [...document.querySelectorAll('.mm-markmap-svg text')].find(
+      (element) => element.textContent.trim() === text,
+    );
+    if (!(svg instanceof SVGSVGElement) || !(node instanceof SVGTextElement)) return null;
+    const group = svg.querySelector('g');
+    if (group === null) return null;
+    const svgBox = svg.getBoundingClientRect();
+    const nodeBox = node.getBoundingClientRect();
+    return {
+      transform: group.getAttribute('transform') ?? '',
+      svg: { x: svgBox.x, y: svgBox.y, width: svgBox.width, height: svgBox.height },
+      node: { x: nodeBox.x, y: nodeBox.y, width: nodeBox.width, height: nodeBox.height },
+    };
+  }, label);
+  if (metrics === null) throw new Error(`Missing map metrics for ${label}`);
+  return metrics;
+};
+
+const centered = (metrics: MapMetrics): { x: number; y: number } => ({
+  x: Math.abs(metrics.node.x + metrics.node.width / 2 - (metrics.svg.x + metrics.svg.width / 2)),
+  y: Math.abs(metrics.node.y + metrics.node.height / 2 - (metrics.svg.y + metrics.svg.height / 2)),
+});
+
 test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) => {
   await page.goto('/dev/');
 
@@ -43,16 +75,63 @@ test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) =>
   await expect(page.locator('.mm-markmap-svg g').first()).toBeVisible();
   await expect(page.locator('.markmap-toolbar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fit to view' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
 });
 
-test('[R-02] opens a map at no more than 100% scale', async ({ page }) => {
+test('[R-02] opens a map at 100% scale', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
   await page.goto('/dev/?map=showcase');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
 
   const transform = await page.locator('.mm-markmap-svg > g').first().getAttribute('transform');
 
-  expect(scaleOf(transform ?? '')).toBeLessThanOrEqual(1);
+  expect(scaleOf(transform ?? '')).toBeCloseTo(1);
+});
+
+test('[R-02] opens a large file at 100% centered on the root', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=showcase');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  const metrics = await mapMetrics(page, 'Atlas release');
+
+  expect(scaleOf(metrics.transform)).toBeCloseTo(1);
+  expect(centered(metrics).x).toBeLessThanOrEqual(20);
+  expect(centered(metrics).y).toBeLessThanOrEqual(20);
+});
+
+test('[R-02] opens a read-only file at 100%', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=showcase&readonly=1');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  const transform = await page.locator('.mm-markmap-svg > g').first().getAttribute('transform');
+
+  expect(scaleOf(transform ?? '')).toBeCloseTo(1);
+});
+
+test('[R-30] resets the view to 100% on the selected node', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=showcase');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await page.getByText('Product', { exact: true }).first().click();
+
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.mouse.move(350, 250);
+  await page.mouse.wheel(80, 60);
+  await page.waitForTimeout(200);
+
+  const moved = await mapMetrics(page, 'Product');
+  expect(scaleOf(moved.transform)).toBeGreaterThan(1);
+
+  await page.getByRole('button', { name: 'Reset view' }).click();
+  await page.waitForTimeout(200);
+
+  const reset = await mapMetrics(page, 'Product');
+
+  expect(scaleOf(reset.transform)).toBeCloseTo(1);
+  expect(centered(reset).x).toBeLessThanOrEqual(20);
+  expect(centered(reset).y).toBeLessThanOrEqual(20);
 });
 
 test('[R-02] opens a file as a two-sided map by default', async ({ page }) => {
@@ -795,13 +874,14 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
     expect(result.panelBackground).toBe(result.expectedBackground);
     expect(result.panelForeground).toBe(result.expectedForeground);
     expect(result.fieldForeground).toBe(result.expectedForeground);
-    expect(result.iconCount).toBeGreaterThanOrEqual(15);
+    expect(result.iconCount).toBeGreaterThanOrEqual(16);
     expect(result.outlineIcons).toBe(true);
-    expect(result.topGeometry).toHaveLength(9);
+    expect(result.topGeometry).toHaveLength(10);
     expect(result.buttonNames).toEqual([
       'Zoom in',
       'Zoom out',
       'Fit to view',
+      'Reset view',
       'Expand all',
       'Tree',
       'Two-sided',

@@ -10,7 +10,7 @@ The package declares one `contributes.fileEditors` entry with display name `Mark
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. It honors `markmap.layout` for `tree`, `two-sided`, and `org-chart`, opens a file without the key as `two-sided`, and falls back to `two-sided` with a non-blocking notice for an unknown value. A small map opens at 100% instead of being magnified; a map larger than the viewport is fitted to it, and `markmap.fitMaxScale` in frontmatter can override the cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. It honors `markmap.layout` for `tree`, `two-sided`, and `org-chart`, opens a file without the key as `two-sided`, and falls back to `two-sided` with a non-blocking notice for an unknown value. The map opens at 100% scale centered on the root, including a map larger than the viewport. The Fit control scales the whole map into the viewport and stays capped at 100% by default; `markmap.fitMaxScale` in frontmatter can change that cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ### R-03 Node selection
 
@@ -114,6 +114,10 @@ An editable map moves a branch by dragging a node. A press that moves 4 px start
 
 Cmd/Ctrl+Shift+Up and Down move the selected node among its siblings, Left makes it the last child of the previous sibling, and Right moves it after its parent. The pointer path's move command, notices, history and level changes apply. A boundary move changes nothing, an impossible move shows a notice and leaves the file unchanged, and a read-only map has no move keys.
 
+### R-30 View reset
+
+A file map offers a labelled Reset view control in the map toolbar. It sets the scale to 100% and centers the selected node; a read-only map centers the root. The control does not change the selection, the file bytes, the snapshot, or the dirty state, and it works in every layout. Fit remains a separate control that scales the whole map into the viewport. The control is keyboard operable.
+
 ### R-23 Chat block manifest
 
 The package declares one `contributes.blocks` entry named `Mindmap`. Its description names Markmap, and the one argument is `markdown`. The entry is the chat page, the default height is 480 px, and the block declares no `answers`. It parses with the OpenChamber manifest schema.
@@ -127,7 +131,7 @@ An active extension draws a `Mindmap(markdown: string)` call from an assistant r
 | Requirement | Tests                                                                                                                     |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------- |
 | R-01        | `tests/manifest.test.ts`                                                                                                  |
-| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/options.test.ts`, acceptance                                    |
+| R-02        | `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/options.test.ts`, `tests/zoom.test.ts`, acceptance              |
 | R-03        | `tests/markmap-view.test.ts`, acceptance                                                                                  |
 | R-04        | `tests/app.test.ts`, acceptance                                                                                           |
 | R-05        | `tests/app.test.ts`, `tests/markmap-view.test.ts`                                                                         |
@@ -155,3 +159,4 @@ An active extension draws a `Mindmap(markdown: string)` call from an assistant r
 | R-27        | `tests/toolbar.test.ts`, `tests/layout-menu.test.ts`, `tests/marker-menu.test.ts`, `tests/notes-menu.test.ts`, acceptance |
 | R-28        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-29        | `tests/acceptance/markmap.spec.ts`                                                                                        |
+| R-30        | `tests/zoom.test.ts`, `tests/markmap-view.test.ts`, `tests/toolbar.test.ts`, acceptance                                   |

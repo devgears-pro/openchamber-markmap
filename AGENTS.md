@@ -92,7 +92,8 @@ Before the final reply:
 - `parseDocument(markdown)` from `@markmap/model` returns `{ document, tree, frontmatter }`. The tree carries `source.label` and `source.block` ranges used by the editor.
 - `new MarkmapEditor({ source, view: createEditView(mm), container, onChange, onError })` adds selection, keyboard, overlay editing, and history over a live `Markmap`. It exposes `selectedBlock()`, `insertBlock(text)`, `insertLabel(text)`, and `deleteSelected()` for host clipboard actions; `selectedBlock()` synthesizes a title root as a level-one heading plus its child blocks, and `insertBlock` re-levels headings and list indents to the child depth and converts a heading subtree to list items under a list item.
 - Apply `frontmatter.markmap` with `resolveViewOptions(base, input)`. The result includes warnings for unknown keys.
-- `Markmap.create(svg, root, options)` already fits the view. The extension caps `fitMaxScale` at 1, so a small map opens at 100% and a large one is fitted; frontmatter can override the cap. The argument order is target, root, options.
+- `Markmap.create(svg, root, options)` fits the view. A file map then moves to 100% centered on the root with `focusNode(root.id, { scale: 1, animate: false })`; the chat block stays fitted. The extension caps `fitMaxScale` at 1, so Fit does not magnify past 100% unless frontmatter overrides the cap. The argument order is target, root, options.
+- The map toolbar's Reset view sets 100% and centers the editor's selected node, or the root in a read-only map. Fit still shows the whole map.
 - `mm.setOptions({ ...mm.options, colorScheme })` redraws without replacing the tree or editor history.
 - The `<svg>` needs a non-zero CSS box and no `viewBox`.
 - The toolbar must live in the same document as the map so it can use the map's `--mm-*` tokens.

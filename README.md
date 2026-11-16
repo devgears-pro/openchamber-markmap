@@ -16,7 +16,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Edit on the map.** The map is the editing surface. There is no second Markdown pane and no separate model to keep in sync.
 - **Keyboard first.** In selection mode, Enter adds a sibling and Tab a child. While editing, Enter commits and exits; the next Enter adds a sibling. Tab commits and adds a child. Space or a double click opens editing. Arrow keys move the selection without folding; typing on a non-empty selected node does nothing, while typing on an empty node starts editing.
 - **Real Markmap.** Rendering, layout, folding, notes, the toolbar, and the viewport come from Markmap. The extension owns only the editing layer and the host contract.
-- **Canvas navigation.** The map opens at 100% by default; a larger map is fitted to the window, and `fitMaxScale` in frontmatter can change the cap. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
+- **Canvas navigation.** A file map opens at 100% centered on the root; Fit scales the whole map into the window, and `fitMaxScale` in frontmatter changes the Fit cap. Reset view returns to 100% on the selected node. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
@@ -126,6 +126,7 @@ A normal `*.md` file stays in OpenChamber's source editor.
 | Pan                                  | Scroll or a trackpad surface       |
 | Zoom around the pointer              | Cmd/Ctrl + scroll                  |
 | Fit, zoom in, zoom out               | Markmap toolbar                    |
+| Reset view to 100% on the selection  | Reset view in the Markmap toolbar  |
 | Switch layout                        | Layout buttons in the toolbar      |
 
 After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
