@@ -24,6 +24,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Copy and paste.** Cmd/Ctrl+C and X take the selected subtree with its notes and markers, and Cmd/Ctrl+V puts a copy back as the last child of the selection. Headings renumber and list items reindent to the new depth.
 - **Move a branch.** Drag a node to a new parent or a new place among its siblings. The subtree lifts with the pointer, a line or frame shows where it lands, and the map re-lays out once on drop. Escape cancels, undo is one step, and Cmd/Ctrl+Shift+arrow keys move a branch without the mouse.
 - **Notes.** The note dot opens the rendered note. The Edit notes button opens a Markdown panel, and a note is one `markmap-note` fenced block under the node, so lists and headings stay inside it. Paragraph notes from other tools convert to a block on the first edit.
+- **Soft hierarchy.** The default theme gives the root and first-level topics blocks, keeps deeper labels simple, and gives each branch one muted color. Set `markmap.theme` to `classic`, `cards`, `minimal`, or `soft` to change it.
 - **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
 - **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
@@ -164,7 +165,7 @@ markmap:
 
 The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
 
-The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` plus the public editable fork of `@markmap/model`, `@markmap/render`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ## Privacy
 
@@ -203,7 +204,7 @@ The process is documented in:
 
 Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.
 
-The editable fork is public at <https://github.com/mmospanenko/markmap/tree/dev>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes start from upstream Markmap; the fork carries the extensions this editor adds.
+The editable fork is public at <https://github.com/mmospanenko/markmap/tree/dev>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing, plus a soft render theme with per-node label metrics. The layout, view, toolbar, and built-in themes start from upstream Markmap; the fork carries the extensions this editor adds.
 
 ## License
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 import type * as MarkmapModel from '@markmap/model';
+import { builtinLayouts, builtinThemes, softTheme } from '@markmap/render';
 import type { ToolbarOptions } from '@markmap/toolbar';
 import type { ViewOptions } from '@markmap/view';
 
@@ -290,8 +291,10 @@ describe('Markmap adapter', () => {
         fitPadding: 24,
         fitMaxScale: 1,
         layout: layoutFor('two-sided'),
+        theme: softTheme,
       },
       undefined,
+      { layouts: builtinLayouts, themes: builtinThemes },
     );
     expect(resolved.options).toBeDefined();
     expect(toolbar.destroy).not.toHaveBeenCalled();

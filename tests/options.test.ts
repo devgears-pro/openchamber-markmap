@@ -22,6 +22,18 @@ describe('map options', () => {
     expect(optionsFor('dark', { markmap: { layout: 'org-chart' } }).layout).toBe('org-chart');
   });
 
+  test('[R-32] uses the soft theme by default and keeps explicit themes', () => {
+    expect(optionsFor('light', {}).options.theme?.name).toBe('soft');
+    expect(optionsFor('light', { markmap: { theme: 'classic' } }).options.theme?.name).toBe(
+      'classic',
+    );
+    expect(
+      optionsFor('light', { markmap: { color: ['#123456'], colorDepth: 2 } }).options.theme?.tokens[
+        'mm-branch-0'
+      ],
+    ).toBe('#123456');
+  });
+
   test('[R-02] reports ignored frontmatter values', () => {
     const resolved = optionsFor('dark', { markmap: { nope: true } });
 
