@@ -27,8 +27,7 @@ export const optionsFor = (
 ): ResolvedView => {
   const mapOptions = isRecord(frontmatter['markmap']) ? frontmatter['markmap'] : {};
   const themeName = mapOptions['theme'];
-  const softDefault =
-    themeName !== 'classic' && themeName !== 'cards' && themeName !== 'minimal';
+  const softDefault = themeName !== 'classic' && themeName !== 'cards' && themeName !== 'minimal';
   const base: ViewOptions = {
     duration: 0,
     fitPadding: 24,
