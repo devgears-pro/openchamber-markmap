@@ -1,5 +1,8 @@
-import type { MarkmapNode, Rect, Side } from '@markmap/core';
+import type { MarkmapNode, Rect, ResolvedLabelStyle, Side, TextAlign } from '@markmap/core';
 import type { Document } from '@markmap/model';
+export interface EditLabelStyle extends ResolvedLabelStyle {
+    align: TextAlign;
+}
 export interface EditView {
     readonly element: Element;
     readonly scale: number;
@@ -21,6 +24,7 @@ export interface EditView {
     }): boolean;
     screenRect(id: string): Rect | undefined;
     direction(id: string): Side | undefined;
+    labelStyle?(id: string): EditLabelStyle | undefined;
     hitAt(x: number, y: number): {
         kind: string;
         nodeId?: string;

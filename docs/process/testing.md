@@ -55,7 +55,7 @@ Design the cases before writing the first failing test. List the behaviors, the 
 
 ## Acceptance
 
-Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, arrow navigation, folding, undo and redo, clipboard copy, cut, and paste, node dragging with its drop indicator, move keys, theme state, read-only rendering, new empty file editing, editor errors, wheel gestures, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
+Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, soft theme depth styles in light and dark, the edit field matching each label style, node selection, keyboard edits, arrow navigation, folding, undo and redo, clipboard copy, cut, and paste, node dragging with its drop indicator, move keys, theme state, read-only rendering, new empty file editing, editor errors, wheel gestures, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
 
 ## Demo recordings
 

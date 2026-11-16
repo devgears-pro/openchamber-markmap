@@ -34,6 +34,20 @@ const center = async (page: Page, label: string): Promise<{ x: number; y: number
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+const nodeBoxOf = async (
+  page: Page,
+  label: string,
+): Promise<{ x: number; y: number; width: number; height: number }> =>
+  page.evaluate((wanted) => {
+    const text = [...document.querySelectorAll('.mm-markmap-svg text')].find(
+      (element) => element.textContent.trim() === wanted,
+    );
+    const group = text?.closest('g[data-key^="node:"]');
+    if (!group) throw new Error(`No node box for ${wanted}`);
+    const rect = group.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }, label);
+
 const startDrag = async (page: Page, label: string): Promise<{ x: number; y: number }> => {
   const from = await center(page, label);
   await page.mouse.move(from.x, from.y);
@@ -900,7 +914,7 @@ test('[R-30] drags a branch to a new order', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   await startDrag(page, 'Editor');
-  const target = await boxOf(page, 'Search');
+  const target = await nodeBoxOf(page, 'Search');
   await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, { steps: 8 });
 
   await expect(page.locator('.mm-editor-drop')).toHaveClass(/mm-editor-drop-line/u);
