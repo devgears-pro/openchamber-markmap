@@ -208,6 +208,49 @@ test('[R-32] matches the edit field to root, topic and detail labels', async ({ 
   }
 });
 
+test('[R-32] keeps the edit field aligned after zoom', async ({ page }) => {
+  await page.goto('/dev/?map=showcase&theme=light');
+  await labelLocator(page, 'Map editor').click();
+  await page.keyboard.press(' ');
+  await page.mouse.move(900, 400);
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, -200);
+  await page.keyboard.up('Control');
+
+  const geometry = await page.evaluate(() => {
+    const input = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    const selected = document.querySelector('.mm-editor-selected');
+    const label = selected?.querySelector('text');
+    if (!input || !label) throw new Error('Missing editor geometry');
+    const style = getComputedStyle(input);
+    const scale = new DOMMatrix(style.transform).a;
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Missing canvas context');
+    context.font = style.font;
+    const textWidth = context.measureText(input.value).width;
+    const inputRect = input.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const contentWidth =
+      input.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const offset = style.textAlign === 'center' ? (contentWidth - textWidth) / 2 : 0;
+    return {
+      scale,
+      fontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      textAlign: style.textAlign,
+      textStart: inputRect.x + (parseFloat(style.paddingLeft) + offset) * scale,
+      labelStart: labelRect.x,
+    };
+  });
+
+  expect(geometry.scale).toBeGreaterThan(1);
+  expect(geometry.fontSize).toBe('14px');
+  expect(geometry.fontWeight).toBe('400');
+  expect(geometry.textAlign).toBe('left');
+  expect(Math.abs(geometry.textStart - geometry.labelStart)).toBeLessThanOrEqual(2);
+});
+
 test('[R-32] uses the soft theme in the chat block', async ({ page }) => {
   for (const url of ['/dev/block.html?theme=light', '/dev/block.html']) {
     await page.goto(url);
