@@ -57,9 +57,9 @@ Design the cases before writing the first failing test. List the behaviors, the 
 
 Playwright starts the Vite harness and opens `/dev/`. It asserts on the rendered SVG, the Markmap toolbar, node selection, keyboard edits, arrow navigation, folding, undo and redo, clipboard copy, cut, and paste, node dragging with its drop indicator, move keys, theme state, read-only rendering, new empty file editing, editor errors, wheel gestures, and accessible names. Screenshots are optional evidence for a report; the gate uses DOM assertions, not pixel diffs.
 
-## Demo GIFs
+## Demo recordings
 
-When a presentation needs a GIF, use a throwaway Playwright spec. Typical cases are editing, keyboard, pan and zoom, markers, folding, and drag.
+A presentation uses a 3-6 second GIF. A milestone demo stays one video across the release features. Record both with a throwaway Playwright spec; typical cases are editing, keyboard, pan and zoom, markers, folding, and drag.
 
 Use the spec with a video:
 
@@ -73,7 +73,7 @@ test.use({
 });
 ```
 
-Keep the scenario to 3-6 seconds and pause between actions. The video is written after the context closes. Convert the WebM:
+Keep a presentation to 3-6 seconds and pause between actions. The video is written after the context closes. For a presentation GIF, convert the WebM:
 
 ```bash
 ffmpeg -y -i <video>.webm \
