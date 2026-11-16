@@ -18,16 +18,24 @@ const layoutNameOf = (layout: ViewOptions['layout']): MarkmapLayout => {
   return 'two-sided';
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 export const optionsFor = (
   colorScheme: MarkmapColorScheme,
   frontmatter: Record<string, unknown>,
 ): ResolvedView => {
+  const mapOptions = isRecord(frontmatter['markmap']) ? frontmatter['markmap'] : {};
+  const themeName = mapOptions['theme'];
+  const softDefault =
+    themeName !== 'classic' && themeName !== 'cards' && themeName !== 'minimal';
   const base: ViewOptions = {
     duration: 0,
     fitPadding: 24,
     fitMaxScale: 1,
     layout: layoutFor('two-sided'),
     theme: softTheme,
+    ...(softDefault ? { siblingGap: 14, levelGap: 110 } : {}),
   };
   const resolved = resolveViewOptions(base, frontmatter['markmap'], {
     layouts: builtinLayouts,

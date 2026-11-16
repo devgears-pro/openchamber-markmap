@@ -1070,6 +1070,7 @@ var BRANCH_EDGE_WIDTH = 1.5;
 var LEAF_UNDERLINE = 1.5;
 var TOGGLE_RADIUS = 6;
 var LEAF_BASELINE_INSET = 3;
+var CHILD_EDGE_CURVE = .75;
 var darkBranchTokens = Object.fromEntries(DARK_COLORS.map((color, index) => [`mm-branch-${index}`, color]));
 var label = (depth) => {
 	if (depth === 0) return {
@@ -1116,6 +1117,13 @@ function taperedCurve(from, to, startWidth, endWidth) {
 		right.push(`${x - offsetX},${y - offsetY}`);
 	}
 	return `M${left.join("L")}L${right.reverse().join("L")}Z`;
+}
+function childCurve(from, to) {
+	const vertical = from.side === "top" || from.side === "bottom";
+	const dx = to.x - from.x;
+	const dy = to.y - from.y;
+	if (vertical) return `M${from.x},${from.y}C${from.x},${from.y + dy * CHILD_EDGE_CURVE},${to.x},${to.y - dy * CHILD_EDGE_CURVE},${to.x},${to.y}`;
+	return `M${from.x},${from.y}C${from.x + dx * CHILD_EDGE_CURVE},${from.y},${to.x - dx * CHILD_EDGE_CURVE},${to.y},${to.x},${to.y}`;
 }
 function createSoftTheme(options = {}) {
 	const withDefaults = {
@@ -1242,7 +1250,7 @@ function createSoftTheme(options = {}) {
 			fill: colorOf(ctx.node.path, ctx.node.branch)
 		}] : [{
 			kind: "path",
-			d: sCurve(from, to),
+			d: childCurve(from, to),
 			stroke: colorOf(ctx.node.path, ctx.node.branch),
 			strokeWidth: BRANCH_EDGE_WIDTH
 		}] }

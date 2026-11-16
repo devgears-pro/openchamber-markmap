@@ -292,6 +292,8 @@ describe('Markmap adapter', () => {
         fitMaxScale: 1,
         layout: layoutFor('two-sided'),
         theme: softTheme,
+        siblingGap: 14,
+        levelGap: 110,
       },
       undefined,
       { layouts: builtinLayouts, themes: builtinThemes },
