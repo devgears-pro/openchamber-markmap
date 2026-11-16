@@ -5,7 +5,7 @@
 
 An OpenChamber file editor for Markmap Markdown. Open a `.markmap.md` file in Files and the outline becomes a mind map you can edit in place. Click a node, press Enter or Tab, type. The Markdown file stays the source of truth for Git, agents, and every other editor.
 
-This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, toolbar, and themes. The editable fork adds the model, commands, and overlay editor that make the diagram editable in OpenChamber.
+This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, and toolbar. The editable fork adds the model, commands, overlay editor, and the soft theme that make the diagram editable in OpenChamber.
 
 Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
 
