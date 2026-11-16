@@ -228,6 +228,44 @@ function headingsToList(text, indent, unit, ending) {
 		return listContinuationLine(line, owner, base);
 	}).join(ending);
 }
+function listToHeadings(text, level, ending) {
+	const { document } = parseDocument(text);
+	const root = document.nodes.get(document.root);
+	if (!root) throw new EditError("E_SHAPE", "The moved text has no root");
+	const tops = (root.block ? [root] : root.children.map((id) => document.nodes.get(id))).filter((node) => node !== void 0 && Boolean(node.block));
+	if (!tops.length || tops.some((node) => node.kind !== "listItem")) throw new EditError("E_SHAPE", "The moved text is not a list");
+	const depths = /* @__PURE__ */ new Map();
+	const visit = (node, depth) => {
+		depths.set(node.id, depth);
+		for (const id of node.children) {
+			const child = document.nodes.get(id);
+			if (child) visit(child, depth + 1);
+		}
+	};
+	for (const top of tops) visit(top, 0);
+	let offset = 0;
+	return text.split(ending).map((line) => {
+		const start = offset;
+		offset += line.length + ending.length;
+		if (!line.trim()) return line;
+		const owner = nodeAtOffset(document, start);
+		const depth = owner ? depths.get(owner.id) : void 0;
+		if (!owner || depth === void 0) return line;
+		const target = level + depth;
+		if (target < 1 || target > 6) throw new EditError("E_LEVEL", "Heading level cannot exceed six", owner.id);
+		if (owner.block?.start === start) {
+			const match = /^([ \t]*)([-+*]|\d{1,9}[.)])(?:[ \t]+|$)(\[[ xX]\][ \t]+)?/.exec(line);
+			if (!match) return line;
+			return `${"#".repeat(target)} ${line.slice(match[0].length)}`;
+		}
+		const list = owner.list;
+		if (!list) return line;
+		const prefix = /^[ \t]*/.exec(line)?.[0] ?? "";
+		const base = list.indent.length + list.marker.length + 1;
+		const relative = Math.max(0, prefix.length - base);
+		return `${" ".repeat(relative)}${line.slice(prefix.length)}`;
+	}).join(ending);
+}
 function reindentList(text, delta, ending) {
 	if (delta === 0) return text;
 	if (delta > 0) {
@@ -298,6 +336,7 @@ function planCommand(doc, command) {
 		case "insertBlock": return planInsertBlock(doc, node, command.text);
 		case "delete": return planDelete(doc, node);
 		case "outdent": return planOutdent(doc, node);
+		case "move": return planMove(doc, node, command.parent, command.index);
 		case "toggleCheck": return planToggleCheck(doc, node);
 	}
 }
@@ -672,6 +711,151 @@ function planOutdent(doc, node) {
 			const found = nodeByLabelStart(next, selection);
 			if (!found || found.parent !== grand.id) throw shape("The outdented node has the wrong parent");
 			if (!found.label || labelText(doc, node) !== next.source.slice(found.label.start, found.label.end)) throw shape("The outdented label changed");
+		}
+	};
+}
+function childHeadingLevel(parent) {
+	if (parent.kind === "root") return parent.block ? parent.level + 1 : 1;
+	return parent.level + 1;
+}
+function childListIndent(doc, parent) {
+	if (parent.kind === "listItem") return childIndent(doc, parent);
+	for (const id of parent.children) {
+		const child = doc.nodes.get(id);
+		if (child?.kind === "listItem" && child.list) return child.list.indent;
+	}
+	return "";
+}
+function trimBlockEdges(block, ending) {
+	const lines = block.split(ending);
+	while (!lines[0]?.trim()) lines.shift();
+	while (!lines[lines.length - 1]?.trim()) lines.pop();
+	return lines.join(ending);
+}
+function cutForMove(source, node, block) {
+	const cut = cutRange(source, block);
+	if (node.kind !== "listItem") return cut;
+	if (cut.end >= source.length) {
+		const start = lineStart(source, cut.start);
+		if (start === 0) return cut;
+		const previous = lineStart(source, start - 1);
+		if (!source.slice(previous, start).trim()) return {
+			start: previous,
+			end: cut.end
+		};
+		return cut;
+	}
+	const end = lineEnd(source, cut.end);
+	if (source.slice(cut.end, end).trim()) return cut;
+	return {
+		start: cut.start,
+		end: end + newlineLengthAt(source, end)
+	};
+}
+function hasBlankBefore(source, position) {
+	return /(?:\r?\n)[ \t]*(?:\r?\n)$/u.test(source.slice(0, position));
+}
+function nextTextStartsWithHeading(source, position) {
+	const rest = source.slice(position).replace(/^(?:[ \t]*(?:\r\n|\n))*/u, "");
+	return /^#{1,6}(?:[ \t]|$)/u.test(rest);
+}
+function isInSubtree(doc, ancestorId, id) {
+	let cursor = doc.nodes.get(id);
+	while (cursor) {
+		if (cursor.id === ancestorId) return true;
+		cursor = cursor.parent ? doc.nodes.get(cursor.parent) : void 0;
+	}
+	return false;
+}
+function planMove(doc, node, parentId, index) {
+	requireCapability(node, "move");
+	if (node.opaque || node.kind === "opaque" || !node.block) throw new EditError("E_CAPABILITY", "The node cannot be moved", node.id);
+	const parent = nodeOf(doc, parentId);
+	if (parent.opaque || parent.kind === "opaque" || !parent.capabilities.addChild) throw new EditError("E_CAPABILITY", "The target cannot hold a child", parent.id);
+	if (isInSubtree(doc, node.id, parent.id)) throw new EditError("E_CYCLE", "A node cannot move under its own subtree", node.id);
+	if (!Number.isInteger(index) || index < 0) throw new EditError("E_SHAPE", "The move index is invalid", node.id);
+	const siblings = parent.children.filter((id) => id !== node.id);
+	if (index > siblings.length) throw new EditError("E_SHAPE", "The move index is outside the target", node.id);
+	if (node.parent === parent.id && parent.children.indexOf(node.id) === index) return {
+		edits: [],
+		selection: {
+			kind: "source",
+			offset: node.label?.start ?? node.block.start
+		},
+		verify() {}
+	};
+	const list = node.list;
+	if (node.kind === "listItem" && !list) throw shape("The list item has no list info");
+	const previous = index > 0 ? doc.nodes.get(siblings[index - 1]) : void 0;
+	const next = index < siblings.length ? doc.nodes.get(siblings[index]) : void 0;
+	const ending = lineEnding(doc.source);
+	const block = doc.source.slice(node.block.start, node.block.end);
+	let moved;
+	if (node.kind === "heading") {
+		if (parent.kind === "listItem") moved = headingsToList(block, childIndent(doc, parent), doc.unit, ending);
+		else moved = shiftHeadings(block, childHeadingLevel(parent) - node.level, ending);
+	} else if (node.kind === "listItem" && list) {
+		if (parent.kind === "listItem") moved = reindentList(block, childListIndent(doc, parent).length - list.indent.length, ending);
+		else if (previous?.kind === "heading") {
+			if (labelText(doc, node).includes("\n")) throw new EditError("E_LABEL", "A heading label cannot contain a line break", node.id);
+			moved = listToHeadings(block, childHeadingLevel(parent), ending);
+		} else moved = reindentList(block, childListIndent(doc, parent).length - list.indent.length, ending);
+	} else throw new EditError("E_CAPABILITY", "The node cannot be moved", node.id);
+	let position;
+	if (next?.block) position = next.block.start;
+	else if (previous?.block) position = previous.block.end + newlineLengthAt(doc.source, previous.block.end);
+	else if (parent.block) position = parent.block.end + newlineLengthAt(doc.source, parent.block.end);
+	else position = doc.source.length;
+	const cut = cutForMove(doc.source, node, node.block);
+	let gapEnd = position;
+	while (gapEnd < doc.source.length) {
+		const end = lineEnd(doc.source, gapEnd);
+		if (doc.source.slice(gapEnd, end).trim()) break;
+		gapEnd = end + newlineLengthAt(doc.source, end);
+	}
+	if (position < cut.end && gapEnd > cut.start) gapEnd = cut.start;
+	const gap = gapEnd - position;
+	let text = trimBlockEdges(moved, ending);
+	const startsHeading = /^#{1,6}(?:[ \t]|$)/u.test(text);
+	const blankBefore = gap === 0 && hasBlankBefore(doc.source, position);
+	let leading = 0;
+	if (startsHeading && parent.kind !== "listItem" && !blankBefore) {
+		text = ending + text;
+		leading = ending.length;
+	}
+	const afterCut = gapEnd >= cut.start && gapEnd <= cut.end ? cut.end : gapEnd;
+	if (afterCut < doc.source.length && nextTextStartsWithHeading(doc.source, afterCut)) text += ending + ending;
+	const before = position === cut.end ? cut.start - 1 : position - 1;
+	const atLineStart = before < 0 || doc.source[before] === "\n";
+	const following = gapEnd < doc.source.length || gapEnd === doc.source.length && doc.source.endsWith(ending);
+	const placed = placeBlock(text, ending, atLineStart, following);
+	return {
+		edits: [{
+			from: cut.start,
+			to: cut.end,
+			insert: ""
+		}, gap > 0 ? {
+			from: position,
+			to: gapEnd,
+			insert: placed.insert
+		} : {
+			from: position,
+			to: position,
+			insert: placed.insert
+		}],
+		selection: {
+			kind: "insert",
+			edit: 1,
+			offset: placed.leading + leading + firstLineMarker(moved)
+		},
+		verify(nextDoc, selection) {
+			if (nextDoc.nodes.size !== doc.nodes.size) throw shape("The move changed the node count");
+			const target = nextDoc.nodes.get(parent.id);
+			if (!target) throw shape("The target parent is missing");
+			const found = nodeByLabelStart(nextDoc, selection);
+			if (!found || found.parent !== parent.id) throw shape("The moved node has the wrong parent");
+			if (target.children.indexOf(found.id) !== index) throw shape("The moved node has the wrong order");
+			if (!found.label || labelText(doc, node) !== nextDoc.source.slice(found.label.start, found.label.end)) throw shape("The moved label changed");
 		}
 	};
 }

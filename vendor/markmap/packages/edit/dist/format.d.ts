@@ -22,4 +22,5 @@ export declare function dedentHeadings(doc: Document, node: EditNode, delta: num
 export declare function firstLineMarker(text: string): number;
 export declare function shiftHeadings(text: string, delta: number, ending: string): string;
 export declare function headingsToList(text: string, indent: string, unit: string, ending: string): string;
+export declare function listToHeadings(text: string, level: number, ending: string): string;
 export declare function reindentList(text: string, delta: number, ending: string): string;

@@ -106,6 +106,14 @@ An editable map opens a notes panel for the selected node from a labelled Edit n
 
 The notes panel, its formatting controls, and the full map toolbar use the host light or dark theme tokens. The notes panel remains legible in both themes and never falls back to a white surface in dark mode. Toolbar icons for map controls, layouts, markers, notes, and note formatting use consistent outline SVGs. The layout symbols are one family of smooth curved branch diagrams whose direction conveys the layout: one-sided branches for tree, mirrored branches for two-sided, and top-to-bottom branches for org chart. The top map toolbar renders 16 px icons with 1.5 px round strokes in 28 px hit targets, uses a muted inactive color, and keeps grouped controls apart with spacing and a rule. Accessible names, keyboard behavior, and actions remain unchanged; no icon dependency is added.
 
+### R-28 Pointer move
+
+An editable map moves a branch by dragging a node. A press that moves 4 px starts a drag; a shorter press stays a click. The node and its whole subtree lift and follow the pointer while the map keeps its layout, and the map re-lays out once on drop. The top quarter of a target inserts before it, the bottom quarter after it, and the middle makes the branch the last child. A gap between branches targets that gap. One indicator shows at a time: a 2 px accent line for order and a rounded accent frame for a child drop. The node itself, its descendants, the root and nodes without an editable structure show no indicator, and the release snaps back. A folded target expands after 400 ms, and a cancelled drag restores the fold. Within 60 px of the stage edge the map auto-pans. Escape, a pointer cancel or a release over empty space cancels. After a drop the moved node stays selected and in view. A move is one history entry, and undo restores the exact bytes and the fold state. A read-only map has no drag. Touch pointers stay with the map gestures.
+
+### R-29 Keyboard move
+
+Cmd/Ctrl+Shift+Up and Down move the selected node among its siblings, Left makes it the last child of the previous sibling, and Right moves it after its parent. The pointer path's move command, notices, history and level changes apply. A boundary move changes nothing, an impossible move shows a notice and leaves the file unchanged, and a read-only map has no move keys.
+
 ### R-23 Chat block manifest
 
 The package declares one `contributes.blocks` entry named `Mindmap`. Its description names Markmap, and the one argument is `markdown`. The entry is the chat page, the default height is 480 px, and the block declares no `answers`. It parses with the OpenChamber manifest schema.
@@ -145,3 +153,5 @@ An active extension draws a `Mindmap(markdown: string)` call from an assistant r
 | R-25        | `tests/bundle.test.ts`                                                                                                    |
 | R-26        | `tests/notes-menu.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`, `tests/clipboard.test.ts`, acceptance      |
 | R-27        | `tests/toolbar.test.ts`, `tests/layout-menu.test.ts`, `tests/marker-menu.test.ts`, `tests/notes-menu.test.ts`, acceptance |
+| R-28        | `tests/acceptance/markmap.spec.ts`                                                                                        |
+| R-29        | `tests/acceptance/markmap.spec.ts`                                                                                        |
