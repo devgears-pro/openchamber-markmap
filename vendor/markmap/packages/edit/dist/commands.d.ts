@@ -32,6 +32,11 @@ export type Command = {
     type: 'outdent';
     node: string;
 } | {
+    type: 'move';
+    node: string;
+    parent: string;
+    index: number;
+} | {
     type: 'toggleCheck';
     node: string;
 };

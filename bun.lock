@@ -57,6 +57,10 @@
         "@markmap/edit": "workspace:*",
         "@markmap/model": "workspace:*",
         "@markmap/view": "1.1.1",
+        "d3-selection": "^3.0.1",
+      },
+      "devDependencies": {
+        "@types/d3-selection": "^3.0.12",
       },
     },
     "vendor/markmap/packages/model": {

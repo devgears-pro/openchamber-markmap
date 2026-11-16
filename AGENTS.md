@@ -15,6 +15,8 @@ Read these before changing code, in this order:
 
 Read the full issue and comments, not only the title. If a file, issue, or decision is missing, say what is missing before you act.
 
+Keep `AGENTS.md` to agent-specific rules and pointers. Keep product contracts and workflows in their canonical `docs/` files, and link to them instead of repeating them here.
+
 ## Commands
 
 ```bash
@@ -39,7 +41,7 @@ bunx openchamber-guest-check
 - `src/main.ts`: `connectHost()` and mount.
 - `src/app.ts`: host wiring, save tracking, snapshot, theme updates, lifecycle.
 - `src/chat/block.ts`: host wiring for the read-only chat block: the `onBlock` call, theme updates, notice, and teardown.
-- `src/markmap/view.ts`: the only editor module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and keyboard editor, and destroys them.
+- `src/markmap/view.ts`: the only editor module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and editor, and destroys them.
 - `src/markmap/preview.ts`: the read-only Markmap for the chat block; shares the view options with the editor.
 - `src/ui/styles.ts`, `src/chat/styles.ts`: injected stylesheets, host tokens only.
 - `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
@@ -66,6 +68,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`. Notes use the fork's panel and one `markmap-note` fenced block under the node; the dot popover stays read-only.
 - Unmodified wheel events pan by screen pixels, coalesced once per animation frame; line/page deltas use 40/800, and Shift maps vertical to horizontal. Cmd/Ctrl + wheel zooms with clamped deltas. The custom gesture layer is in `src/markmap/gestures.ts`.
 - A node click selects the node, draws the selection frame, highlights its SVG group, and focuses the editor surface. Enter and Tab act on the selection.
+- A node drag lives in the fork: a 4 px press lifts a clone of the subtree, one line or one frame shows the drop, and the drop runs one `move` command and one history entry. Escape and empty space cancel. No touch drag, no HTML5 drag and drop, no coordinates in the file.
 - An empty editable document accepts a first heading. Typing on an empty selected node enters editing with the first character; a non-empty selected node remains selection-only. The editor writes the heading marker only when a label is committed; an empty file stays byte-for-byte unchanged until then. A read-only empty file stays blank.
 - New nodes use a zero-width placeholder, passed as `placeholder: '\u200B'`. A truly empty nested list item is dropped by the parser.
 - Destroy the editor, Markmap view, toolbar, listeners, and DOM on file change and dispose.

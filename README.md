@@ -21,6 +21,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
 - **Copy and paste.** Cmd/Ctrl+C and X take the selected subtree with its notes and markers, and Cmd/Ctrl+V puts a copy back as the last child of the selection. Headings renumber and list items reindent to the new depth.
+- **Move a branch.** Drag a node to a new parent or a new place among its siblings. The subtree lifts with the pointer, a line or frame shows where it lands, and the map re-lays out once on drop. Escape cancels, undo is one step, and Cmd/Ctrl+Shift+arrow keys move a branch without the mouse.
 - **Notes.** The note dot opens the rendered note. The Edit notes button opens a Markdown panel, and a note is one `markmap-note` fenced block under the node, so lists and headings stay inside it. Paragraph notes from other tools convert to a block on the first edit.
 - **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
 - **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
@@ -67,29 +68,13 @@ Requirements: an OpenChamber release with file editors, on desktop or web. File 
 2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
 3. There are no capabilities to approve; the host hands the editor one file at a time.
 
-Stable:
+Stable: [https://github.com/mmospanenko/openchamber-markmap](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap)
 
-```text
-https://github.com/mmospanenko/openchamber-markmap
-```
+Preview: [https://github.com/mmospanenko/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23dev)
 
-Preview:
-
-```text
-https://github.com/mmospanenko/openchamber-markmap#dev
-```
-
-Pinned release:
-
-```text
-https://github.com/mmospanenko/openchamber-markmap#vX.Y.Z
-```
+Pinned release: [https://github.com/mmospanenko/openchamber-markmap#vX.Y.Z](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23vX.Y.Z)
 
 Replace `X.Y.Z` with a tag from the Releases page.
-
-```text
-openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap
-```
 
 The preview follows the `dev` branch. CI bumps its `version` on every push, so **Check for updates** sees it, and it may break. It replaces the stable install because both use the same extension id; remove it and add the plain URL to return to stable. A pinned tag stays on that tag.
 
@@ -114,30 +99,36 @@ A normal `*.md` file stays in OpenChamber's source editor.
 
 ## Keyboard and gestures
 
-| Action                   | Input                              |
-| ------------------------ | ---------------------------------- |
-| Select a node            | Click it                           |
-| Edit the label           | Space or a double click            |
-| Edit an empty node       | Type a printable key               |
-| Add a sibling            | Enter in selection mode            |
-| Commit and exit editing  | Enter while editing                |
-| Add a child              | Tab in selection mode              |
-| Commit and add a child   | Tab while editing                  |
-| Outdent                  | Shift+Tab                          |
-| Delete a subtree         | Delete or Backspace                |
-| Copy a subtree           | Cmd/Ctrl + C                       |
-| Cut a subtree            | Cmd/Ctrl + X                       |
-| Paste as a child         | Cmd/Ctrl + V                       |
-| Move the selection       | Arrow keys                         |
-| Fold or unfold a subtree | Cmd/Ctrl + /                       |
-| Undo or redo             | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
-| Cancel editing           | Escape                             |
-| Pan                      | Scroll or a trackpad surface       |
-| Zoom around the pointer  | Cmd/Ctrl + scroll                  |
-| Fit, zoom in, zoom out   | Markmap toolbar                    |
-| Switch layout            | Layout buttons in the toolbar      |
+| Action                               | Input                              |
+| ------------------------------------ | ---------------------------------- |
+| Select a node                        | Click it                           |
+| Edit the label                       | Space or a double click            |
+| Edit an empty node                   | Type a printable key               |
+| Add a sibling                        | Enter in selection mode            |
+| Commit and exit editing              | Enter while editing                |
+| Add a child                          | Tab in selection mode              |
+| Commit and add a child               | Tab while editing                  |
+| Outdent                              | Shift+Tab                          |
+| Delete a subtree                     | Delete or Backspace                |
+| Copy a subtree                       | Cmd/Ctrl + C                       |
+| Cut a subtree                        | Cmd/Ctrl + X                       |
+| Paste as a child                     | Cmd/Ctrl + V                       |
+| Move the selection                   | Arrow keys                         |
+| Move a branch by mouse               | Drag a node                        |
+| Move among siblings                  | Cmd/Ctrl + Shift + Up or Down      |
+| Make a child of the previous sibling | Cmd/Ctrl + Shift + Left            |
+| Move after the parent                | Cmd/Ctrl + Shift + Right           |
+| Fold or unfold a subtree             | Cmd/Ctrl + /                       |
+| Undo or redo                         | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
+| Cancel editing                       | Escape                             |
+| Pan                                  | Scroll or a trackpad surface       |
+| Zoom around the pointer              | Cmd/Ctrl + scroll                  |
+| Fit, zoom in, zoom out               | Markmap toolbar                    |
+| Switch layout                        | Layout buttons in the toolbar      |
 
 After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
+
+Dragging a node lifts its subtree. The top or bottom quarter of another node places it before or after, the middle makes it the last child, and a gap between branches targets that gap. A folded target opens after a short hover, and the map pans near the edge. Dropping on empty space or pressing Escape returns the branch. The file stays plain Markdown, headings and list items change level as needed, and a move is one undo step.
 
 Paste puts a copy last under the selected node. Headings renumber to the child depth and list items reindent; a heading pasted under a list item becomes a list item with its descendants. A level beyond six leaves the file unchanged with a notice. A root that comes from frontmatter `title` copies as a heading with every child block. Text copied outside the map becomes one child label with line breaks collapsed. Copy, cut, and paste use DOM clipboard events in the editor frame, so they need no host clipboard permission. Native copy and paste inside an open label field stay unchanged.
 

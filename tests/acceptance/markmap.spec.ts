@@ -1,6 +1,40 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+declare global {
+  interface Window {
+    __devSnapshot?: string;
+  }
+}
 
 const scaleOf = (transform: string): number => Number(/scale\(([^)]+)\)/u.exec(transform)?.[1]);
+
+const markdownOf = async (page: Page): Promise<string> => {
+  await page.evaluate(() => window.dispatchEvent(new Event('dev-file-snapshot')));
+  await expect.poll(() => page.evaluate(() => window.__devSnapshot)).toBeDefined();
+  return (await page.evaluate(() => window.__devSnapshot)) ?? '';
+};
+
+const boxOf = async (
+  page: Page,
+  label: string,
+): Promise<{ x: number; y: number; width: number; height: number }> => {
+  const box = await page.getByText(label, { exact: true }).first().boundingBox();
+  if (!box) throw new Error(`No box for ${label}`);
+  return box;
+};
+
+const center = async (page: Page, label: string): Promise<{ x: number; y: number }> => {
+  const box = await boxOf(page, label);
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+};
+
+const startDrag = async (page: Page, label: string): Promise<{ x: number; y: number }> => {
+  const from = await center(page, label);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 8, from.y + 2, { steps: 2 });
+  return from;
+};
 
 test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) => {
   await page.goto('/dev/');
@@ -840,6 +874,94 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
   await page.getByText('Links', { exact: true }).first().click();
   await page.keyboard.press('Space');
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+});
+
+test('[R-28] drags a branch to a new parent', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const before = await markdownOf(page);
+  await startDrag(page, 'Search');
+  const target = await center(page, 'Interaction design');
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+
+  await expect(page.locator('.mm-editor-drag-ghost')).toHaveCount(1);
+  await expect(page.locator('.mm-editor-drop')).toHaveClass(/mm-editor-drop-frame/u);
+  await page.mouse.up();
+
+  const after = await markdownOf(page);
+  expect(after).not.toBe(before);
+  const design = after.split('## Interaction design\n')[1]?.split('\n## ')[0] ?? '';
+  expect(design).toContain('- Navigation');
+  expect(design).toContain('- Empty states');
+  expect(design).toContain('- Search');
+  await expect(page.locator('.mm-editor-selected')).toContainText('Search');
+});
+
+test('[R-28] drags a branch to a new order', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  await startDrag(page, 'Editor');
+  const target = await boxOf(page, 'Search');
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, { steps: 8 });
+
+  await expect(page.locator('.mm-editor-drop')).toHaveClass(/mm-editor-drop-line/u);
+  await page.mouse.up();
+
+  const after = await markdownOf(page);
+  expect(after.indexOf('- Search')).toBeLessThan(after.indexOf('- Editor'));
+});
+
+test('[R-28] cancels a drag with Escape', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const before = await markdownOf(page);
+  await startDrag(page, 'Search');
+  const target = await center(page, 'Interaction design');
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+  await page.keyboard.press('Escape');
+  await page.mouse.up();
+
+  expect(await markdownOf(page)).toBe(before);
+  await expect(page.locator('.mm-editor-drag-ghost')).toHaveCount(0);
+});
+
+test('[R-28] undoes a drag as one change', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  await startDrag(page, 'Search');
+  const target = await center(page, 'Interaction design');
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+  await page.mouse.up();
+  expect(await markdownOf(page)).not.toBe(before);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-29] moves a branch with the keyboard', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.getByText('Search', { exact: true }).first().click();
+
+  await page.keyboard.press(`${modifier}+Shift+ArrowUp`);
+  const after = await markdownOf(page);
+  expect(after.indexOf('- Search')).toBeLessThan(after.indexOf('- Editor'));
+});
+
+test('[R-28] has no drag on a read-only map', async ({ page }) => {
+  await page.goto('/dev/?map=move&readonly=1');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const before = await markdownOf(page);
+  await startDrag(page, 'Search');
+  const target = await center(page, 'Interaction design');
+  await page.mouse.move(target.x, target.y, { steps: 8 });
+
+  await expect(page.locator('.mm-editor-drag-ghost')).toHaveCount(0);
+  await page.mouse.up();
+  expect(await markdownOf(page)).toBe(before);
 });
 
 test('[R-16] opens a new empty file with an editable first node', async ({ page }) => {
