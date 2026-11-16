@@ -10,5 +10,9 @@ export interface ParseResult {
     frontmatter: Record<string, unknown>;
     /** Whether GFM was applied. It is skipped when the browser cannot run it, see `parseMdast`. */
     gfm: boolean;
+    /** Whether a non-empty frontmatter title exists. A promoted body heading still wins for the root label. */
+    hasTitle: boolean;
+    /** First offset after frontmatter, or the source length when the body is empty. */
+    bodyStart: number;
 }
 export declare function parse(markdown: string, options?: ParseOptions): ParseResult;

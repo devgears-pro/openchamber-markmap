@@ -1,4 +1,4 @@
-import type { Document, EditNode } from './types';
+import type { Document, EditNode, NoteRange } from './types';
 export declare function lineStart(source: string, offset: number): number;
 export declare function lineEnd(source: string, offset: number): number;
 export declare function firstLine(source: string, offset: number): string;
@@ -7,4 +7,5 @@ export declare const LIST_MARKER: RegExp;
 export declare const HEADING_MARKER: RegExp;
 export declare function contentIndent(node: EditNode): string;
 export declare function normalizeNoteText(text: string): string;
+export declare function noteText(doc: Document, node: EditNode, note: NoteRange): string;
 export declare function notesText(doc: Document, node: EditNode): string;

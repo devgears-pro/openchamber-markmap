@@ -19,6 +19,7 @@ Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-mar
 - **Canvas navigation.** The map opens at 100% by default; a larger map is fitted to the window, and `fitMaxScale` in frontmatter can change the cap. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
 - **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
 - **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
+- **Root from the file.** A single top-level heading becomes the center of the map at H1-H6 even when frontmatter has a `title`; the title is the fallback center only when no such heading exists. When the center has no body heading, typing a label adds one H1 above the existing branches. A title center with heading children and an existing top-level H1 refuse that change and show a notice.
 - **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
 - **Copy and paste.** Cmd/Ctrl+C and X take the selected subtree with its notes and markers, and Cmd/Ctrl+V puts a copy back as the last child of the selection. Headings renumber and list items reindent to the new depth.
 - **Move a branch.** Drag a node to a new parent or a new place among its siblings. The subtree lifts with the pointer, a line or frame shows where it lands, and the map re-lays out once on drop. Escape cancels, undo is one step, and Cmd/Ctrl+Shift+arrow keys move a branch without the mouse.
@@ -128,7 +129,7 @@ A normal `*.md` file stays in OpenChamber's source editor.
 | Fit, zoom in, zoom out               | Markmap toolbar                    |
 | Switch layout                        | Layout buttons in the toolbar      |
 
-After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
+After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. New branches keep heading markers only at H1 and H2: a child of an H1 becomes H2, a child of an H2-H6 heading becomes a list item, an H1 or H2 sibling stays a heading, and an H3-H6 sibling becomes a list item under the same parent heading. Existing H3-H6 headings stay editable in place. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
 
 Dragging a node lifts its subtree. The top or bottom quarter of another node places it before or after, the middle makes it the last child, and a gap between branches targets that gap. A folded target opens after a short hover, and the map pans near the edge. Dropping on empty space or pressing Escape returns the branch. The file stays plain Markdown, headings and list items change level as needed, and a move is one undo step.
 
@@ -202,7 +203,7 @@ The process is documented in:
 
 Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.
 
-The editable fork is public at <https://github.com/mmospanenko/markmap/tree/feat/editable-model>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes start from upstream Markmap; the fork carries the extensions this editor adds.
+The editable fork is public at <https://github.com/mmospanenko/markmap/tree/dev>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes start from upstream Markmap; the fork carries the extensions this editor adds.
 
 ## License
 

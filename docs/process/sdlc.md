@@ -73,7 +73,7 @@ All work happens in `.worktrees/<name>`, never in the main checkout; agents run 
 
 When the work is done, push the worktree branch and open a PR into `dev`. Merge through GitHub after CI. Do not commit or merge directly into `dev`.
 
-The fork follows the same rule with its integration branch `feat/editable-model`.
+The fork follows the same rule with its integration branch `dev`.
 
 ## Human UI acceptance
 
