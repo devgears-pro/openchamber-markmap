@@ -1069,6 +1069,7 @@ var ROOT_EDGE_END = 1.3;
 var BRANCH_EDGE_WIDTH = 1.5;
 var LEAF_UNDERLINE = 1.5;
 var TOGGLE_RADIUS = 6;
+var LEAF_BASELINE_INSET = 3;
 var darkBranchTokens = Object.fromEntries(DARK_COLORS.map((color, index) => [`mm-branch-${index}`, color]));
 var label = (depth) => {
 	if (depth === 0) return {
@@ -1162,7 +1163,8 @@ function createSoftTheme(options = {}) {
 		node: {
 			padding: [...LEAF_PADDING],
 			textAlign: (ctx) => ctx.depth <= 1 ? "center" : alignFor(ctx.direction),
-			render(_node, box, ctx) {
+			render(node, box, ctx) {
+				if (ctx.depth === 0 && node.content.length === 0) return [];
 				const color = colorOf(ctx.path, ctx.branch);
 				const toggle = ctx.depth === 0 ? "var(--mm-soft-toggle)" : color;
 				const chrome = [];
@@ -1195,7 +1197,7 @@ function createSoftTheme(options = {}) {
 					strokeWidth: 1.2
 				});
 				else {
-					const y = box.height - 3;
+					const y = box.height - LEAF_BASELINE_INSET;
 					chrome.push({
 						kind: "path",
 						d: `M0,${y}H${box.width}`,
@@ -1204,7 +1206,7 @@ function createSoftTheme(options = {}) {
 					});
 				}
 				if (!ctx.hasChildren) return chrome;
-				const anchor = ctx.depth <= 1 ? point(ctx.direction === "left" ? 0 : ctx.direction === "right" ? box.width : box.width / 2, ctx.direction === "top" ? 0 : ctx.direction === "bottom" ? box.height : box.height / 2) : point(ctx.direction === "left" ? 0 : ctx.direction === "right" ? box.width : box.width / 2, ctx.direction === "top" ? 0 : ctx.direction === "bottom" ? box.height : box.height - 3);
+				const anchor = ctx.depth <= 1 ? point(ctx.direction === "left" ? 0 : ctx.direction === "right" ? box.width : box.width / 2, ctx.direction === "top" ? 0 : ctx.direction === "bottom" ? box.height : box.height / 2) : point(ctx.direction === "left" ? 0 : ctx.direction === "right" ? box.width : box.width / 2, ctx.direction === "top" ? 0 : ctx.direction === "bottom" ? box.height : box.height - LEAF_BASELINE_INSET);
 				chrome.push({
 					kind: "rect",
 					x: anchor.x - TOGGLE_RADIUS,
@@ -1220,7 +1222,7 @@ function createSoftTheme(options = {}) {
 			},
 			anchor(rect, side, ctx) {
 				if (side === "left" || side === "right") {
-					const y = ctx.depth <= 1 ? rect.y + rect.height / 2 : rect.y + rect.height - 3;
+					const y = ctx.depth <= 1 ? rect.y + rect.height / 2 : rect.y + rect.height - LEAF_BASELINE_INSET;
 					return {
 						x: side === "left" ? rect.x : rect.x + rect.width,
 						y,
@@ -1811,7 +1813,7 @@ function renderTree(root, options) {
 		const measuredNode = measured.get(item.node.id);
 		let { text } = measuredNode;
 		const align = theme.node.textAlign?.(ctx) ?? "start";
-		if (align !== "start" && text.lines > 1) text = labelLayout(item.node, theme, options, measuredNode.label, align);
+		if (align !== "start" && text.lines > 1) text = labelLayout(item.node, theme, options, measuredNode.label, align, (task) => tasks.push(task));
 		return {
 			node: item.node,
 			parentId: item.parent?.node.id,
@@ -1889,7 +1891,7 @@ function drawState(state, theme) {
 		});
 	}
 	const nodes = state.nodes.map((item) => {
-		const [top, , , left] = item.label.padding;
+		const [top, , , left] = item.label?.padding ?? theme.node.padding;
 		return {
 			kind: "group",
 			key: `node:${item.node.id}`,

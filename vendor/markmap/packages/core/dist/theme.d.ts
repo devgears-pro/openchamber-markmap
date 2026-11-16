@@ -18,7 +18,7 @@ export interface NodeContext {
     direction: Side;
 }
 /** What is known about a node before layout: everything but its direction. */
-export type MeasureContext = Omit<NodeContext, 'direction'>;
+export type MeasureContext = Omit<NodeContext, 'direction' | 'branch'>;
 export interface EdgeContext {
     source: MarkmapNode;
     target: MarkmapNode;

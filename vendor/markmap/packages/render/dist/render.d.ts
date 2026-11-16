@@ -56,7 +56,7 @@ export interface DrawNode extends FrameNode {
     /** Parent in the same state; nodes without one get no edge. */
     parentId?: string;
     text: TextLayout;
-    label: ResolvedLabelStyle;
+    label?: ResolvedLabelStyle;
 }
 /** Everything needed to draw one frame. Parents come before their children. */
 export interface DrawState {

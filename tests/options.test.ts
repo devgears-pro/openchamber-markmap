@@ -24,9 +24,9 @@ describe('map options', () => {
 
   test('[R-32] uses the soft theme by default and keeps explicit themes', () => {
     expect(optionsFor('light', {}).options.theme?.name).toBe('soft');
-    expect(optionsFor('light', { markmap: { theme: 'classic' } }).options.theme?.name).toBe(
-      'classic',
-    );
+    for (const theme of ['classic', 'cards', 'minimal']) {
+      expect(optionsFor('light', { markmap: { theme } }).options.theme?.name).toBe(theme);
+    }
     expect(
       optionsFor('light', { markmap: { color: ['#123456'], colorDepth: 2 } }).options.theme?.tokens[
         'mm-branch-0'

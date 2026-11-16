@@ -125,6 +125,23 @@ test('[R-32] keeps an explicit frontmatter theme', async ({ page }) => {
   expect(widths.every((width) => width < 20)).toBe(true);
 });
 
+test('[R-32] draws the theme in a read-only map', async ({ page }) => {
+  await page.goto('/dev/?map=showcase&readonly=1&theme=light');
+
+  const root = must(await styleOf(page, 'Atlas release'));
+  expect(root).toMatchObject({ fontSize: '20px', fontWeight: '600', fill: 'rgb(255, 255, 255)' });
+  expect((await directRectFills(page, 'Atlas release')).length).toBeGreaterThan(0);
+  await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+});
+
+test('[R-32] keeps an empty read-only file blank', async ({ page }) => {
+  await page.goto('/dev/?map=empty&readonly=1&theme=light');
+
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await expect(page.locator('.mm-markmap-svg g[data-key^="node:"] > rect')).toHaveCount(0);
+  await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+});
+
 test('[R-32] matches the edit field to root, topic and detail labels', async ({ page }) => {
   await page.goto('/dev/?map=showcase&theme=light');
 
