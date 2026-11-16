@@ -1,0 +1,4 @@
+---
+markmap:
+  colorDepth: 2
+---

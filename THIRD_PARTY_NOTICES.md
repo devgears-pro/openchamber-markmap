@@ -4,7 +4,7 @@
 
 ## Markmap
 
-MIT License. Copyright (c) 2020 Gerald. Full text: [`docs/licenses/markmap.txt`](docs/licenses/markmap.txt). The public editable fork at <https://github.com/mmospanenko/markmap/tree/feat/editable-model> and the vendored packages in [`vendor/markmap`](vendor/markmap) use the same license, with a copy in [`vendor/markmap/LICENSE`](vendor/markmap/LICENSE).
+MIT License. Copyright (c) 2020 Gerald. Full text: [`docs/licenses/markmap.txt`](docs/licenses/markmap.txt). The public editable fork at <https://github.com/mmospanenko/markmap/tree/dev> and the vendored packages in [`vendor/markmap`](vendor/markmap) use the same license, with a copy in [`vendor/markmap/LICENSE`](vendor/markmap/LICENSE).
 
 ## d3
 

@@ -14,6 +14,12 @@ const markdownOf = async (page: Page): Promise<string> => {
   return (await page.evaluate(() => window.__devSnapshot)) ?? '';
 };
 
+const snapshotOf = async (page: Page): Promise<string> => {
+  const content = await page.evaluate(() => window.devFileSnapshot());
+  if (content === null) throw new Error('Missing snapshot');
+  return content;
+};
+
 const boxOf = async (
   page: Page,
   label: string,
@@ -343,13 +349,6 @@ test('[R-13] shows an editor error for a line break in a heading', async ({ page
 
   await expect(page.locator('.mm-notice')).toContainText('heading label cannot contain');
   await page.keyboard.press('Escape');
-});
-
-test('[R-13] does not edit a title root from frontmatter', async ({ page }) => {
-  await page.goto('/dev/?map=title');
-  await page.getByText('Root title', { exact: true }).first().dblclick();
-  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
-  await expect(page.locator('.mm-notice')).toContainText('frontmatter');
 });
 
 test('[R-14] pans with the wheel and zooms with the modifier', async ({ page }) => {
@@ -876,7 +875,7 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
 });
 
-test('[R-28] drags a branch to a new parent', async ({ page }) => {
+test('[R-30] drags a branch to a new parent', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   const before = await markdownOf(page);
@@ -897,7 +896,7 @@ test('[R-28] drags a branch to a new parent', async ({ page }) => {
   await expect(page.locator('.mm-editor-selected')).toContainText('Search');
 });
 
-test('[R-28] drags a branch to a new order', async ({ page }) => {
+test('[R-30] drags a branch to a new order', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   await startDrag(page, 'Editor');
@@ -911,7 +910,7 @@ test('[R-28] drags a branch to a new order', async ({ page }) => {
   expect(after.indexOf('- Search')).toBeLessThan(after.indexOf('- Editor'));
 });
 
-test('[R-28] cancels a drag with Escape', async ({ page }) => {
+test('[R-30] cancels a drag with Escape', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   const before = await markdownOf(page);
@@ -925,7 +924,7 @@ test('[R-28] cancels a drag with Escape', async ({ page }) => {
   await expect(page.locator('.mm-editor-drag-ghost')).toHaveCount(0);
 });
 
-test('[R-28] undoes a drag as one change', async ({ page }) => {
+test('[R-30] undoes a drag as one change', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -940,7 +939,7 @@ test('[R-28] undoes a drag as one change', async ({ page }) => {
   expect(await markdownOf(page)).toBe(before);
 });
 
-test('[R-29] moves a branch with the keyboard', async ({ page }) => {
+test('[R-31] moves a branch with the keyboard', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
@@ -951,7 +950,7 @@ test('[R-29] moves a branch with the keyboard', async ({ page }) => {
   expect(after.indexOf('- Search')).toBeLessThan(after.indexOf('- Editor'));
 });
 
-test('[R-28] has no drag on a read-only map', async ({ page }) => {
+test('[R-30] has no drag on a read-only map', async ({ page }) => {
   await page.goto('/dev/?map=move&readonly=1');
   await page.getByRole('button', { name: 'Tree' }).click();
   const before = await markdownOf(page);
@@ -981,4 +980,200 @@ test('[R-16] opens a new empty file with an editable first node', async ({ page 
   await expect(field).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.mm-markmap-svg')).toContainText('First note');
+});
+
+test('[R-28] edits a single H2 root in place and adds a list child', async ({ page }) => {
+  await page.goto('/dev/?map=single-h2');
+  await expect(page.locator('.mm-editor-selected')).toContainText('Plan');
+
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toHaveValue('Plan');
+  await page.keyboard.type(' B');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Tab');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Child');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+
+  expect(await snapshotOf(page)).toBe('## Plan B\n\n- Child\n### Step\n');
+});
+
+test('[R-28] edits a body heading root when frontmatter has a title', async ({ page }) => {
+  await page.goto('/dev/?map=title-single');
+  await expect(page.locator('.mm-editor-selected')).toContainText('Plan');
+  await expect(page.locator('.mm-markmap-svg')).not.toContainText('Root title');
+
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toHaveValue('Plan');
+  await page.keyboard.type(' B');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Escape');
+
+  expect(await snapshotOf(page)).toBe('---\ntitle: Root title\n---\n\n## Plan B\n\n### Step\n');
+});
+
+test('[R-29] creates a root above a titled list-only file', async ({ page }) => {
+  await page.goto('/dev/?map=title-list');
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Plan');
+  await page.keyboard.press('Enter');
+
+  await expect(page.locator('.mm-editor-selected')).toContainText('Plan');
+  expect(await snapshotOf(page)).toBe('---\ntitle: Root title\n---\n\n# Plan\n\n- Alpha\n- Beta\n');
+});
+
+test('[R-28] [R-11] nests heading branches by level', async ({ page }) => {
+  await page.goto('/dev/?map=products');
+  const selected = page.locator('.mm-editor-selected');
+  const field = page.locator('textarea.mm-editor-field');
+  await page.getByText('Products', { exact: true }).first().click();
+
+  await page.keyboard.press('Tab');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('one');
+  await page.keyboard.press('Enter');
+  await expect(selected).toContainText('one');
+
+  await page.keyboard.press('Tab');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('two');
+  await page.keyboard.press('Enter');
+  await expect(selected).toContainText('two');
+
+  await page.keyboard.press('Enter');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('two-one');
+  await page.keyboard.press('Enter');
+  await expect(selected).toContainText('two-one');
+
+  await page.keyboard.press('Tab');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('three');
+  await page.keyboard.press('Enter');
+  await expect(selected).toContainText('three');
+
+  await page.keyboard.press('ArrowLeft');
+  await expect(selected).toContainText('two-one');
+  await page.keyboard.press('ArrowUp');
+  await expect(selected).toContainText('two');
+
+  expect(await snapshotOf(page)).toBe(
+    '# Products\n\n- A\n- B\n## one\n- two\n- two-one\n  - three\n',
+  );
+});
+
+test('[R-29] refuses root creation beside a top-level H1', async ({ page }) => {
+  await page.goto('/dev/?map=two-h1');
+  await page.keyboard.press('Space');
+
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-notice')).toContainText('group the document under one H1');
+  expect(await snapshotOf(page)).toBe('# Alpha\n\n# Beta\n');
+});
+
+test('[R-29] [R-13] refuses root creation when a title root has heading children', async ({
+  page,
+}) => {
+  await page.goto('/dev/?map=title-body');
+  await page.getByText('Root title', { exact: true }).first().dblclick();
+
+  await expect(page.locator('textarea.mm-editor-field')).toBeHidden();
+  await expect(page.locator('.mm-notice')).toContainText('Merge the body under one H1');
+  expect(await snapshotOf(page)).toBe(
+    '---\ntitle: Root title\n---\n\n## Branch\n\n- Leaf\n\n## Second\n\n- Two\n',
+  );
+});
+
+test('[R-20] reports a dirty label draft while typing without a snapshot', async ({ page }) => {
+  await page.goto('/dev/?map=single-h2');
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toHaveValue('Plan');
+
+  await page.keyboard.type(' B');
+
+  const before = await page.evaluate(() => window.devFileChangeSummary());
+  expect(before.count).toBeGreaterThan(0);
+  expect(before.dirty).toBe(true);
+  await expect(field).toBeFocused();
+
+  expect(await snapshotOf(page)).toBe('## Plan B\n\n### Step\n');
+  expect(await page.evaluate(() => window.devFileChangeSummary())).toEqual(before);
+});
+
+test('[R-20] reports the baseline when a fold hides the edited node', async ({ page }) => {
+  await page.goto('/dev/?map=nested');
+  await page.getByText('Leaf', { exact: true }).first().click();
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toHaveValue('Leaf');
+  await page.keyboard.type(' x');
+
+  const draft = await page.evaluate(() => window.devAutosave());
+  expect(draft?.content).toBe('# Root\n\n## Branch\n\n### Leaf x\n');
+  const saved = await page.evaluate(() => window.devFileChangeSummary());
+  expect(saved.dirty).toBe(false);
+
+  await page.getByLabel('Fold to level').selectOption('1');
+
+  const hidden = await page.evaluate(() => window.devFileChangeSummary());
+  expect(hidden.dirty).toBe(true);
+  expect(await snapshotOf(page)).toBe('# Root\n\n## Branch\n\n### Leaf\n');
+  await expect(field).toBeHidden();
+});
+
+test('[R-29] [R-20] autosaves root creation above a list-only file', async ({ page }) => {
+  await page.goto('/dev/?map=list-only');
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Plan');
+
+  const draft = await page.evaluate(() => window.devAutosave());
+  expect(draft?.content).toBe('# Plan\n\n- Alpha\n- Beta\n');
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('Plan');
+  await expect(page.locator('.mm-editor-surface')).toHaveClass(/mm-editor-mode-edit/u);
+  const caret = await page.evaluate(() => {
+    const input = document.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    if (!input) throw new Error('Missing editor field');
+    return { start: input.selectionStart, end: input.selectionEnd };
+  });
+  expect(caret).toEqual({ start: 4, end: 4 });
+  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+  expect(await snapshotOf(page)).toBe('# Plan\n\n- Alpha\n- Beta\n');
+
+  await page.keyboard.type(' Two');
+  await expect(field).toHaveValue('Plan Two');
+  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(true);
+
+  await page.keyboard.press('Escape');
+
+  await expect(field).toBeHidden();
+  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(true);
+  expect(await snapshotOf(page)).toBe('- Alpha\n- Beta\n');
+});
+
+test('[R-29] [R-15] undoes and redoes root creation in one entry', async ({ page }) => {
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.goto('/dev/?map=list-only');
+  await page.keyboard.press('Space');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await page.keyboard.type('Plan');
+  await page.evaluate(() => window.dispatchEvent(new Event('dev-file-snapshot')));
+  await page.keyboard.press('Enter');
+  expect(await snapshotOf(page)).toBe('# Plan\n\n- Alpha\n- Beta\n');
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await snapshotOf(page)).toBe('- Alpha\n- Beta\n');
+
+  await page.keyboard.press(`${modifier}+Shift+z`);
+  expect(await snapshotOf(page)).toBe('# Plan\n\n- Alpha\n- Beta\n');
 });

@@ -120,7 +120,7 @@ vi.mock('@markmap/edit-dom', () => ({
       mocks.editorCommit();
     }
 
-    commitForSnapshot(): string {
+    snapshot(): string {
       return mocks.editorSnapshotForSave();
     }
 
@@ -174,6 +174,7 @@ type Setup = {
   surface: HTMLDivElement;
   svg: SVGSVGElement;
   onSource: Mock<(change: MarkmapSourceChange) => void>;
+  onDraft: Mock<(change: MarkmapSourceChange) => void>;
   onError: Mock<(message: string) => void>;
   onOpenUrl: Mock<(url: string) => void>;
   resolved: {
@@ -192,6 +193,7 @@ const setup = (): Setup => {
   const surface = document.createElement('div');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
+  const onDraft = vi.fn<(change: MarkmapSourceChange) => void>();
   const onError = vi.fn<(message: string) => void>();
   const onOpenUrl = vi.fn<(url: string) => void>();
   const resolved: Setup['resolved'] = {
@@ -210,7 +212,7 @@ const setup = (): Setup => {
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
   mocks.createEditView.mockReturnValue({});
-  return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
+  return { markmap, toolbar, surface, svg, onSource, onDraft, onError, onOpenUrl, resolved };
 };
 
 type Mount = Setup & {
@@ -231,6 +233,7 @@ const mount = (
     colorScheme: 'dark',
     editable: true,
     onSource: base.onSource,
+    onDraft: base.onDraft,
     onError: base.onError,
     onOpenUrl: base.onOpenUrl,
     ...overrides,
@@ -487,13 +490,28 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions).toHaveLength(1);
   });
 
-  test('[R-05] commits an in-progress label before a snapshot', () => {
+  test('[R-05] commits an in-progress label through the view', () => {
     const { result } = mount();
     if (!result.ok) throw new Error(result.message);
 
     result.view.commit();
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+  });
+
+  test('[R-11] [R-20] forwards a label draft separately from committed changes', () => {
+    const { onSource, onDraft } = mount();
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onDraftChange?.({
+      source: '# Draft',
+      selection: 2,
+      document: parseRealDocument('# Draft').document,
+    });
+
+    expect(onDraft).toHaveBeenCalledWith({ source: '# Draft', selection: 2 });
+    expect(onSource).not.toHaveBeenCalled();
   });
 
   test('[R-20] snapshots an in-progress label without committing the editor', () => {
@@ -533,6 +551,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -555,6 +574,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -578,6 +598,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -641,6 +662,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });

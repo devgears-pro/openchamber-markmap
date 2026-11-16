@@ -10,6 +10,7 @@ import type {
   MarkmapMount,
   MarkmapView,
 } from '../src/markmap/view';
+import { MarkmapEditor, type EditView } from '@markmap/edit-dom';
 import {
   type FileEditorChange,
   type FileEditorDocument,
@@ -118,7 +119,7 @@ type FakeFactory = {
   commits: () => number;
   snapshots: () => number;
   notesEdits: () => number;
-  setSnapshotContent: (content: string) => void;
+  setSnapshotContent: (content: string | null) => void;
   beginEditing: () => void;
   isEditing: () => boolean;
   fail: string | null;
@@ -143,7 +144,6 @@ const createMarkmapFactory = (): FakeFactory => {
   let notesEditCount = 0;
   let snapshotContent: string | null = null;
   let editing = false;
-  let mounted: MarkmapMount | null = null;
   const view: MarkmapView = {
     get layout() {
       return currentLayout;
@@ -168,7 +168,6 @@ const createMarkmapFactory = (): FakeFactory => {
     },
     snapshotForSave: () => {
       snapshotCount += 1;
-      if (snapshotContent !== null) mounted?.onSource({ source: snapshotContent, selection: 0 });
       return snapshotContent;
     },
     destroy: () => {
@@ -195,7 +194,6 @@ const createMarkmapFactory = (): FakeFactory => {
     factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
       state.mounts.push(mount);
-      mounted = mount;
       return { ok: true, view };
     },
   };
@@ -212,6 +210,89 @@ const textFile = (content: string, readOnly = false): FileEditorDocument => ({
 
 const contentOf = (snapshot: FileEditorSnapshot): string =>
   'content' in snapshot ? snapshot.content : '';
+
+const createEditView = (element: Element): EditView => {
+  const foldedIds = new Set<string>();
+  return {
+    element,
+    scale: 1,
+    transform: { k: 1, x: 0, y: 0 },
+    foldedIds,
+    panBy: () => undefined,
+    setTree: () => undefined,
+    setFolded: (id, folded) => {
+      if (folded) foldedIds.add(id);
+      else foldedIds.delete(id);
+    },
+    setFoldedIds: (ids) => {
+      foldedIds.clear();
+      for (const id of ids) foldedIds.add(id);
+    },
+    toggle: (id) => {
+      if (foldedIds.has(id)) foldedIds.delete(id);
+      else foldedIds.add(id);
+    },
+    focusNode: () => true,
+    screenRect: () => ({ x: 0, y: 0, width: 120, height: 24 }),
+    direction: () => 'right',
+    hitAt: () => undefined,
+    layoutPoint: (clientX, clientY) => [clientX, clientY],
+    on: () => () => undefined,
+  };
+};
+
+type RealEditorFactory = {
+  factory: MarkmapFactory;
+  editor: () => MarkmapEditor | null;
+  snapshots: () => number;
+};
+
+const createRealEditorFactory = (): RealEditorFactory => {
+  const toolbar = document.createElement('div');
+  let created: MarkmapEditor | null = null;
+  let snapshotCount = 0;
+  const factory: MarkmapFactory = (mount) => {
+    const editor = new MarkmapEditor({
+      source: mount.markdown,
+      view: createEditView(mount.surface),
+      container: mount.surface,
+      placeholder: '\u200B',
+      onChange: (change) => {
+        mount.onSource({ source: change.source, selection: change.selection });
+      },
+      onDraftChange: (change) => {
+        mount.onDraft({ source: change.source, selection: change.selection });
+      },
+      onError: (error) => {
+        mount.onError(error.message);
+      },
+    });
+    created = editor;
+    editor.focus();
+    const view: MarkmapView = {
+      layout: 'two-sided',
+      toolbar,
+      setLayout: () => undefined,
+      setColorScheme: () => undefined,
+      addMarker: () => undefined,
+      editNotes: () => {
+        editor.editNotes();
+      },
+      commit: () => {
+        editor.commit();
+      },
+      snapshotForSave: () => {
+        snapshotCount += 1;
+        return editor.snapshot();
+      },
+      destroy: () => {
+        editor.destroy();
+      },
+    };
+    return { ok: true, view };
+  };
+  return { factory, editor: () => created, snapshots: () => snapshotCount };
+};
 
 describe('Markmap file editor', () => {
   let root: HTMLDivElement;
@@ -375,7 +456,7 @@ describe('Markmap file editor', () => {
     expect((await host.snapshot()).version).toBe(snapshot.version);
   });
 
-  test('[R-20] snapshots active edit text without ending editing', async () => {
+  test('[R-20] snapshots an active label draft without a source event', async () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
     const inProgress = '# Root\n\n## Branch\n\n- Leaf in progress\n';
@@ -388,9 +469,187 @@ describe('Markmap file editor', () => {
     expect(markmaps.snapshots()).toBe(1);
     expect(markmaps.commits()).toBe(0);
     expect(markmaps.isEditing()).toBe(true);
-    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+  });
+
+  test('[R-20] reports a label draft before the first snapshot', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const draft = '# Root\n\n## Branch\n\n- Leaf draft\n';
+    markmaps.beginEditing();
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: draft, selection: 0 });
+
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+    expect(markmaps.snapshots()).toBe(0);
+    expect(markmaps.isEditing()).toBe(true);
+  });
+
+  test('[R-20] ignores an unchanged draft after a label session starts', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: SOURCE, selection: 0 });
+
+    expect(host.changes).toHaveLength(0);
+  });
+
+  test('[R-20] ignores a committed source already reported as a draft', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const draft = '# Root\n\n## Branch\n\n- Leaf draft\n';
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: draft, selection: 0 });
+    mountCall.onSource({ source: draft, selection: 0 });
+
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+  });
+
+  test('[R-20] returns a reported draft from the snapshot without a second event', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const draft = '# Root\n\n## Branch\n\n- Leaf draft\n';
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: draft, selection: 0 });
+    markmaps.setSnapshotContent(draft);
+    const snapshot = await host.snapshot();
+
+    expect(contentOf(snapshot)).toBe(draft);
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+  });
+
+  test('[R-20] keeps a newer draft dirty after an older save acknowledgment', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const older = '# Root\n\n## Branch\n\n- Older\n';
+    const newer = '# Root\n\n## Branch\n\n- Newer\n';
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: older, selection: 0 });
+    markmaps.setSnapshotContent(older);
+    const olderSnapshot = await host.snapshot();
+    mountCall.onDraft({ source: newer, selection: 0 });
+    markmaps.setSnapshotContent(newer);
+
+    host.saved(olderSnapshot.version);
+
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: false });
+    const current = await host.snapshot();
+    expect(contentOf(current)).toBe(newer);
+    expect(current.version).not.toBe(olderSnapshot.version);
+  });
+
+  test('[R-20] reports the baseline when a label draft is cancelled', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: '# Root\n\n## Branch\n\n- Draft\n', selection: 0 });
+    mountCall.onDraft({ source: SOURCE, selection: 0 });
+
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: true });
+  });
+
+  test('[R-20] clears dirty when the draft version is saved', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    markmaps.setSnapshotContent('# Root\n\n## Branch\n\n- Leaf draft\n');
+
+    const snapshot = await host.snapshot();
     host.saved(snapshot.version);
+
     expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
+  });
+
+  test('[R-20] ignores a repeated identical draft snapshot', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    markmaps.setSnapshotContent('# Root\n\n## Branch\n\n- Leaf draft\n');
+
+    const snapshot = await host.snapshot();
+    const repeated = await host.snapshot();
+
+    expect(repeated).toEqual(snapshot);
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+  });
+
+  test('[R-20] marks the baseline dirty when a hidden draft is cancelled after a save', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const draft = '# Root\n\n## Branch\n\n- Leaf draft\n';
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: draft, selection: 0 });
+    markmaps.setSnapshotContent(draft);
+    const snapshot = await host.snapshot();
+    host.saved(snapshot.version);
+    mountCall.onDraft({ source: SOURCE, selection: 0 });
+    markmaps.setSnapshotContent(SOURCE);
+
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    const baseline = await host.snapshot();
+    expect(contentOf(baseline)).toBe(SOURCE);
+    expect(host.changes).toHaveLength(3);
+  });
+
+  test('[R-12] snapshots a read-only file without reporting a change', async () => {
+    const { host } = mount();
+    host.emitFile(textFile(SOURCE, true));
+
+    const snapshot = await host.snapshot();
+    const repeated = await host.snapshot();
+
+    expect(contentOf(snapshot)).toBe(SOURCE);
+    expect(repeated.version).toBe(snapshot.version);
+    expect(host.changes).toHaveLength(0);
+  });
+
+  test('[R-12] ignores a label draft on a read-only file', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE, true));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+
+    mountCall.onDraft({ source: '# Changed\n', selection: 0 });
+
+    expect(host.changes).toHaveLength(0);
+  });
+
+  test('[R-07] drops a label draft when another file opens', async () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+    mountCall.onDraft({ source: '# Root\n\n## Branch\n\n- Draft\n', selection: 0 });
+
+    host.emitFile(textFile('# Other\n'));
+    markmaps.setSnapshotContent(null);
+
+    expect(markmaps.mounts).toHaveLength(2);
+    expect(contentOf(await host.snapshot())).toBe('# Other\n');
+    expect(host.changes).toHaveLength(1);
+  });
+
+  test('[R-05] round-trips an unchanged file byte for byte', async () => {
+    const source = '\uFEFF---\r\ntitle: Root\r\n---\r\n\r\n- Leaf\r\n';
+    const { host } = mount();
+    host.emitFile(textFile(source));
+
+    const snapshot = await host.snapshot();
+
+    expect(contentOf(snapshot)).toBe(source);
+    expect(host.changes).toHaveLength(0);
   });
 
   test('[R-06] reports a binary file and hands its bytes back', async () => {
@@ -409,6 +668,35 @@ describe('Markmap file editor', () => {
     expect(root.querySelector('.mm-error')?.textContent).toContain('text files');
     const snapshot = await host.snapshot();
     expect('bytes' in snapshot ? snapshot.bytes : null).toBe(bytes);
+    expect(host.changes).toHaveLength(0);
+  });
+
+  test('[R-06] derives a binary version from the bytes', async () => {
+    const { host } = mount();
+    const first = new Uint8Array([1, 2, 3]);
+    const second = new Uint8Array([1, 2, 4]);
+    const open = (bytes: Uint8Array<ArrayBuffer>): void => {
+      host.emitFile({
+        path: 'notes.markmap.md',
+        name: 'notes.markmap.md',
+        readOnly: false,
+        encoding: 'binary',
+        bytes,
+      });
+    };
+
+    open(first);
+    const firstSnapshot = await host.snapshot();
+    open(second);
+    const secondSnapshot = await host.snapshot();
+
+    expect(firstSnapshot.version).not.toBe(secondSnapshot.version);
+
+    open(first);
+    const repeated = await host.snapshot();
+
+    expect(repeated.version).toBe(firstSnapshot.version);
+    expect('bytes' in repeated ? repeated.bytes : null).toBe(first);
   });
 
   test('[R-06] reports a Markmap creation failure and asks for the source view', () => {
@@ -470,10 +758,159 @@ describe('Markmap file editor', () => {
   test('[R-07] destroys the view and clears the frame on dispose', () => {
     const { host, app, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
+    const mountCall = markmaps.mounts[0];
+    if (mountCall === undefined) throw new Error('No mount');
+    mountCall.onDraft({ source: '# Root\n\n## Branch\n\n- Draft\n', selection: 0 });
+
     app.dispose();
+    mountCall.onDraft({ source: '# Stale\n', selection: 0 });
 
     expect(markmaps.destroyed()).toBe(1);
     expect(root.childElementCount).toBe(0);
+    expect(host.changes).toHaveLength(1);
+  });
+
+  test('[R-20] runs the draft protocol through the real editor and save tracker', async () => {
+    const host = createHost();
+    const real = createRealEditorFactory();
+    const app = mountApp(host.host, root, { createMarkmap: real.factory });
+    disposers.push(app.dispose);
+    host.emitFile(textFile('# Root\n\n## Branch\n'));
+
+    const editor = real.editor();
+    if (editor === null) throw new Error('No editor');
+    const surface = root.querySelector<HTMLElement>('.mm-editor-surface');
+    if (surface === null) throw new Error('No surface');
+    const fieldOf = (): HTMLTextAreaElement => {
+      const field = root.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+      if (field === null) throw new Error('No field');
+      return field;
+    };
+    const press = (key: string): void => {
+      surface.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    };
+    const typeText = (text: string): void => {
+      const field = fieldOf();
+      field.value = text;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    press(' ');
+    expect(fieldOf().value).toBe('Root');
+    expect(host.changes).toHaveLength(0);
+
+    typeText('Root draft');
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+    expect(real.snapshots()).toBe(0);
+
+    const draft = await host.snapshot();
+    expect(contentOf(draft)).toBe('# Root draft\n\n## Branch\n');
+    expect(real.snapshots()).toBe(1);
+    expect(host.changes).toHaveLength(1);
+
+    host.saved(draft.version);
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
+
+    typeText('Root newer');
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    const newer = await host.snapshot();
+    expect(contentOf(newer)).toBe('# Root newer\n\n## Branch\n');
+    host.saved(draft.version);
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: false });
+
+    press('Escape');
+    expect(fieldOf().style.display).toBe('none');
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    const baseline = await host.snapshot();
+    expect(contentOf(baseline)).toBe('# Root\n\n## Branch\n');
+    expect(editor.source).toBe('# Root\n\n## Branch\n');
+
+    press(' ');
+    typeText('Root final');
+    expect(host.changes.at(-1)).toEqual({ dirty: true, edited: true });
+    press('Enter');
+
+    expect(editor.source).toBe('# Root final\n\n## Branch\n');
+    expect(host.changes).toHaveLength(6);
+    expect(editor.canUndo).toBe(true);
+
+    expect(editor.undo()).toBe(true);
+    expect(editor.source).toBe('# Root\n\n## Branch\n');
+    expect(editor.canUndo).toBe(false);
+  });
+
+  test('[R-20] does not publish an invalid draft after a valid one', async () => {
+    const host = createHost();
+    const real = createRealEditorFactory();
+    const app = mountApp(host.host, root, { createMarkmap: real.factory });
+    disposers.push(app.dispose);
+    host.emitFile(textFile('# Root\n\n## Branch\n'));
+
+    const editor = real.editor();
+    if (editor === null) throw new Error('No editor');
+    const surface = root.querySelector<HTMLElement>('.mm-editor-surface');
+    if (surface === null) throw new Error('No surface');
+    const field = root.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    if (field === null) throw new Error('No field');
+
+    surface.dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }),
+    );
+    field.value = 'Root valid';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+    const valid = await host.snapshot();
+    expect(contentOf(valid)).toBe('# Root valid\n\n## Branch\n');
+    host.saved(valid.version);
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
+
+    field.value = 'Root\ninvalid';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(host.changes).toHaveLength(2);
+    expect(host.changes.at(-1)).toEqual({ dirty: false, edited: false });
+    expect(editor.isEditing).toBe(true);
+    const afterInvalid = await host.snapshot();
+    expect(contentOf(afterInvalid)).toBe('# Root valid\n\n## Branch\n');
+  });
+
+  test('[R-20] tolerates repeated snapshots from a draft callback', async () => {
+    const host = createHost();
+    const real = createRealEditorFactory();
+    let reentrantSnapshots = 0;
+    const factory: MarkmapFactory = (mountOptions) => {
+      const result = real.factory({
+        ...mountOptions,
+        onDraft: (change) => {
+          mountOptions.onDraft(change);
+          reentrantSnapshots += 1;
+          void host.snapshot();
+          reentrantSnapshots += 1;
+          void host.snapshot();
+        },
+      });
+      return result;
+    };
+    const app = mountApp(host.host, root, { createMarkmap: factory });
+    disposers.push(app.dispose);
+    host.emitFile(textFile('# Root\n\n## Branch\n'));
+
+    const surface = root.querySelector<HTMLElement>('.mm-editor-surface');
+    if (surface === null) throw new Error('No surface');
+    const field = root.querySelector<HTMLTextAreaElement>('textarea.mm-editor-field');
+    if (field === null) throw new Error('No field');
+
+    surface.dispatchEvent(
+      new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }),
+    );
+    field.value = 'Root draft';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(reentrantSnapshots).toBe(2);
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+    const snapshot = await host.snapshot();
+    expect(contentOf(snapshot)).toBe('# Root draft\n\n## Branch\n');
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
   });
 
   test('[R-02] keeps the frame empty before a file arrives', () => {

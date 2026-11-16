@@ -48,6 +48,15 @@ const textVersion = (text: string): string => {
   return `${text.length}:${(hash >>> 0).toString(16)}`;
 };
 
+const byteVersion = (bytes: Uint8Array<ArrayBuffer>): string => {
+  let hash = 2166136261;
+  for (const byte of bytes) {
+    hash ^= byte;
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${bytes.length}:${(hash >>> 0).toString(16)}`;
+};
+
 const element = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -112,10 +121,20 @@ export const mountApp = (
     host.reportFileChange(state.tracker.observe(textVersion(state.text)));
   };
 
-  const handleSource = (change: MarkmapSourceChange): void => {
-    state.text = change.source;
-    notice.hidden = true;
+  const updateText = (text: string): void => {
+    if (text === state.text) return;
+    state.text = text;
     report();
+  };
+
+  const handleSource = (change: MarkmapSourceChange): void => {
+    notice.hidden = true;
+    updateText(change.source);
+  };
+
+  const handleDraft = (change: MarkmapSourceChange): void => {
+    if (state.view === null || state.readOnly) return;
+    updateText(change.source);
   };
 
   const handleError = (message: string): void => {
@@ -141,6 +160,7 @@ export const mountApp = (
         colorScheme: state.colorScheme,
         editable: !state.readOnly,
         onSource: handleSource,
+        onDraft: handleDraft,
         onError: handleError,
         onOpenUrl: (url) => {
           void host.openUrl(url).catch(() => undefined);
@@ -178,11 +198,11 @@ export const mountApp = (
   };
 
   const snapshot = (): FileEditorSnapshot => {
-    const content = state.view?.snapshotForSave();
-    if (content !== null && content !== undefined) state.text = content;
     if (state.bytes !== null) {
-      return { bytes: state.bytes, version: textVersion(String(state.bytes.length)) };
+      return { bytes: state.bytes, version: byteVersion(state.bytes) };
     }
+    const content = state.view?.snapshotForSave();
+    if (content !== null && content !== undefined) updateText(content);
     return { content: state.text, version: textVersion(state.text) };
   };
 

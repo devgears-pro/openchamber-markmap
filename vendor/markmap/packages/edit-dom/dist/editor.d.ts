@@ -9,6 +9,7 @@ export declare class MarkmapEditor {
     private readonly layer;
     private readonly history;
     private readonly onChange?;
+    private readonly onDraftChange?;
     private readonly onError?;
     private readonly placeholder;
     private readonly restorePosition;
@@ -24,7 +25,7 @@ export declare class MarkmapEditor {
     private suppressClick;
     private previewing;
     private destroyed;
-    constructor({ source, view, container, placeholder, onChange, onError }: MarkmapEditorOptions);
+    constructor({ source, view, container, placeholder, onChange, onDraftChange, onError, }: MarkmapEditorOptions);
     get source(): string;
     get document(): MarkdownDocument;
     get selected(): string | null;
@@ -43,7 +44,7 @@ export declare class MarkmapEditor {
         initialText?: string;
     }): void;
     editNotes(nodeId?: string | null): boolean;
-    commitForSnapshot(): string;
+    snapshot(): string;
     setLabel(nodeId: string, text: string): boolean;
     selectedBlock(): string | null;
     insertBlock(text: string): boolean;
@@ -106,6 +107,8 @@ export declare class MarkmapEditor {
     private previewEditing;
     private restorePreview;
     private setMode;
+    private completeEditing;
+    private publishBaseline;
     private stopEditingUi;
     private positionEditing;
     private navigate;
@@ -113,9 +116,10 @@ export declare class MarkmapEditor {
     private select;
     private ensureVisible;
     private selectedNode;
-    private isEmptyRoot;
+    private canCreateRoot;
+    private rootRefusal;
     private isEmptyLabel;
-    private snapshot;
+    private historyEntry;
     private restore;
     private captureFolds;
     private restoreFolds;
@@ -123,5 +127,7 @@ export declare class MarkmapEditor {
     private paintEditing;
     private nodeGroup;
     private hitAt;
+    private committedChange;
+    private emitDraftChange;
     private emitChange;
 }

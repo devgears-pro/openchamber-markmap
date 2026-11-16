@@ -280,6 +280,7 @@ function remarkResolveReferences() {
 	};
 }
 // src/pipeline.ts
+var BOM = "﻿";
 /**
 * GFM depends on the most third-party code, and old browsers reject syntax it may use, like
 * regex lookbehind before Safari 16.4. A map without GFM is better than no map at all.
@@ -287,7 +288,9 @@ function remarkResolveReferences() {
 function parseMdast(markdown, plugins, gfm = true) {
 	const processor = unified().use(remarkParse).use(gfm ? [remarkGfm] : []).use(remarkFrontmatter, ["yaml"]).use(remarkHtmlImages).use(remarkMark).use(remarkResolveReferences).use(plugins);
 	try {
-		const mdast = processor.runSync(processor.parse(markdown));
+		const tree = processor.parse(markdown);
+		if (markdown.startsWith(BOM)) shiftOffsets(tree);
+		const mdast = processor.runSync(tree);
 		if (!isRoot(mdast)) throw new SyntaxError("The parser did not return a root");
 		return {
 			mdast,
@@ -297,6 +300,28 @@ function parseMdast(markdown, plugins, gfm = true) {
 		if (!gfm || !(error instanceof SyntaxError)) throw error;
 		return parseMdast(markdown, plugins, false);
 	}
+}
+function shiftOffsets(value) {
+	if (Array.isArray(value)) {
+		for (const child of value) shiftOffsets(child);
+		return;
+	}
+	if (!isRecord(value)) return;
+	shiftPosition(value.position);
+	for (const [key, child] of Object.entries(value)) if (key !== "position") shiftOffsets(child);
+}
+function shiftPosition(position) {
+	if (!isRecord(position)) return;
+	shiftPoint(position.start);
+	shiftPoint(position.end);
+}
+function shiftPoint(point) {
+	if (!isRecord(point)) return;
+	if (typeof point.offset === "number") point.offset += 1;
+	if (point.line === 1 && typeof point.column === "number") point.column += 1;
+}
+function isRecord(value) {
+	return typeof value === "object" && value !== null;
 }
 function isRoot(value) {
 	if (typeof value !== "object" || value === null) return false;
@@ -310,7 +335,8 @@ function isRoot(value) {
 * - Headings nest by depth; list items nest under the heading or item that contains them.
 * - Other blocks become notes of the node that owns them. Blocks before the first
 *   heading attach to the root.
-* - A lone top-level H1 becomes the root, unless `title` is given.
+* - A lone top-level heading at any level becomes the root. A `title` supplies
+*   the root label only when no heading promotion happens.
 * - Raw HTML, frontmatter and link definitions are dropped. A `<!-- markmap: … -->`
 *   comment in a label sets node options: `fold` folds the node, `foldAll` folds it
 *   and everything below.
@@ -336,7 +362,7 @@ function toTree(mdast, options = {}) {
 			node
 		});
 	} else addBlock(stack.at(-1).node, block, options);
-	if (!options.title) root = promoteSingleH1(root);
+	root = promoteSingleHeading(root);
 	return assignIds(root);
 }
 function readSectionEnds(children, docEnd) {
@@ -472,9 +498,11 @@ function isMdastBlock(block) {
 		default: return false;
 	}
 }
-function promoteSingleH1(root) {
+function promoteSingleHeading(root) {
 	const [only] = root.children;
-	if (root.children.length !== 1 || only.type !== "heading" || only.data.depth !== 1) return root;
+	if (root.children.length !== 1 || only.type !== "heading") return root;
+	const depth = typeof only.data.depth === "number" ? only.data.depth : 0;
+	if (depth < 1 || depth > 6) return root;
 	only.notes = [...root.notes.map((a) => ({
 		...a,
 		after: 0
@@ -522,14 +550,28 @@ function readLabel(label) {
 function parse(markdown, options = {}) {
 	const { mdast, gfm } = parseMdast(markdown, options.plugins ?? []);
 	const frontmatter = readFrontmatter(mdast);
+	const title = typeof frontmatter.title === "string" ? frontmatter.title : void 0;
 	return {
 		root: toTree(mdast, {
-			title: typeof frontmatter.title === "string" ? frontmatter.title : void 0,
+			title,
 			plugins: options.plugins
 		}),
 		frontmatter,
-		gfm
+		gfm,
+		hasTitle: Boolean(title),
+		bodyStart: readBodyStart(markdown, mdast)
 	};
+}
+function readBodyStart(markdown, mdast) {
+	let start = markdown.startsWith("﻿") ? 1 : 0;
+	const frontmatter = mdast.children.find((child) => child.type === "yaml");
+	if (frontmatter) {
+		start = frontmatter.position?.end.offset ?? start;
+		if (markdown.startsWith("\r\n", start)) start += 2;
+		else if (markdown[start] === "\n") start += 1;
+	}
+	const offset = Math.max(0, Math.min(start, markdown.length));
+	return markdown.slice(offset).trim() ? offset : markdown.length;
 }
 function readFrontmatter(mdast) {
 	const node = mdast.children.find((child) => child.type === "yaml");

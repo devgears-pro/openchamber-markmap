@@ -1,5 +1,5 @@
 import type { MarkmapNode } from '@markmap/core';
-import type { Document, EditNode } from './types';
+import type { Document, DocumentMeta, EditNode } from './types';
 export interface ParseDocumentResult {
     document: Document;
     tree: MarkmapNode;
@@ -7,7 +7,8 @@ export interface ParseDocumentResult {
 }
 export declare function parseDocument(source: string): ParseDocumentResult;
 export declare function buildDocument(source: string): Document;
-export declare function buildFromTree(source: string, root: MarkmapNode): Document;
+export declare function contentNodeCount(doc: Document): number;
+export declare function buildFromTree(source: string, root: MarkmapNode, meta: DocumentMeta): Document;
 export declare function nodeAtOffset(doc: Document, offset: number): EditNode | undefined;
 export declare function labelText(doc: Document, node: EditNode): string;
 export declare function indentColumns(node: EditNode): number;

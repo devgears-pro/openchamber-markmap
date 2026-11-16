@@ -52,7 +52,7 @@ The map exposes an image role and a name, and the Markmap toolbar keeps labelled
 
 ### R-11 Keyboard editing
 
-From selection mode, Enter inserts a sibling and Tab a child. While editing, Enter commits and exits to selection; Tab commits and inserts a child. Shift+Tab outdents, Delete removes the selected subtree, Space or a double click edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
+From selection mode, Enter inserts a sibling and Tab a child. While editing, Enter commits and exits to selection; Tab commits and inserts a child. Shift+Tab outdents, Delete removes the selected subtree, Space or a double click edits the label, and Escape cancels. New nodes start with an empty label; a zero-width marker keeps them in the parsed tree. New branches use heading markers only at H1 and H2: a child of an H1 root or heading becomes H2, a child of an H2-H6 heading becomes a list item, an H1 or H2 sibling stays a heading at the same level, and an H3-H6 sibling becomes a list item under the same parent heading; existing H3-H6 headings stay editable in place. Backspace or Delete in the open empty field of a new node removes that node and selects the node before it; undo restores it. The edit field keeps its anchor and the map reflows while the label grows, so typing does not slide the text or cover its child branches. Edits change only the affected Markdown ranges. Each successful command reports `{ dirty: true, edited: true }`, becomes the next snapshot, and a saved version clears the dirty flag.
 
 ### R-12 Read-only files
 
@@ -60,7 +60,7 @@ A file marked read-only renders the map without the node editor or the notes pan
 
 ### R-13 Editor errors
 
-An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. A label that cannot be edited, such as a root title from frontmatter, also keeps the document unchanged and shows a notice. The notice clears on the next successful edit.
+An invalid command, such as a line break in a heading label, keeps the document unchanged and shows a non-blocking notice. A file whose only top-level node is a heading uses it as a source-heading root and edits it in place; otherwise a title root with any heading child refuses root creation with a notice. The notice clears on the next successful edit.
 
 ### R-14 Wheel navigation
 
@@ -68,7 +68,7 @@ An unmodified wheel or trackpad gesture pans the map without changing its scale.
 
 ### R-15 Keyboard navigation and history
 
-Arrow keys move the selection between related nodes without folding. Cmd/Ctrl+Z while editing resets the field to the original label; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree.
+Arrow keys move the selection between related nodes without folding. Cmd/Ctrl+Z while editing resets a changed draft to the label the session started with before it undoes committed history; a second press undoes the previous edit. Shift+Cmd/Ctrl+Z redoes it, and Cmd/Ctrl+/ folds the selected subtree. A completed label session creates at most one undo entry.
 
 ### R-16 New files
 
@@ -88,7 +88,7 @@ A focused node stays in selection mode until the user explicitly edits it. Print
 
 ### R-20 Autosave preserves editing
 
-When the host requests a snapshot during label or note editing, the snapshot includes the current text without closing the panel, changing its focus, or leaving edit mode. The user can continue typing after autosave.
+While a label field is open, each valid draft is reported as the saveable text, so a clean file becomes dirty and autosave can start before the first snapshot. A label snapshot is a pure read: it returns the last reported draft without committing the session, closing the panel, changing its focus, or leaving edit mode, and a note snapshot still commits the open note. The field keeps its caret, and the user can continue typing after autosave. Cancelling, hiding, or switching away from a label session reports the baseline when it differs from the last live text, and an unchanged session reports nothing.
 
 ### R-21 Clipboard
 
@@ -100,17 +100,17 @@ An editable or read-only map shows labelled layout buttons for `tree`, `two-side
 
 ### R-26 Notes editing
 
-An editable map opens a notes panel for the selected node from a labelled Edit notes control. The note is one `markmap-note` fenced block under the node, and its content is isolated Markdown, so headings, lists, tables, code, and HTML inside it stay inside the note. The panel is a plain Markdown textarea with bold, italic, inline code, link, quote, and code block actions. Cmd/Ctrl+Enter or a click outside commits, Escape cancels, a commit is one history entry, and an autosave snapshot includes the in-progress text without closing the panel or moving focus. A node without a note gets the block on the first commit. Clearing the text removes the block and its dot. Legacy paragraph notes migrate to one block on the first edit. The block indents under a list item, inserts before the first child of a title root, and keeps frontmatter, children, markers, and line endings unchanged. The note dot opens the sanitized rendered popover in editable and read-only maps. A read-only map shows no Edit notes control. An opaque node or a node with an empty label shows a notice and opens no panel. A file whose notes are not edited stays byte-for-byte identical.
+An editable map opens a notes panel for the selected node from a labelled Edit notes control. The note is one `markmap-note` fenced block under the node, and its content is isolated Markdown, so headings, lists, tables, code, and HTML inside it stay inside the note. The panel is a plain Markdown textarea with bold, italic, inline code, link, quote, and code block actions. Cmd/Ctrl+Enter or a click outside commits, Escape cancels, and a commit is one history entry. A host snapshot includes the in-progress text and commits the note without closing the panel or moving focus; notes do not start dirty-driven autosave before that request. A node without a note gets the block on the first commit. Clearing the text removes the block and its dot. Legacy paragraph notes migrate to one block on the first edit. The block indents under a list item, inserts before the first child of a title root, and keeps frontmatter, children, markers, and line endings unchanged. The note dot opens the sanitized rendered popover in editable and read-only maps. A read-only map shows no Edit notes control. An opaque node or a node with an empty label shows a notice and opens no panel. A file whose notes are not edited stays byte-for-byte identical.
 
 ### R-27 Theme and toolbar visuals
 
 The notes panel, its formatting controls, and the full map toolbar use the host light or dark theme tokens. The notes panel remains legible in both themes and never falls back to a white surface in dark mode. Toolbar icons for map controls, layouts, markers, notes, and note formatting use consistent outline SVGs. The layout symbols are one family of smooth curved branch diagrams whose direction conveys the layout: one-sided branches for tree, mirrored branches for two-sided, and top-to-bottom branches for org chart. The top map toolbar renders 16 px icons with 1.5 px round strokes in 28 px hit targets, uses a muted inactive color, and keeps grouped controls apart with spacing and a rule. Accessible names, keyboard behavior, and actions remain unchanged; no icon dependency is added.
 
-### R-28 Pointer move
+### R-30 Pointer move
 
 An editable map moves a branch by dragging a node. A press that moves 4 px starts a drag; a shorter press stays a click. The node and its whole subtree lift and follow the pointer while the map keeps its layout, and the map re-lays out once on drop. The top quarter of a target inserts before it, the bottom quarter after it, and the middle makes the branch the last child. A gap between branches targets that gap. One indicator shows at a time: a 2 px accent line for order and a rounded accent frame for a child drop. The node itself, its descendants, the root and nodes without an editable structure show no indicator, and the release snaps back. A folded target expands after 400 ms, and a cancelled drag restores the fold. Within 60 px of the stage edge the map auto-pans. Escape, a pointer cancel or a release over empty space cancels. After a drop the moved node stays selected and in view. A move is one history entry, and undo restores the exact bytes and the fold state. A read-only map has no drag. Touch pointers stay with the map gestures.
 
-### R-29 Keyboard move
+### R-31 Keyboard move
 
 Cmd/Ctrl+Shift+Up and Down move the selected node among its siblings, Left makes it the last child of the previous sibling, and Right moves it after its parent. The pointer path's move command, notices, history and level changes apply. A boundary move changes nothing, an impossible move shows a notice and leaves the file unchanged, and a read-only map has no move keys.
 
@@ -121,6 +121,14 @@ The package declares one `contributes.blocks` entry named `Mindmap`. Its descrip
 ### R-24 Chat render
 
 An active extension draws a `Mindmap(markdown: string)` call from an assistant reply as a read-only Markmap in its sandboxed frame. The argument is the whole map source. The map is fitted with the editor options and follows the host light or dark mode; a host theme change redraws it without recreating the view. The frame exposes an image role and a name. An empty or missing argument draws an empty map. A Markmap failure shows a notice instead of a blank frame, and a frontmatter warning shows the same notice while the map stays. A later call replaces the drawn map, and dispose releases the preview, listeners, and DOM.
+
+### R-28 Heading root
+
+A file whose only top-level node is a heading uses that heading as the root at any level from H1 to H6, even when a non-empty frontmatter `title` exists. A leading list or any other top-level block before the heading prevents promotion. The title stays in frontmatter but does not control the map root. Without a single top-level heading, the title is the root. The heading keeps its marker, level, source ranges, children, and notes, so it is edited in place. New branches use heading markers only at H1 and H2: a child of an H1 root or heading becomes H2, a child of an H2-H6 heading becomes a list item under it, an H1 or H2 sibling stays a heading at the same level, and an H3-H6 sibling becomes a list item under the same parent heading. Existing H3-H6 headings stay readable and editable in place without migration. A note above the promoted heading stays with the root when the node is edited or copied, and a pasted copy keeps those intro notes on the pasted root. Opening the file or snapshotting an unchanged file never rewrites its bytes.
+
+### R-29 Root creation
+
+Naming an editable synthetic root with no top-level H1, or a title root with no heading child, inserts one H1 before the body; the previous top-level blocks become its children, and the original bytes and branch structure are preserved. The title stays in frontmatter and the new body H1 becomes the map root. The new H1 sits on the first non-blank body line, keeps any leading blank lines, is separated from the following content by one blank line, and preserves the file line ending. The insertion is one undo entry and appears in an autosave snapshot without closing the field. A source-heading root and a title root with any heading child refuse the change with a notice and leave the source unchanged. Opening an empty file creates no heading; typing a label is what adds it.
 
 ## Traceability
 
@@ -155,3 +163,5 @@ An active extension draws a `Mindmap(markdown: string)` call from an assistant r
 | R-27        | `tests/toolbar.test.ts`, `tests/layout-menu.test.ts`, `tests/marker-menu.test.ts`, `tests/notes-menu.test.ts`, acceptance |
 | R-28        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-29        | `tests/acceptance/markmap.spec.ts`                                                                                        |
+| R-30        | `tests/acceptance/markmap.spec.ts`                                                                                        |
+| R-31        | `tests/acceptance/markmap.spec.ts`                                                                                        |
