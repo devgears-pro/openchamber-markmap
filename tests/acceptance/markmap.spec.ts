@@ -634,6 +634,204 @@ test('[R-12] [R-26] renders a note in a read-only map without the notes editor',
   await expect(page.locator('.markmap-popover')).toContainText('Перевірити бекап');
 });
 
+test('[R-27] styles notes and toolbar icons for dark and light themes', async ({ page }) => {
+  for (const theme of ['dark', 'light']) {
+    await page.goto(`/dev/?map=notes&theme=${theme}`);
+    await page.getByText('Deploy', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Edit notes' }).click();
+    await expect(page.getByRole('dialog', { name: 'Notes' })).toBeVisible();
+    await page.mouse.move(0, 0);
+
+    const result = await page.evaluate(() => {
+      const panel = document.querySelector('.mm-editor-notes');
+      const field = document.querySelector('.mm-editor-notes-field');
+      if (!(panel instanceof HTMLElement) || !(field instanceof HTMLTextAreaElement)) {
+        throw new Error('Notes editor is missing');
+      }
+      const themed = (property: string, value: string): string => {
+        const probe = document.createElement('div');
+        probe.style.setProperty(property, value);
+        document.body.append(probe);
+        const computed = getComputedStyle(probe).getPropertyValue(property);
+        probe.remove();
+        return computed;
+      };
+      const expectedBackground = themed('background-color', 'var(--oc-elevated)');
+      const expectedForeground = themed('color', 'var(--oc-fg)');
+      const expectedMuted = themed('color', 'var(--oc-muted)');
+      const icons = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar button svg, .mm-layout-menu button svg, .mm-marker-menu svg, .mm-notes-menu button svg, .mm-editor-notes-toolbar button svg',
+        ),
+      ];
+      const topIcons = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar .markmap-toolbar button svg, .mm-layout-menu button svg, .mm-marker-menu svg, .mm-notes-menu button svg',
+        ),
+      ];
+      const topGeometry = topIcons.map((icon) => {
+        const path = icon.querySelector('path');
+        const style = path === null ? null : getComputedStyle(path);
+        const box = getComputedStyle(icon);
+        return {
+          width: box.width,
+          height: box.height,
+          viewBox: icon.getAttribute('viewBox'),
+          fill: style?.fill ?? '',
+          stroke: style?.stroke ?? '',
+          strokeWidth: style?.strokeWidth ?? '',
+          strokeLinecap: style?.strokeLinecap ?? '',
+          strokeLinejoin: style?.strokeLinejoin ?? '',
+          active: icon.closest('button')?.getAttribute('aria-pressed') === 'true',
+        };
+      });
+      const topButtons = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar .markmap-toolbar button, .mm-layout-menu button, .mm-notes-menu button',
+        ),
+      ].map((button) => {
+        const style = getComputedStyle(button);
+        return {
+          width: style.width,
+          height: style.height,
+          borderRadius: style.borderRadius,
+          background: style.backgroundColor,
+          pressed: button.getAttribute('aria-pressed') === 'true',
+        };
+      });
+      const buttonNames = [
+        ...document.querySelectorAll(
+          '.mm-markmap-toolbar .markmap-toolbar button, .mm-layout-menu button, .mm-notes-menu button',
+        ),
+      ].map((button) => button.getAttribute('aria-label') ?? '');
+      const marker = document.querySelector('.mm-marker-select');
+      const markerStyle = marker === null ? null : getComputedStyle(marker);
+      const wrapper = document.querySelector('.mm-markmap-toolbar');
+      const wrapperStyle = wrapper === null ? null : getComputedStyle(wrapper);
+      const groups = [
+        ...document.querySelectorAll('.mm-layout-menu, .mm-marker-menu, .mm-notes-menu'),
+      ].map((group) => {
+        const style = getComputedStyle(group);
+        return {
+          paddingLeft: style.paddingLeft,
+          borderLeftWidth: style.borderLeftWidth,
+        };
+      });
+      return {
+        panelBackground: getComputedStyle(panel).backgroundColor,
+        panelForeground: getComputedStyle(panel).color,
+        fieldForeground: getComputedStyle(field).color,
+        expectedBackground,
+        expectedForeground,
+        expectedMuted,
+        iconCount: icons.length,
+        outlineIcons: icons.every((icon) => {
+          const path = icon.querySelector('path');
+          if (path === null) return false;
+          const style = getComputedStyle(path);
+          return (
+            style.fill === 'none' && style.stroke !== 'none' && style.strokeLinecap === 'round'
+          );
+        }),
+        topGeometry,
+        topButtons,
+        buttonNames,
+        markerName: marker?.getAttribute('aria-label') ?? '',
+        markerBox:
+          markerStyle === null
+            ? null
+            : {
+                width: markerStyle.width,
+                height: markerStyle.height,
+                borderRadius: markerStyle.borderRadius,
+              },
+        toolbarBox:
+          wrapperStyle === null
+            ? null
+            : {
+                gap: wrapperStyle.gap,
+                padding: wrapperStyle.padding,
+                borderRadius: wrapperStyle.borderRadius,
+                boxShadow: wrapperStyle.boxShadow,
+              },
+        groups,
+      };
+    });
+
+    expect(result.panelBackground).toBe(result.expectedBackground);
+    expect(result.panelForeground).toBe(result.expectedForeground);
+    expect(result.fieldForeground).toBe(result.expectedForeground);
+    expect(result.iconCount).toBeGreaterThanOrEqual(15);
+    expect(result.outlineIcons).toBe(true);
+    expect(result.topGeometry).toHaveLength(9);
+    expect(result.buttonNames).toEqual([
+      'Zoom in',
+      'Zoom out',
+      'Fit to view',
+      'Expand all',
+      'Tree',
+      'Two-sided',
+      'Org chart',
+      'Edit notes',
+    ]);
+    expect(new Set(result.buttonNames).size).toBe(result.buttonNames.length);
+    expect(result.markerName).toBe('Add marker');
+    expect(result.topGeometry.filter((icon) => icon.active)).toHaveLength(1);
+    for (const icon of result.topGeometry) {
+      expect(icon).toEqual({
+        width: '16px',
+        height: '16px',
+        viewBox: '0 0 16 16',
+        fill: 'none',
+        stroke: icon.active ? result.expectedForeground : result.expectedMuted,
+        strokeWidth: '1.5px',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        active: icon.active,
+      });
+    }
+    for (const button of result.topButtons) {
+      expect(button).toEqual({
+        width: '28px',
+        height: '28px',
+        borderRadius: '6px',
+        background: 'rgba(0, 0, 0, 0)',
+        pressed: button.pressed,
+      });
+    }
+    expect(result.topButtons.filter((button) => button.pressed)).toHaveLength(1);
+    expect(result.markerBox).toEqual({
+      width: '28px',
+      height: '28px',
+      borderRadius: '6px',
+    });
+    expect(result.toolbarBox).toEqual({
+      gap: '3px',
+      padding: '3px',
+      borderRadius: '8px',
+      boxShadow: 'rgba(0, 0, 0, 0.12) 0px 3px 10px 0px',
+    });
+    expect(result.groups).toHaveLength(3);
+    for (const group of result.groups) {
+      expect(group).toEqual({
+        paddingLeft: '6px',
+        borderLeftWidth: '1px',
+      });
+    }
+    for (const name of result.buttonNames) {
+      await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole('combobox', { name: 'Add marker' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Tree', exact: true }).hover();
+    const hovered = await page.evaluate(() => {
+      const path = document.querySelector('.mm-layout-menu button[data-layout="tree"] path');
+      return path === null ? '' : getComputedStyle(path).stroke;
+    });
+    expect(hovered).toBe(result.expectedForeground);
+  }
+});
+
 test('[R-12] renders a read-only file without an editor field', async ({ page }) => {
   await page.goto('/dev/?readonly=1');
 

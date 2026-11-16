@@ -38,7 +38,7 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The issue, when there is one, and the pull request.
 - The cause for a bug, or the reason for a task.
 - The test command, the red output, and the green output. For a visual change, the issue comment with a screenshot or GIF that `docs/process/releases.md` requires.
-- The OpenChamber install link for the branch with the change: `https://github.com/mmospanenko/openchamber-markmap#<branch>` when it is not `dev`, otherwise `https://github.com/mmospanenko/openchamber-markmap#dev`. Always include it, even when the worktree folder is also available.
+- The OpenChamber install address as a Markdown link whose visible text is the complete HTTPS URL and whose target is the percent-encoded desktop install deep link: [https://github.com/mmospanenko/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23dev). For a feature branch, use the exact branch name after `#` in the same link shape; the plain-text template is `https://github.com/mmospanenko/openchamber-markmap#<branch>`, and the deep link encodes `/` as `%2F`. Clicking the link opens the desktop Add-extension dialog with the URL filled in, but the user still must confirm the install, and browsers or mobile have no direct install flow. Keep the visible HTTPS URL so it can be copied. Always include the address, even when the worktree folder is also available.
 
 ## Worktrees and sync
 
@@ -47,6 +47,10 @@ All work happens in `.worktrees/<name>`, never in the main checkout; agents run 
 When the work is done, push the worktree branch and open a PR into `dev`. Merge through GitHub after CI. Do not commit or merge directly into `dev`.
 
 The fork follows the same rule with its integration branch `feat/editable-model`.
+
+## Human UI acceptance
+
+Do not merge a UI change into `dev` until the user has tested and explicitly accepted its appearance on the installable feature branch. Before asking for acceptance, provide the complete feature-branch install address as plain text, the changed states to check, and screenshots for a static change or a short GIF for an interaction. A UI test request must include the complete address, not only a shortened linked label. Green CI does not count as visual acceptance. If the user requests changes, update the same branch and provide fresh evidence before asking again.
 
 ## Fork changes
 

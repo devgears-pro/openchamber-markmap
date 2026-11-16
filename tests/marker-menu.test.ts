@@ -21,7 +21,7 @@ describe('marker menu', () => {
 
     expect(select.getAttribute('aria-label')).toBe('Add marker');
     expect(select.title).toBe('Marker');
-    expect(select.selectedOptions[0]?.textContent).toBe('🙂');
+    expect(select.selectedOptions[0]?.textContent).toBe('');
     expect(select.querySelectorAll('optgroup')).toHaveLength(4);
     select.value = '✅';
     select.dispatchEvent(new Event('change'));
@@ -38,5 +38,17 @@ describe('marker menu', () => {
     selectOf(menu).dispatchEvent(new Event('change'));
 
     expect(onMarker).not.toHaveBeenCalled();
+  });
+
+  test('[R-27] shows an outlined marker icon without changing its accessible name', () => {
+    const menu = createMarkerMenu(vi.fn());
+    const select = selectOf(menu);
+    const icon = menu.querySelector('svg');
+
+    expect(select.getAttribute('aria-label')).toBe('Add marker');
+    expect(icon?.getAttribute('viewBox')).toBe('0 0 16 16');
+    expect(icon?.getAttribute('aria-hidden')).toBe('true');
+    expect(icon?.querySelectorAll('path')).toHaveLength(1);
+    expect(icon?.querySelector('path')?.getAttribute('d')).toBeTruthy();
   });
 });

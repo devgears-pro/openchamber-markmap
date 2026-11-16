@@ -9,6 +9,7 @@ import { applyMarker } from './markers';
 import { wheelZoomDelta } from './gestures';
 import { layoutFor, type MarkmapLayout } from './layouts';
 import { optionsFor, type MarkmapColorScheme } from './options';
+import { createToolbarItems } from './toolbar-items';
 
 export type { MarkmapColorScheme } from './options';
 
@@ -69,7 +70,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     const instance = markmap;
     let layoutName = resolved.layout;
     instance.zoomBehavior.wheelDelta(wheelZoomDelta);
-    toolbar = createToolbar(instance);
+    toolbar = createToolbar(instance, { items: createToolbarItems() });
 
     if (mount.editable) {
       const created = new MarkmapEditor({
