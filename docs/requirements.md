@@ -104,7 +104,7 @@ An editable map opens a notes panel for the selected node from a labelled Edit n
 
 ### R-27 Theme and toolbar visuals
 
-The notes panel, its formatting controls, and the full map toolbar use the host light or dark theme tokens. The notes panel remains legible in both themes and never falls back to a white surface in dark mode. Toolbar icons for map controls, layouts, markers, notes, and note formatting use consistent outline SVGs. The top map toolbar renders 16 px icons with 1.5 px round strokes in 28 px hit targets, uses a muted inactive color, and keeps grouped controls apart with spacing and a rule. Accessible names, keyboard behavior, and actions remain unchanged; no icon dependency is added.
+The notes panel, its formatting controls, and the full map toolbar use the host light or dark theme tokens. The notes panel remains legible in both themes and never falls back to a white surface in dark mode. Toolbar icons for map controls, layouts, markers, notes, and note formatting use consistent outline SVGs. The layout symbols are one family of smooth curved branch diagrams whose direction conveys the layout: one-sided branches for tree, mirrored branches for two-sided, and top-to-bottom branches for org chart. The top map toolbar renders 16 px icons with 1.5 px round strokes in 28 px hit targets, uses a muted inactive color, and keeps grouped controls apart with spacing and a rule. Accessible names, keyboard behavior, and actions remain unchanged; no icon dependency is added.
 
 ### R-23 Chat block manifest
 
