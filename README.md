@@ -61,6 +61,8 @@ The map is fitted into a 480 px frame, follows the host light or dark theme, and
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="https://github.com/user-attachments/assets/42a29687-19a5-431a-aa3b-a4d735547ed4" alt="Markmap editor in the light theme with a selected Design node"> | <img src="https://github.com/user-attachments/assets/5556c59f-088a-46d3-96b0-d3746d47cee0" alt="Editing the Private beta node label in an overlay field"> |
 
+Screenshots follow the latest stable release.
+
 ## Install
 
 Requirements: an OpenChamber release with file editors, on desktop or web. File editors are not loaded in VS Code or the mobile app.
@@ -196,8 +198,6 @@ The process is documented in:
 - [`docs/process/bugs.md`](docs/process/bugs.md) (failing test first).
 - [`docs/process/releases.md`](docs/process/releases.md) (branches, versions, tags, and release notes).
 - [`docs/requirements.md`](docs/requirements.md) (requirement tree and traceability).
-
-Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
 
 ## Credits
 

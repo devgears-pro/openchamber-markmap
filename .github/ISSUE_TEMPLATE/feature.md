@@ -4,18 +4,17 @@ about: Propose a behavior change
 labels: enhancement
 ---
 
-## Problem
+## Story
 
-## Proposed behavior
+As a ROLE, I want OUTCOME, so that REASON.
+
+## Acceptance criteria
+
+- [ ]
 
 ## Requirement
 
-- Requirement ID or a proposal for `docs/requirements.md`:
-
-## Tests
-
-- [ ] A failing test with `[R-xx]` is written first.
-- [ ] The test covers the observable behavior.
+- `R-xx`, or a proposal for `docs/requirements.md`:
 
 ## Scope
 
