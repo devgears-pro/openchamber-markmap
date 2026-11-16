@@ -41,7 +41,7 @@ describe('full-scale placement', () => {
     cancel();
   });
 
-  test('[R-30] waits for the first layout', () => {
+  test('[R-32] waits for the first layout', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const view = focusable();
     vi.spyOn(view.element, 'getBoundingClientRect')
@@ -62,7 +62,7 @@ describe('full-scale placement', () => {
     cancel();
   });
 
-  test('[R-30] waits while the frame still has no size', () => {
+  test('[R-32] waits while the frame still has no size', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const view = focusable();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
@@ -78,7 +78,7 @@ describe('full-scale placement', () => {
     cancel();
   });
 
-  test('[R-30] cancels a pending placement', () => {
+  test('[R-32] cancels a pending placement', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const view = focusable();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
@@ -92,7 +92,7 @@ describe('full-scale placement', () => {
     expect(observer.disconnect).toHaveBeenCalledOnce();
   });
 
-  test('[R-30] does not wait without a ResizeObserver', () => {
+  test('[R-32] does not wait without a ResizeObserver', () => {
     vi.stubGlobal('ResizeObserver', undefined);
     const view = focusable();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));

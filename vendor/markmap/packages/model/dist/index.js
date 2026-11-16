@@ -2,7 +2,8 @@ import { parse } from "@markmap/parse";
 // src/source.ts
 function lineStart(source, offset) {
 	const index = source.lastIndexOf("\n", offset - 1);
-	return index === -1 ? 0 : index + 1;
+	const start = index === -1 ? 0 : index + 1;
+	return start === 0 && offset > 0 && source.startsWith("﻿") ? 1 : start;
 }
 function lineEnd(source, offset) {
 	const index = source.indexOf("\n", offset);
@@ -19,7 +20,7 @@ function indentWidth(indent) {
 	return width;
 }
 var LIST_MARKER = /^([ \t]*)([-+*]|\d{1,9}[.)])(?:[ \t]+|$)(\[[ xX]\][ \t]+)?/;
-var HEADING_MARKER = /^[ \t]{0,3}(#{1,6})(?:[ \t]+|$)/;
+var HEADING_MARKER = /^[ \t]{0,3}(#{1,6})(?:[ \t]+|(?=\r?$))/;
 function contentIndent(node) {
 	if (node.kind !== "listItem" || !node.list) return "";
 	return node.list.indent + " ".repeat(node.list.marker.length + 1);
@@ -27,19 +28,23 @@ function contentIndent(node) {
 function normalizeNoteText(text) {
 	return text.replace(/\r\n?/g, "\n").split("\n").map((line) => line.replace(/[ \t]+$/u, "")).join("\n").replace(/\n+$/u, "");
 }
-function notesText(doc, node) {
+function noteText(doc, node, note) {
 	const indent = contentIndent(node);
-	return normalizeNoteText([...node.notes].toSorted((a, b) => a.range.start - b.range.start).map((note) => {
-		const raw = doc.source.slice(note.range.start, note.range.end);
-		if (!note.fence) return raw;
-		return raw.replace(/\r\n?/g, "\n").split("\n").slice(1, -1).map((line) => indent && line.startsWith(indent) ? line.slice(indent.length) : line).join("\n");
-	}).join("\n\n"));
+	const raw = doc.source.slice(note.range.start, note.range.end);
+	if (!note.fence) return raw;
+	return raw.replace(/\r\n?/g, "\n").split("\n").slice(1, -1).map((line) => indent && line.startsWith(indent) ? line.slice(indent.length) : line).join("\n");
+}
+function notesText(doc, node) {
+	return normalizeNoteText([...node.notes].toSorted((a, b) => a.range.start - b.range.start).map((note) => noteText(doc, node, note)).join("\n\n"));
 }
 // src/build.ts
 function parseDocument(source) {
-	const { root, frontmatter } = parse(source);
+	const { root, frontmatter, hasTitle, bodyStart } = parse(source);
 	return {
-		document: buildFromTree(source, root),
+		document: buildFromTree(source, root, {
+			hasTitle,
+			bodyStart
+		}),
 		tree: root,
 		frontmatter
 	};
@@ -47,7 +52,10 @@ function parseDocument(source) {
 function buildDocument(source) {
 	return parseDocument(source).document;
 }
-function buildFromTree(source, root) {
+function contentNodeCount(doc) {
+	return doc.nodes.size - (doc.rootPolicy.kind === "source-heading" ? 0 : 1);
+}
+function buildFromTree(source, root, meta) {
 	const nodes = /* @__PURE__ */ new Map();
 	const order = [];
 	const visit = (tree, parent) => {
@@ -58,12 +66,29 @@ function buildFromTree(source, root) {
 	};
 	visit(root, null);
 	const unit = detectUnit(nodes, order);
+	const rootNode = nodes.get(root.id);
+	const hasTitle = meta.hasTitle;
+	const bodyStart = Math.max(0, Math.min(meta.bodyStart, source.length));
+	const kind = rootNode?.block ? "source-heading" : hasTitle ? "title" : "synthetic";
+	const headingChild = rootNode?.children.some((id) => nodes.get(id)?.kind === "heading") ?? false;
+	const topH1 = rootNode?.children.some((id) => {
+		const child = nodes.get(id);
+		return child?.kind === "heading" && child.level === 1;
+	}) ?? false;
+	const rootPolicy = {
+		kind,
+		hasTitle,
+		bodyStart,
+		hasHeadingChild: headingChild,
+		canCreateHeading: kind === "synthetic" ? !topH1 : kind === "title" ? !headingChild : false
+	};
 	return {
 		source,
 		root: root.id,
 		nodes,
 		order,
-		unit
+		unit,
+		rootPolicy
 	};
 }
 function buildNode(source, tree, parent) {
@@ -189,7 +214,7 @@ function readCapabilities(node, parent, hasTitle) {
 		...base,
 		editLabel: Boolean(node.label && node.block),
 		editNotes: true,
-		addChild: node.level < 6,
+		addChild: true,
 		addSibling: Boolean(parent),
 		outdent: parent?.kind === "heading",
 		delete: Boolean(parent),
@@ -410,4 +435,4 @@ function assertDocument(doc) {
 	const issues = validateDocument(doc);
 	if (issues.length) throw new ModelError(issues);
 }
-export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, contentIndent, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, notesText, parseDocument, validateDocument };
+export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, contentIndent, contentNodeCount, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, noteText, notesText, parseDocument, validateDocument };

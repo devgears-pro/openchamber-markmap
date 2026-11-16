@@ -39,6 +39,7 @@ export type MarkmapMount = {
   colorScheme: MarkmapColorScheme;
   editable: boolean;
   onSource: (change: MarkmapSourceChange) => void;
+  onDraft: (change: MarkmapSourceChange) => void;
   onError: (message: string) => void;
   onOpenUrl: (url: string) => void;
 };
@@ -90,6 +91,12 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         placeholder: '\u200B',
         onChange: (change) => {
           mount.onSource({
+            source: change.source,
+            selection: change.selection,
+          });
+        },
+        onDraftChange: (change) => {
+          mount.onDraft({
             source: change.source,
             selection: change.selection,
           });
@@ -150,7 +157,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       commit: () => {
         editor?.commit();
       },
-      snapshotForSave: () => editor?.commitForSnapshot() ?? null,
+      snapshotForSave: () => editor?.snapshot() ?? null,
       destroy: () => {
         placement?.();
         placement = null;

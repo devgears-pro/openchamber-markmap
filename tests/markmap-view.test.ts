@@ -120,7 +120,7 @@ vi.mock('@markmap/edit-dom', () => ({
       mocks.editorCommit();
     }
 
-    commitForSnapshot(): string {
+    snapshot(): string {
       return mocks.editorSnapshotForSave();
     }
 
@@ -178,6 +178,7 @@ type Setup = {
   surface: HTMLDivElement;
   svg: SVGSVGElement;
   onSource: Mock<(change: MarkmapSourceChange) => void>;
+  onDraft: Mock<(change: MarkmapSourceChange) => void>;
   onError: Mock<(message: string) => void>;
   onOpenUrl: Mock<(url: string) => void>;
   resolved: {
@@ -197,6 +198,7 @@ const setup = (): Setup => {
   };
   const surface = document.createElement('div');
   const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
+  const onDraft = vi.fn<(change: MarkmapSourceChange) => void>();
   const onError = vi.fn<(message: string) => void>();
   const onOpenUrl = vi.fn<(url: string) => void>();
   const resolved: Setup['resolved'] = {
@@ -215,7 +217,7 @@ const setup = (): Setup => {
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
   mocks.createEditView.mockReturnValue({});
-  return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
+  return { markmap, toolbar, surface, svg, onSource, onDraft, onError, onOpenUrl, resolved };
 };
 
 type Mount = Setup & {
@@ -236,6 +238,7 @@ const mount = (
     colorScheme: 'dark',
     editable: true,
     onSource: base.onSource,
+    onDraft: base.onDraft,
     onError: base.onError,
     onOpenUrl: base.onOpenUrl,
     ...overrides,
@@ -303,7 +306,7 @@ describe('Markmap adapter', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  test('[R-30] resets the view to 100% on the selected node', () => {
+  test('[R-32] resets the view to 100% on the selected node', () => {
     const { result, markmap } = mount();
     if (!result.ok) throw new Error(result.message);
     mocks.editorSelected.value = 'child';
@@ -314,7 +317,7 @@ describe('Markmap adapter', () => {
     expect(markmap.focusNode).toHaveBeenCalledWith('child', { scale: 1, animate: false });
   });
 
-  test('[R-30] falls back to the root when the selection is gone', () => {
+  test('[R-32] falls back to the root when the selection is gone', () => {
     const { result, markmap } = mount();
     if (!result.ok) throw new Error(result.message);
     mocks.editorSelected.value = 'gone';
@@ -329,7 +332,7 @@ describe('Markmap adapter', () => {
     ]);
   });
 
-  test('[R-30] resets a read-only map to the root', () => {
+  test('[R-32] resets a read-only map to the root', () => {
     const { result, markmap } = mount({ editable: false });
     if (!result.ok) throw new Error(result.message);
     markmap.focusNode.mockClear();
@@ -530,13 +533,28 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions).toHaveLength(1);
   });
 
-  test('[R-05] commits an in-progress label before a snapshot', () => {
+  test('[R-05] commits an in-progress label through the view', () => {
     const { result } = mount();
     if (!result.ok) throw new Error(result.message);
 
     result.view.commit();
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+  });
+
+  test('[R-11] [R-20] forwards a label draft separately from committed changes', () => {
+    const { onSource, onDraft } = mount();
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onDraftChange?.({
+      source: '# Draft',
+      selection: 2,
+      document: parseRealDocument('# Draft').document,
+    });
+
+    expect(onDraft).toHaveBeenCalledWith({ source: '# Draft', selection: 2 });
+    expect(onSource).not.toHaveBeenCalled();
   });
 
   test('[R-20] snapshots an in-progress label without committing the editor', () => {
@@ -576,6 +594,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -598,6 +617,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -621,6 +641,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -684,6 +705,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });

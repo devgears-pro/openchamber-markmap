@@ -1,5 +1,6 @@
 import type { MarkmapNode } from '@markmap/core';
 import { type Document } from '@markmap/model';
+import { EditError } from './errors';
 import { type Splice } from './splice';
 export type Command = {
     type: 'setLabel';
@@ -10,7 +11,7 @@ export type Command = {
     node: string;
     text: string;
 } | {
-    type: 'insertFirst';
+    type: 'createRootHeading';
     node: string;
     text: string;
 } | {
@@ -47,3 +48,4 @@ export interface EditResult {
     selection: number;
 }
 export declare function applyCommand(doc: Document, command: Command): EditResult;
+export declare function rootHeadingRefusal(doc: Document, nodeId?: string): EditError | null;

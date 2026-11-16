@@ -1,4 +1,4 @@
-import { EditError, applyCommand, lineEnding, mapOffset } from "@markmap/edit";
+import { EditError, applyCommand, lineEnding, mapOffset, rootHeadingRefusal } from "@markmap/edit";
 import { labelText, nodeAtOffset, notesText, parseDocument } from "@markmap/model";
 import { select } from "d3-selection";
 // src/history.ts
@@ -157,6 +157,7 @@ var MarkmapEditor = class {
 	layer;
 	history = new History();
 	onChange;
+	onDraftChange;
 	onError;
 	placeholder;
 	restorePosition;
@@ -172,13 +173,14 @@ var MarkmapEditor = class {
 	suppressClick = false;
 	previewing = false;
 	destroyed = false;
-	constructor({ source, view, container, placeholder, onChange, onError }) {
+	constructor({ source, view, container, placeholder, onChange, onDraftChange, onError }) {
 		this.view = view;
 		this.container = container;
 		const parsed = parseDocument(source);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.onChange = onChange;
+		this.onDraftChange = onDraftChange;
 		this.onError = onError;
 		this.placeholder = placeholder?.trim() || "New topic";
 		const doc = container.ownerDocument;
@@ -245,7 +247,7 @@ var MarkmapEditor = class {
 	setSource(source, options = {}) {
 		const parsed = parseDocument(source);
 		this.closeNotes(false);
-		this.stopEditingUi(false);
+		this.completeEditing("switch", false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.history.clear();
@@ -265,14 +267,15 @@ var MarkmapEditor = class {
 		}
 		const node = this.doc.nodes.get(nodeId);
 		if (!node) return;
-		const first = this.isEmptyRoot(node);
-		if (!node.label && !first) {
-			if (node.kind === "root" && this.title) this.onError?.(new EditError("E_LABEL", "The root title comes from frontmatter; edit it in the source view", node.id));
+		const createRoot = this.canCreateRoot(node);
+		if (!node.label && !createRoot) {
+			const refusal = this.rootRefusal(node);
+			if (refusal) this.onError?.(refusal);
 			return;
 		}
 		if (!this.view.screenRect(nodeId)) return;
 		const label = node.label ? labelText(this.doc, node) : "";
-		const blank = first || label === EMPTY_LABEL;
+		const blank = createRoot || label === EMPTY_LABEL;
 		const text = options.initialText ?? (blank ? "" : label);
 		this.field.value = text;
 		this.field.style.display = "block";
@@ -281,10 +284,13 @@ var MarkmapEditor = class {
 			previewId: nodeId,
 			original: label,
 			blank,
-			first,
+			createRoot,
 			preview: false,
 			folds: [...this.view.foldedIds],
-			field: this.field
+			field: this.field,
+			draft: null,
+			draftText: null,
+			emitted: null
 		};
 		this.setMode(true);
 		if (options.initialText !== void 0) this.previewEditing();
@@ -320,7 +326,7 @@ var MarkmapEditor = class {
 		this.openNotes(node);
 		return true;
 	}
-	commitForSnapshot() {
+	snapshot() {
 		if (this.notes) {
 			this.commitNotes({ keepOpen: true });
 			return this.doc.source;
@@ -329,45 +335,30 @@ var MarkmapEditor = class {
 		if (!editing) return this.doc.source;
 		const text = editing.field.value;
 		if (text === editing.original || editing.blank && text === "") return this.doc.source;
-		const before = this.snapshot();
-		const result = editing.first ? this.apply({
-			type: "insertFirst",
-			node: editing.nodeId,
-			text
-		}) : this.apply({
-			type: "setLabel",
-			node: editing.nodeId,
-			text
-		});
-		if (!result) return this.doc.source;
-		this.history.push(before);
-		const target = nodeAtOffset(result.document, result.selection);
-		if (target) {
-			editing.nodeId = target.id;
-			editing.previewId = target.id;
-		}
-		editing.original = text;
-		editing.blank = false;
-		editing.first = false;
-		editing.preview = false;
-		editing.folds = [...this.view.foldedIds];
-		return this.doc.source;
+		if (editing.draft && editing.draftText === text) return editing.draft.document.source;
+		return editing.emitted ?? this.doc.source;
 	}
 	setLabel(nodeId, text) {
 		if (!this.doc.nodes.has(nodeId)) return false;
-		const before = this.snapshot();
+		const before = this.historyEntry();
 		if (!this.apply({
 			type: "setLabel",
 			node: nodeId,
 			text
 		})) return false;
-		this.history.push(before);
+		if (this.doc.source !== before.source) this.history.push(before);
 		return true;
 	}
 	selectedBlock() {
 		const node = this.selectedNode();
 		if (!node) return null;
-		if (node.block) return this.doc.source.slice(node.block.start, node.block.end);
+		if (node.block) {
+			const block = node.block;
+			if (node.kind !== "root") return this.doc.source.slice(block.start, block.end);
+			const before = node.notes.filter((note) => note.range.end <= block.start);
+			const start = before.length ? Math.min(...before.map((note) => note.range.start)) : block.start;
+			return this.doc.source.slice(start, block.end);
+		}
 		if (node.id !== this.doc.root) return null;
 		const children = node.children.map((id) => this.doc.nodes.get(id)).filter((child) => Boolean(child?.block));
 		const first = children[0];
@@ -407,13 +398,13 @@ var MarkmapEditor = class {
 		this.commitEditing();
 	}
 	undo() {
-		const entry = this.history.undo(this.snapshot());
+		const entry = this.history.undo(this.historyEntry());
 		if (!entry) return false;
 		this.restore(entry);
 		return true;
 	}
 	redo() {
-		const entry = this.history.redo(this.snapshot());
+		const entry = this.history.redo(this.historyEntry());
 		if (!entry) return false;
 		this.restore(entry);
 		return true;
@@ -983,7 +974,7 @@ var MarkmapEditor = class {
 			case "Delete":
 			case "Backspace":
 				event.preventDefault();
-				if (this.isEmptyRoot(this.selectedNode())) return;
+				if (this.selectedNode()?.kind === "root") return;
 				this.runSelected({ type: "delete" });
 				return;
 			case " ":
@@ -1011,10 +1002,12 @@ var MarkmapEditor = class {
 	handleEditingKey(event) {
 		if (event.isComposing || event.keyCode === 229) return;
 		if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
-			if (this.editing && !event.shiftKey && this.editing.field.value !== this.editing.original) {
+			const editing = this.editing;
+			const changed = editing !== null && !(editing.field.value === editing.original || editing.blank && editing.field.value === "");
+			if (editing && !event.shiftKey && changed) {
 				event.preventDefault();
-				const field = this.editing.field;
-				field.value = this.editing.original;
+				const field = editing.field;
+				field.value = editing.original;
 				field.setSelectionRange(field.value.length, field.value.length);
 				this.previewEditing();
 				this.positionEditing();
@@ -1022,19 +1015,19 @@ var MarkmapEditor = class {
 				this.paintEditing();
 				return;
 			}
-			if (this.editing && this.editing.field.value === this.editing.original) {
+			if (editing && !changed) {
 				event.preventDefault();
-				this.stopEditingUi();
-				if (event.shiftKey) this.redo();
-				else this.undo();
+				const emitted = editing.emitted;
+				this.completeEditing("switch");
+				if (!(event.shiftKey ? this.redo() : this.undo())) this.publishBaseline(emitted);
 			}
 			return;
 		}
 		const editing = this.editing;
 		if (editing && (event.key === "Backspace" || event.key === "Delete") && editing.blank && editing.field.value === "") {
-			if (this.isEmptyRoot(this.doc.nodes.get(editing.nodeId))) return;
+			if (this.doc.nodes.get(editing.nodeId)?.kind === "root") return;
 			event.preventDefault();
-			this.stopEditingUi();
+			this.completeEditing("switch");
 			this.select(editing.nodeId, { reveal: false });
 			this.runSelected({ type: "delete" });
 			return;
@@ -1162,7 +1155,7 @@ var MarkmapEditor = class {
 			if (!options.keepOpen) this.closeNotes();
 			return "none";
 		}
-		const before = this.snapshot();
+		const before = this.historyEntry();
 		const result = this.apply({
 			type: "setNotes",
 			node: notes.nodeId,
@@ -1273,8 +1266,13 @@ var MarkmapEditor = class {
 		const node = this.doc.nodes.get(id);
 		if (!node) return;
 		if (kind === "insertSibling" && node.kind === "root") {
-			if (this.isEmptyRoot(node)) {
+			if (this.canCreateRoot(node)) {
 				this.startEditing(id, { selectAll: true });
+				return;
+			}
+			if (!node.block) {
+				const refusal = this.rootRefusal(node);
+				if (refusal) this.onError?.(refusal);
 				return;
 			}
 			kind = "insertChild";
@@ -1301,17 +1299,19 @@ var MarkmapEditor = class {
 		});
 	}
 	run(command) {
-		const before = this.snapshot();
+		const before = this.historyEntry();
 		const result = this.apply(command);
-		if (result) this.history.push(before);
+		if (result && this.doc.source !== before.source) this.history.push(before);
 		return result;
 	}
 	apply(command) {
 		const folds = this.captureFolds(this.doc);
 		const editing = this.editing;
 		try {
+			const source = this.doc.source;
 			const result = applyCommand(this.doc, command);
 			this.doc = result.document;
+			if (this.doc.source === source) return result;
 			if (!result.edits.length) return result;
 			if (editing && command.type === "setLabel" && command.node === editing.nodeId) {
 				const target = nodeAtOffset(result.document, result.selection);
@@ -1336,12 +1336,13 @@ var MarkmapEditor = class {
 		if (!editing) return "none";
 		const text = editing.field.value;
 		if (text === editing.original || editing.blank && text === "") {
-			this.stopEditingUi();
+			this.completeEditing("cancel");
 			return "none";
 		}
-		const before = this.snapshot();
-		if (!(editing.first ? this.apply({
-			type: "insertFirst",
+		const before = this.historyEntry();
+		const source = this.doc.source;
+		if (!(editing.createRoot ? this.apply({
+			type: "createRootHeading",
 			node: editing.nodeId,
 			text
 		}) : this.apply({
@@ -1349,24 +1350,29 @@ var MarkmapEditor = class {
 			node: editing.nodeId,
 			text
 		}))) return "error";
+		if (this.doc.source === source) {
+			this.completeEditing("cancel");
+			return "none";
+		}
 		if (options.history !== false) this.history.push(before);
-		this.stopEditingUi(false);
+		this.completeEditing("commit", false);
 		return "changed";
 	}
 	cancelEditing() {
-		this.stopEditingUi();
+		this.completeEditing("cancel");
 	}
 	commitAndInsert(kind) {
-		const before = this.snapshot();
-		const state = this.commitEditing({ history: false });
-		if (state === "error") return;
+		const before = this.historyEntry();
+		const source = this.doc.source;
+		if (this.commitEditing({ history: false }) === "error") return;
 		const node = this.selectedNode();
 		if (!node) return;
 		if (kind === "outdent") {
-			if (this.apply({
+			this.apply({
 				type: "outdent",
 				node: node.id
-			}) || state === "changed") this.history.push(before);
+			});
+			if (this.doc.source !== source) this.history.push(before);
 			return;
 		}
 		const result = this.apply({
@@ -1374,7 +1380,7 @@ var MarkmapEditor = class {
 			node: node.id,
 			text: this.placeholder
 		});
-		if (result || state === "changed") this.history.push(before);
+		if (this.doc.source !== source) this.history.push(before);
 		if (result) this.editCreated(result);
 	}
 	previewEditing() {
@@ -1382,13 +1388,13 @@ var MarkmapEditor = class {
 		if (!editing) return;
 		const text = editing.field.value;
 		if (text === editing.original || editing.blank && text === "") {
-			this.restorePreview(editing);
+			this.restorePreview(editing, true);
 			return;
 		}
 		const folds = this.captureFolds(this.doc);
 		try {
-			const result = applyCommand(this.doc, editing.first ? {
-				type: "insertFirst",
+			const result = applyCommand(this.doc, editing.createRoot ? {
+				type: "createRootHeading",
 				node: editing.nodeId,
 				text
 			} : {
@@ -1405,27 +1411,59 @@ var MarkmapEditor = class {
 			}
 			editing.previewId = nodeAtOffset(result.document, result.selection)?.id ?? editing.previewId;
 			editing.preview = true;
+			editing.draft = result;
+			editing.draftText = text;
+			const source = result.document.source;
+			if (source === this.doc.source) {
+				const emitted = editing.emitted;
+				editing.emitted = null;
+				this.publishBaseline(emitted);
+			} else if (editing.emitted !== source) {
+				editing.emitted = source;
+				this.emitDraftChange({
+					source,
+					selection: result.selection,
+					document: result.document
+				});
+			}
 		} catch {
 			this.previewing = false;
 		}
 	}
-	restorePreview(editing) {
-		if (!editing.preview) return;
-		const parsed = parseDocument(this.doc.source);
-		this.previewing = true;
-		try {
-			this.view.setTree(parsed.tree);
-			this.view.setFoldedIds(editing.folds, { animate: false });
-		} finally {
-			this.previewing = false;
+	restorePreview(editing, notifyBaseline = false) {
+		if (editing.preview) {
+			const parsed = parseDocument(this.doc.source);
+			this.previewing = true;
+			try {
+				this.view.setTree(parsed.tree);
+				this.view.setFoldedIds(editing.folds, { animate: false });
+			} finally {
+				this.previewing = false;
+			}
+			editing.preview = false;
+			editing.previewId = editing.nodeId;
+			this.selectedId = editing.nodeId;
 		}
-		editing.preview = false;
-		editing.previewId = editing.nodeId;
-		this.selectedId = editing.nodeId;
+		editing.draft = null;
+		editing.draftText = null;
+		const emitted = editing.emitted;
+		editing.emitted = null;
+		if (notifyBaseline) this.publishBaseline(emitted);
 	}
 	setMode(editing) {
 		this.container.classList.toggle(MODE_EDIT, editing);
 		this.container.classList.toggle(MODE_SELECT, !editing);
+	}
+	completeEditing(reason, restore = true) {
+		const editing = this.editing;
+		if (!editing) return;
+		const emitted = editing.emitted;
+		this.stopEditingUi(restore);
+		if ((reason === "cancel" || reason === "lost") && emitted !== null) this.publishBaseline(emitted);
+	}
+	publishBaseline(emitted) {
+		if (emitted === null || emitted === this.doc.source) return;
+		this.emitDraftChange(this.committedChange());
 	}
 	stopEditingUi(restore = true) {
 		if (!this.editing) return;
@@ -1442,7 +1480,7 @@ var MarkmapEditor = class {
 		if (!editing) return;
 		const rect = this.view.screenRect(editing.previewId);
 		if (!rect) {
-			this.stopEditingUi();
+			this.completeEditing("lost");
 			return;
 		}
 		const box = this.container.getBoundingClientRect();
@@ -1514,13 +1552,18 @@ var MarkmapEditor = class {
 	selectedNode() {
 		return this.selectedId ? this.doc.nodes.get(this.selectedId) : void 0;
 	}
-	isEmptyRoot(node) {
-		return node?.kind === "root" && !node.block && !node.label && this.doc.nodes.size === 1 && !this.title;
+	canCreateRoot(node) {
+		return node?.kind === "root" && this.doc.rootPolicy.canCreateHeading;
+	}
+	rootRefusal(node) {
+		return node.kind === "root" ? rootHeadingRefusal(this.doc, node.id) : null;
 	}
 	isEmptyLabel(node) {
-		return this.isEmptyRoot(node) || node !== void 0 && labelText(this.doc, node) === EMPTY_LABEL;
+		if (node === void 0) return false;
+		const label = labelText(this.doc, node);
+		return (label === EMPTY_LABEL || label.trim() === "") && (node.kind === "root" || node.capabilities.editLabel);
 	}
-	snapshot() {
+	historyEntry() {
 		return {
 			source: this.doc.source,
 			selection: this.selectionOffset,
@@ -1530,7 +1573,7 @@ var MarkmapEditor = class {
 	restore(entry) {
 		const parsed = parseDocument(entry.source);
 		this.closeNotes(false);
-		this.stopEditingUi(false);
+		this.completeEditing("switch", false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.view.setTree(parsed.tree);
@@ -1567,7 +1610,7 @@ var MarkmapEditor = class {
 			return;
 		}
 		const selected = this.doc.nodes.get(id);
-		if (!this.editing && this.isEmptyRoot(selected)) {
+		if (!this.editing && selected?.kind === "root" && this.doc.source.trim() === "") {
 			this.selectionBox.style.display = "none";
 			return;
 		}
@@ -1601,12 +1644,18 @@ var MarkmapEditor = class {
 		const [x, y] = this.view.layoutPoint(event.clientX, event.clientY);
 		return this.view.hitAt(x, y);
 	}
-	emitChange() {
-		this.onChange?.({
+	committedChange() {
+		return {
 			source: this.doc.source,
 			selection: this.selectionOffset,
 			document: this.doc
-		});
+		};
+	}
+	emitDraftChange(change) {
+		this.onDraftChange?.(change);
+	}
+	emitChange(change) {
+		this.onChange?.(change ?? this.committedChange());
 	}
 };
 // src/view.ts
