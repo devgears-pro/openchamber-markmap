@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from 'vi
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
 import type * as MarkmapModel from '@markmap/model';
+import { builtinLayouts, builtinThemes, softTheme } from '@markmap/render';
 import type { ToolbarOptions } from '@markmap/toolbar';
 import type { ViewOptions } from '@markmap/view';
 
@@ -333,8 +334,12 @@ describe('Markmap adapter', () => {
         fitPadding: 24,
         fitMaxScale: 1,
         layout: layoutFor('two-sided'),
+        theme: softTheme,
+        siblingGap: 14,
+        levelGap: 110,
       },
       undefined,
+      { layouts: builtinLayouts, themes: builtinThemes },
     );
     expect(resolved.options).toBeDefined();
     expect(toolbar.destroy).not.toHaveBeenCalled();
@@ -342,7 +347,7 @@ describe('Markmap adapter', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  test('[R-32] resets the view to 100% on the selected node', () => {
+  test('[R-33] resets the view to 100% on the selected node', () => {
     const { result, markmap, onSource } = mount();
     if (!result.ok) throw new Error(result.message);
     mocks.editorSelected.value = 'child';
@@ -358,7 +363,7 @@ describe('Markmap adapter', () => {
     expect(onSource).not.toHaveBeenCalled();
   });
 
-  test('[R-32] falls back to the root when the selection is gone', () => {
+  test('[R-33] falls back to the root when the selection is gone', () => {
     const { result, markmap } = mount();
     if (!result.ok) throw new Error(result.message);
     mocks.editorSelected.value = 'gone';
@@ -386,7 +391,7 @@ describe('Markmap adapter', () => {
     expect(markmap.zoomBehavior.transform).toHaveBeenCalled();
   });
 
-  test('[R-32] resets a read-only map to the root', () => {
+  test('[R-33] resets a read-only map to the root', () => {
     const { result, markmap } = mount({ editable: false });
     if (!result.ok) throw new Error(result.message);
     markmap.focusNode.mockClear();

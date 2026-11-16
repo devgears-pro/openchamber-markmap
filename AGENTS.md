@@ -45,7 +45,7 @@ bunx openchamber-guest-check
 - `src/markmap/view.ts`: the only editor module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and editor, and destroys them.
 - `src/markmap/preview.ts`: the read-only Markmap for the chat block; shares the view options with the editor.
 - `src/ui/styles.ts`, `src/chat/styles.ts`: injected stylesheets, host tokens only.
-- `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, and `edit-dom` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
+- `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, `edit-dom`, and `render` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
 - `editor/`: installable editor entry: `index.html` and the built `main.js`.
 - `chat/`: installable chat block entry: `index.html` and the built `main.js`.
 - `dev/`: Vite harness, synthetic samples, and host theme tokens for screenshots.
@@ -64,7 +64,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - An open label reports each valid draft as the saveable text before the first snapshot, so a clean file becomes dirty while the field keeps focus; the committed document still arrives through `onSource`. Notes keep the snapshot-driven path: they do not report drafts, and a note is committed when the host requests a snapshot. `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version without exiting edit mode or moving focus. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
-- Use the vendored `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
+- Use the vendored `@markmap/model`, `@markmap/render`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`. Notes use the fork's panel and one `markmap-note` fenced block under the node; the dot popover stays read-only.
 - Unmodified wheel events pan by screen pixels, coalesced once per animation frame; line/page deltas use 40/800, and Shift maps vertical to horizontal. Cmd/Ctrl + wheel zooms with clamped deltas. The custom gesture layer is in `src/markmap/gestures.ts`.
@@ -101,6 +101,7 @@ Before the final reply:
 - A `markmap-note` fenced block under a node is an isolated Markdown note; a paragraph renders as a legacy note. Headings and list items become branches. The view exposes no notes editing API; the fork's `@markmap/edit-dom` owns the notes panel.
 - `@markmap/render` provides `tree`, `two-sided`, and `org-chart`; frontmatter key `markmap.layout` selects one. The view passes no custom layout resolver today.
 - `colorDepth` replaced the legacy `colorFreezeLevel` from Markmap 0.18.
+- The vendored `soft` theme is the default when frontmatter has no theme. It resolves per-node font, fill, and padding before text measurement, and the editor overlay reads the same resolved label style. Explicit `theme`, `color`, and `colorDepth` values still win.
 
 ## Reference
 

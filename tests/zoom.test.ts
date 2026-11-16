@@ -61,7 +61,7 @@ describe('full-scale placement', () => {
     placement.cancel();
   });
 
-  test('[R-32] keeps a large two-sided map on its root', () => {
+  test('[R-33] keeps a large two-sided map on its root', () => {
     const view = viewOf({ result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } } });
 
     const placement = placeAtFullScale(view, 'root', options('two-sided'));
@@ -71,7 +71,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).not.toHaveBeenCalled();
   });
 
-  test('[R-32] anchors a large tree on the left', () => {
+  test('[R-33] anchors a large tree on the left', () => {
     const view = viewOf({
       result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
       screenRect: vi.fn(() => ({ x: 400, y: 200, width: 100, height: 40 })),
@@ -83,7 +83,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).toHaveBeenCalledWith(-376, 80);
   });
 
-  test('[R-32] anchors a large org chart on top', () => {
+  test('[R-33] anchors a large org chart on top', () => {
     const view = viewOf({
       result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
       screenRect: vi.fn(() => ({ x: 400, y: 200, width: 100, height: 40 })),
@@ -95,7 +95,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).toHaveBeenCalledWith(-50, -152);
   });
 
-  test('[R-32] centers a selected child without fitting the drawing', () => {
+  test('[R-33] centers a selected child without fitting the drawing', () => {
     const view = viewOf();
 
     const placement = placeAtFullScale(view, 'child', options('two-sided', false));
@@ -105,7 +105,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).not.toHaveBeenCalled();
   });
 
-  test('[R-32] keeps the root when the drawing bounds are missing', () => {
+  test('[R-33] keeps the root when the drawing bounds are missing', () => {
     const view = viewOf({ result: undefined });
 
     const placement = placeAtFullScale(view, 'root', options('two-sided'));
@@ -115,7 +115,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).not.toHaveBeenCalled();
   });
 
-  test('[R-32] keeps the root when its screen rect is missing', () => {
+  test('[R-33] keeps the root when its screen rect is missing', () => {
     const view = viewOf({
       result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
       screenRect: vi.fn(() => undefined),
@@ -127,7 +127,7 @@ describe('full-scale placement', () => {
     expect(view.panBy).not.toHaveBeenCalled();
   });
 
-  test('[R-32] reports a missing node', () => {
+  test('[R-33] reports a missing node', () => {
     const view = viewOf({ focusNode: vi.fn(() => false) });
 
     const placement = placeAtFullScale(view, 'gone', options('two-sided'));
@@ -159,7 +159,7 @@ describe('full-scale placement', () => {
     placement.cancel();
   });
 
-  test('[R-32] waits while the frame still has no size', () => {
+  test('[R-33] waits while the frame still has no size', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
@@ -175,7 +175,7 @@ describe('full-scale placement', () => {
     placement.cancel();
   });
 
-  test('[R-32] cancels a pending placement', () => {
+  test('[R-33] cancels a pending placement', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
     const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));

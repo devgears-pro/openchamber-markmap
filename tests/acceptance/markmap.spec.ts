@@ -34,6 +34,20 @@ const center = async (page: Page, label: string): Promise<{ x: number; y: number
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+const nodeBoxOf = async (
+  page: Page,
+  label: string,
+): Promise<{ x: number; y: number; width: number; height: number }> =>
+  page.evaluate((wanted) => {
+    const text = [...document.querySelectorAll('.mm-markmap-svg text')].find(
+      (element) => element.textContent.trim() === wanted,
+    );
+    const group = text?.closest('g[data-key^="node:"]');
+    if (!group) throw new Error(`No node box for ${wanted}`);
+    const rect = group.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  }, label);
+
 const startDrag = async (page: Page, label: string): Promise<{ x: number; y: number }> => {
   const from = await center(page, label);
   await page.mouse.move(from.x, from.y);
@@ -130,7 +144,7 @@ test('[R-02] opens a read-only file at 100% centered on the root', async ({ page
   expect(centered(metrics).y).toBeLessThanOrEqual(20);
 });
 
-test('[R-32] resets the view to 100% on the selected node', async ({ page }) => {
+test('[R-33] resets the view to 100% on the selected node', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
   await page.goto('/dev/?map=showcase');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
@@ -159,9 +173,9 @@ test('[R-32] resets the view to 100% on the selected node', async ({ page }) => 
     .toBeLessThanOrEqual(20);
 });
 
-test('[R-32] centers a tree that fits at 100%', async ({ page }) => {
+test('[R-33] centers a tree that fits at 100%', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
-  await page.goto('/dev/?map=showcase');
+  await page.goto('/dev/?map=notes');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
 
   await page.getByRole('button', { name: 'Tree' }).click();
@@ -175,9 +189,10 @@ test('[R-32] centers a tree that fits at 100%', async ({ page }) => {
   expect(bounds.minY).toBeGreaterThanOrEqual(0);
   expect(bounds.maxY).toBeLessThanOrEqual(500);
   expect(Math.abs(bounds.minX - (700 - bounds.maxX))).toBeLessThanOrEqual(40);
+  expect(Math.abs(bounds.minY - (500 - bounds.maxY))).toBeLessThanOrEqual(40);
 });
 
-test('[R-32] starts a large tree at the left on reset', async ({ page }) => {
+test('[R-33] starts a large tree at the left on reset', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
   await page.goto('/dev/?map=move');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
@@ -194,7 +209,7 @@ test('[R-32] starts a large tree at the left on reset', async ({ page }) => {
   expect(centered(metrics).y).toBeLessThanOrEqual(20);
 });
 
-test('[R-32] starts a large org chart at the top on reset', async ({ page }) => {
+test('[R-33] starts a large org chart at the top on reset', async ({ page }) => {
   await page.setViewportSize({ width: 700, height: 500 });
   await page.goto('/dev/?map=move');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
@@ -1054,7 +1069,7 @@ test('[R-30] drags a branch to a new order', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();
   await startDrag(page, 'Editor');
-  const target = await boxOf(page, 'Search');
+  const target = await nodeBoxOf(page, 'Search');
   await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, { steps: 8 });
 
   await expect(page.locator('.mm-editor-drop')).toHaveClass(/mm-editor-drop-line/u);
