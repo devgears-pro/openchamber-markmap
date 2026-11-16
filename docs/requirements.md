@@ -10,7 +10,7 @@ The package declares one `contributes.fileEditors` entry with display name `Mark
 
 ### R-02 Render
 
-A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. It honors `markmap.layout` for `tree`, `two-sided`, and `org-chart`, opens a file without the key as `two-sided`, and falls back to `two-sided` with a non-blocking notice for an unknown value. The map opens at 100% scale centered on the root, including a map larger than the viewport. The Fit control scales the whole map into the viewport and stays capped at 100% by default; `markmap.fitMaxScale` in frontmatter can change that cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+A matching text file opens as an interactive Markmap. The renderer receives the file text unchanged, mounts the Markmap toolbar, and shows the map in the stage. It honors `markmap.layout` for `tree`, `two-sided`, and `org-chart`, opens a file without the key as `two-sided`, and falls back to `two-sided` with a non-blocking notice for an unknown value. The map opens at 100% within the map's scale limits. A drawing that fits the viewport at that scale is centered as a whole. A larger drawing keeps the root in view according to the layout: centered for `two-sided`, at the left for `tree`, and at the top for `org-chart`. The Fit control scales the whole map into the viewport and stays capped at 100% by default; `markmap.fitMaxScale` in frontmatter can change that cap. Rendering uses the vendored `@markmap/model` and `@markmap/edit-dom` over `@markmap/view` and `@markmap/toolbar`; `src/` contains no custom Markdown parser, layout, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
 
 ### R-03 Node selection
 
@@ -116,7 +116,7 @@ Cmd/Ctrl+Shift+Up and Down move the selected node among its siblings, Left makes
 
 ### R-32 View reset
 
-A file map offers a labelled Reset view control in the map toolbar. It sets the scale to 100% and centers the selected node; a read-only map centers the root. The control does not change the selection, the file bytes, the snapshot, or the dirty state, and it works in every layout. Fit remains a separate control that scales the whole map into the viewport. The control is keyboard operable.
+A file map offers a labelled Reset view control in the map toolbar. It sets the scale to 100% within the map's scale limits. For the selected node it centers the node; for the root, or in a read-only map, it returns to the open view: a drawing that fits is centered, and a larger drawing keeps the root in view according to the layout. The control does not change the selection or the document itself; an open note is committed by the click outside its panel, as with any toolbar action. It works in every layout, returns focus to the map, and is keyboard operable. Fit remains a separate control that scales the whole map into the viewport.
 
 ### R-23 Chat block manifest
 
@@ -169,4 +169,4 @@ Naming an editable synthetic root with no top-level H1, or a title root with no 
 | R-29        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-30        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-31        | `tests/acceptance/markmap.spec.ts`                                                                                        |
-| R-32        | `tests/zoom.test.ts`, `tests/markmap-view.test.ts`, `tests/toolbar.test.ts`, acceptance                                   |
+| R-32        | `tests/zoom.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                            |

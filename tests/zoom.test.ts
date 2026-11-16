@@ -1,17 +1,35 @@
 import { afterEach, describe, expect, test, vi, type Mock } from 'vitest';
 
-import { placeAtFullScale } from '../src/markmap/zoom';
+import type { MarkmapLayout } from '../src/markmap/layouts';
+import { placeAtFullScale, type FullScaleOptions } from '../src/markmap/zoom';
+
+type Rect = { x: number; y: number; width: number; height: number };
+type Bounds = Rect;
 
 type Focusable = {
   element: Element;
+  transform: { apply: (point: [number, number]) => [number, number] };
+  result?: { bounds: Bounds } | undefined;
   focusNode: Mock<(id: string, options?: { scale?: number; animate?: boolean }) => boolean>;
+  screenRect: Mock<(id: string) => Rect | undefined>;
+  panBy: Mock<(dx: number, dy: number) => void>;
 };
 
-const focusable = (): Focusable => {
+const viewOf = (overrides: Partial<Focusable> = {}): Focusable => {
   const element = document.createElement('div');
   element.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
-  return { element, focusNode: vi.fn(() => true) };
+  return {
+    element,
+    transform: { apply: ([x, y]) => [x, y] },
+    result: { bounds: { x: 0, y: 0, width: 400, height: 200 } },
+    focusNode: vi.fn(() => true),
+    screenRect: vi.fn(() => ({ x: 0, y: 0, width: 100, height: 40 })),
+    panBy: vi.fn(),
+    ...overrides,
+  };
 };
+
+const options = (layout: MarkmapLayout, root = true): FullScaleOptions => ({ layout, root });
 
 class TestResizeObserver implements ResizeObserver {
   static instances: TestResizeObserver[] = [];
@@ -33,25 +51,103 @@ afterEach(() => {
 
 describe('full-scale placement', () => {
   test('[R-02] puts a sized map at 100% on its root', () => {
-    const view = focusable();
+    const view = viewOf();
 
-    const cancel = placeAtFullScale(view, 'root');
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
 
+    expect(placement.placed).toBe(true);
     expect(view.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
-    cancel();
+    expect(view.panBy).toHaveBeenCalledWith(200, 200);
+    placement.cancel();
   });
 
-  test('[R-32] waits for the first layout', () => {
+  test('[R-32] keeps a large two-sided map on its root', () => {
+    const view = viewOf({ result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } } });
+
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
+
+    expect(placement.placed).toBe(true);
+    expect(view.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
+    expect(view.panBy).not.toHaveBeenCalled();
+  });
+
+  test('[R-32] anchors a large tree on the left', () => {
+    const view = viewOf({
+      result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
+      screenRect: vi.fn(() => ({ x: 400, y: 200, width: 100, height: 40 })),
+    });
+
+    const placement = placeAtFullScale(view, 'root', options('tree'));
+
+    expect(placement.placed).toBe(true);
+    expect(view.panBy).toHaveBeenCalledWith(-376, 80);
+  });
+
+  test('[R-32] anchors a large org chart on top', () => {
+    const view = viewOf({
+      result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
+      screenRect: vi.fn(() => ({ x: 400, y: 200, width: 100, height: 40 })),
+    });
+
+    const placement = placeAtFullScale(view, 'root', options('org-chart'));
+
+    expect(placement.placed).toBe(true);
+    expect(view.panBy).toHaveBeenCalledWith(-50, -152);
+  });
+
+  test('[R-32] centers a selected child without fitting the drawing', () => {
+    const view = viewOf();
+
+    const placement = placeAtFullScale(view, 'child', options('two-sided', false));
+
+    expect(placement.placed).toBe(true);
+    expect(view.focusNode).toHaveBeenCalledWith('child', { scale: 1, animate: false });
+    expect(view.panBy).not.toHaveBeenCalled();
+  });
+
+  test('[R-32] keeps the root when the drawing bounds are missing', () => {
+    const view = viewOf({ result: undefined });
+
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
+
+    expect(placement.placed).toBe(true);
+    expect(view.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
+    expect(view.panBy).not.toHaveBeenCalled();
+  });
+
+  test('[R-32] keeps the root when its screen rect is missing', () => {
+    const view = viewOf({
+      result: { bounds: { x: 0, y: 0, width: 1000, height: 800 } },
+      screenRect: vi.fn(() => undefined),
+    });
+
+    const placement = placeAtFullScale(view, 'root', options('tree'));
+
+    expect(placement.placed).toBe(true);
+    expect(view.panBy).not.toHaveBeenCalled();
+  });
+
+  test('[R-32] reports a missing node', () => {
+    const view = viewOf({ focusNode: vi.fn(() => false) });
+
+    const placement = placeAtFullScale(view, 'gone', options('two-sided'));
+
+    expect(placement.placed).toBe(false);
+    expect(view.panBy).not.toHaveBeenCalled();
+  });
+
+  test('[R-02] waits for the first layout', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
-    const view = focusable();
+    const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect')
       .mockReturnValueOnce(new DOMRect(0, 0, 0, 0))
       .mockReturnValue(new DOMRect(0, 0, 800, 600));
 
-    const cancel = placeAtFullScale(view, 'root');
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
     const observer = TestResizeObserver.instances[0];
     if (observer === undefined) throw new Error('No observer');
 
+    expect(placement.placed).toBe(true);
     expect(view.focusNode).not.toHaveBeenCalled();
     expect(observer.observe).toHaveBeenCalledWith(view.element);
 
@@ -59,15 +155,16 @@ describe('full-scale placement', () => {
 
     expect(observer.disconnect).toHaveBeenCalledOnce();
     expect(view.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
-    cancel();
+    expect(view.panBy).toHaveBeenCalledWith(200, 200);
+    placement.cancel();
   });
 
   test('[R-32] waits while the frame still has no size', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
-    const view = focusable();
+    const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
 
-    const cancel = placeAtFullScale(view, 'root');
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
     const observer = TestResizeObserver.instances[0];
     if (observer === undefined) throw new Error('No observer');
 
@@ -75,31 +172,32 @@ describe('full-scale placement', () => {
 
     expect(observer.disconnect).not.toHaveBeenCalled();
     expect(view.focusNode).not.toHaveBeenCalled();
-    cancel();
+    placement.cancel();
   });
 
   test('[R-32] cancels a pending placement', () => {
     vi.stubGlobal('ResizeObserver', TestResizeObserver);
-    const view = focusable();
+    const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
 
-    const cancel = placeAtFullScale(view, 'root');
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
     const observer = TestResizeObserver.instances[0];
     if (observer === undefined) throw new Error('No observer');
 
-    cancel();
+    placement.cancel();
 
     expect(observer.disconnect).toHaveBeenCalledOnce();
   });
 
-  test('[R-32] does not wait without a ResizeObserver', () => {
+  test('[R-02] does not wait without a ResizeObserver', () => {
     vi.stubGlobal('ResizeObserver', undefined);
-    const view = focusable();
+    const view = viewOf();
     vi.spyOn(view.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 0, 0));
 
-    const cancel = placeAtFullScale(view, 'root');
-    cancel();
+    const placement = placeAtFullScale(view, 'root', options('two-sided'));
+    placement.cancel();
 
+    expect(placement.placed).toBe(false);
     expect(view.focusNode).not.toHaveBeenCalled();
   });
 });

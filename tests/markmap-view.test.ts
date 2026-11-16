@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
 
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
@@ -137,7 +137,16 @@ const { parseDocument: parseRealDocument } =
 type FakeMarkmap = {
   element: SVGSVGElement;
   options: Record<string, unknown>;
-  zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn> };
+  transform: {
+    k: number;
+    x: number;
+    y: number;
+    apply: (point: [number, number]) => [number, number];
+    translate: ReturnType<typeof vi.fn>;
+  };
+  result: { bounds: { x: number; y: number; width: number; height: number } };
+  screenRect: ReturnType<typeof vi.fn>;
+  zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn>; transform: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
   fit: ReturnType<typeof vi.fn>;
   focusNode: ReturnType<typeof vi.fn>;
@@ -157,7 +166,16 @@ const fakeMarkmap = (svg: SVGSVGElement): FakeMarkmap => {
   const markmap: FakeMarkmap = {
     element: svg,
     options: {},
-    zoomBehavior: { wheelDelta: vi.fn() },
+    transform: {
+      k: 1,
+      x: 0,
+      y: 0,
+      apply: ([x, y]) => [x, y],
+      translate: vi.fn(),
+    },
+    result: { bounds: { x: 0, y: 0, width: 400, height: 200 } },
+    screenRect: vi.fn(() => ({ x: 0, y: 0, width: 100, height: 40 })),
+    zoomBehavior: { wheelDelta: vi.fn(), transform: vi.fn() },
     setOptions: vi.fn((next: Record<string, unknown>) => {
       markmap.options = next;
     }),
@@ -247,6 +265,24 @@ const mount = (
   return { ...base, options, result };
 };
 
+class TestResizeObserver implements ResizeObserver {
+  static instances: TestResizeObserver[] = [];
+  readonly observe = vi.fn<(target: Element, options?: ResizeObserverOptions) => void>();
+  readonly unobserve = vi.fn<(target: Element) => void>();
+  readonly disconnect = vi.fn<() => void>();
+  readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    TestResizeObserver.instances.push(this);
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  TestResizeObserver.instances.length = 0;
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.editorOptions.length = 0;
@@ -307,14 +343,19 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-32] resets the view to 100% on the selected node', () => {
-    const { result, markmap } = mount();
+    const { result, markmap, onSource } = mount();
     if (!result.ok) throw new Error(result.message);
     mocks.editorSelected.value = 'child';
     markmap.focusNode.mockClear();
+    mocks.editorFocus.mockClear();
+    mocks.editorCommit.mockClear();
 
     result.view.resetView();
 
     expect(markmap.focusNode).toHaveBeenCalledWith('child', { scale: 1, animate: false });
+    expect(mocks.editorFocus).toHaveBeenCalledOnce();
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
+    expect(onSource).not.toHaveBeenCalled();
   });
 
   test('[R-32] falls back to the root when the selection is gone', () => {
@@ -323,6 +364,7 @@ describe('Markmap adapter', () => {
     mocks.editorSelected.value = 'gone';
     markmap.focusNode.mockReturnValueOnce(false);
     markmap.focusNode.mockClear();
+    mocks.editorFocus.mockClear();
 
     result.view.resetView();
 
@@ -330,6 +372,18 @@ describe('Markmap adapter', () => {
       ['gone', { scale: 1, animate: false }],
       ['root', { scale: 1, animate: false }],
     ]);
+    expect(mocks.editorFocus).toHaveBeenCalledOnce();
+  });
+
+  test('[R-02] reads the root rect for a large tree', () => {
+    const { result, markmap } = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('tree');
+      base.markmap.result = { bounds: { x: 0, y: 0, width: 1000, height: 800 } };
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(markmap.screenRect).toHaveBeenCalledWith('root');
+    expect(markmap.zoomBehavior.transform).toHaveBeenCalled();
   });
 
   test('[R-32] resets a read-only map to the root', () => {
@@ -340,6 +394,23 @@ describe('Markmap adapter', () => {
     result.view.resetView();
 
     expect(markmap.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
+    expect(mocks.editorFocus).not.toHaveBeenCalled();
+  });
+
+  test('[R-07] cancels a pending placement when destroyed', () => {
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    const { result, markmap } = mount({}, (base) => {
+      base.svg.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
+    });
+    if (!result.ok) throw new Error(result.message);
+    const observer = TestResizeObserver.instances[0];
+    if (observer === undefined) throw new Error('No observer');
+
+    expect(markmap.focusNode).not.toHaveBeenCalled();
+
+    result.view.destroy();
+
+    expect(observer.disconnect).toHaveBeenCalledOnce();
   });
 
   test('[R-02] opens a file without a layout as two-sided', () => {
