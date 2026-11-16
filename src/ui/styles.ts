@@ -33,17 +33,17 @@ const MARKMAP_CSS = `
   }
   .mm-markmap-toolbar {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     z-index: 4;
     display: flex;
     align-items: center;
     gap: 3px;
-    padding: 5px;
+    padding: 3px;
     border: 1px solid var(--oc-border, #34343c);
-    border-radius: calc(var(--oc-radius, 9px) + 5px);
+    border-radius: calc(var(--oc-radius, 9px) - 1px);
     background: var(--oc-elevated, #25252c);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
   }
   .mm-markmap-toolbar > .markmap-toolbar {
     gap: 2px;
@@ -51,29 +51,42 @@ const MARKMAP_CSS = `
     border: 0;
     border-radius: 0;
     background: transparent;
-    color: var(--oc-fg, #ececf1);
+    color: var(--oc-muted, #8d8d99);
+    font: 12px/1.2 var(--oc-font, system-ui, -apple-system, "Segoe UI", sans-serif);
   }
   .mm-markmap-toolbar .markmap-toolbar button,
   .mm-markmap-toolbar .markmap-toolbar select {
-    min-width: 30px;
-    height: 30px;
-    padding: 0 6px;
-    border-radius: 8px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 4px;
+    border-radius: 6px;
+    color: inherit;
+  }
+  .mm-markmap-toolbar .markmap-toolbar button {
+    padding: 0;
   }
   .mm-markmap-toolbar .markmap-toolbar button:hover:enabled,
   .mm-markmap-toolbar .markmap-toolbar select:hover:enabled {
     background: var(--oc-hover, rgba(255, 255, 255, 0.06));
+    color: var(--oc-fg, #ececf1);
   }
   .mm-markmap-toolbar .markmap-toolbar :focus-visible {
     outline: 2px solid var(--oc-focus, #6ea8fe);
     outline-offset: -2px;
+    color: var(--oc-fg, #ececf1);
   }
   .mm-markmap-toolbar .markmap-toolbar svg {
-    width: 20px;
-    height: 20px;
+    display: block;
+    width: 16px;
+    height: 16px;
+    margin: auto;
   }
   .mm-markmap-toolbar .markmap-toolbar path {
+    fill: none;
+    stroke: currentColor;
     stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .mm-clipboard-sink {
     position: absolute;
@@ -92,36 +105,37 @@ const MARKMAP_CSS = `
     align-items: center;
     gap: 2px;
     margin: 0;
-    padding-left: 4px;
+    padding-left: 6px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
   .mm-layout-button {
     display: grid;
     place-items: center;
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     background: transparent;
-    color: var(--oc-fg, #ececf1);
+    color: var(--oc-muted, #8d8d99);
     cursor: pointer;
   }
   .mm-layout-button:hover {
     background: var(--oc-hover, rgba(255, 255, 255, 0.06));
+    color: var(--oc-fg, #ececf1);
   }
   .mm-layout-button[aria-pressed="true"] {
-    background: var(--oc-selection, rgba(110, 168, 254, 0.18));
     color: var(--oc-fg, #ececf1);
   }
   .mm-layout-button:focus-visible {
     outline: 2px solid var(--oc-focus, #6ea8fe);
     outline-offset: -2px;
+    color: var(--oc-fg, #ececf1);
   }
   .mm-layout-button svg {
     display: block;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
   }
   .mm-layout-button path {
     fill: none;
@@ -135,24 +149,24 @@ const MARKMAP_CSS = `
     display: flex;
     align-items: center;
     margin: 0;
-    padding-left: 4px;
+    padding-left: 6px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
   .mm-notes-menu {
     display: flex;
     align-items: center;
     margin: 0;
-    padding-left: 4px;
+    padding-left: 6px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
   .mm-marker-select {
     position: relative;
     z-index: 1;
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
     padding: 0;
     border: 0;
-    border-radius: 8px;
+    border-radius: 6px;
     background: transparent;
     color: transparent;
     font: 15px/1 var(--oc-font, system-ui, sans-serif);
@@ -175,11 +189,15 @@ const MARKMAP_CSS = `
     right: 0;
     bottom: 0;
     left: 0;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     margin: auto;
-    color: var(--oc-fg, #ececf1);
+    color: var(--oc-muted, #8d8d99);
     pointer-events: none;
+  }
+  .mm-marker-select:hover + svg,
+  .mm-marker-select:focus + svg {
+    color: var(--oc-fg, #ececf1);
   }
   .mm-marker-menu path {
     fill: none;
