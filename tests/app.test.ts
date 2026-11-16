@@ -162,6 +162,7 @@ const createMarkmapFactory = (): FakeFactory => {
     editNotes: () => {
       notesEditCount += 1;
     },
+    resetView: () => undefined,
     commit: () => {
       commitCount += 1;
       editing = false;
@@ -278,6 +279,7 @@ const createRealEditorFactory = (): RealEditorFactory => {
       editNotes: () => {
         editor.editNotes();
       },
+      resetView: () => undefined,
       commit: () => {
         editor.commit();
       },

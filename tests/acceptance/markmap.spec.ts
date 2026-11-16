@@ -56,6 +56,55 @@ const startDrag = async (page: Page, label: string): Promise<{ x: number; y: num
   return from;
 };
 
+type MapMetrics = {
+  transform: string;
+  svg: { x: number; y: number; width: number; height: number };
+  node: { x: number; y: number; width: number; height: number };
+};
+
+const mapMetrics = async (page: Page, label: string): Promise<MapMetrics> => {
+  const metrics = await page.evaluate((text) => {
+    const svg = document.querySelector('.mm-markmap-svg');
+    const node = [...document.querySelectorAll('.mm-markmap-svg text')].find(
+      (element) => element.textContent.trim() === text,
+    );
+    if (!(svg instanceof SVGSVGElement) || !(node instanceof SVGTextElement)) return null;
+    const group = svg.querySelector('g');
+    if (group === null) return null;
+    const svgBox = svg.getBoundingClientRect();
+    const nodeBox = node.getBoundingClientRect();
+    return {
+      transform: group.getAttribute('transform') ?? '',
+      svg: { x: svgBox.x, y: svgBox.y, width: svgBox.width, height: svgBox.height },
+      node: { x: nodeBox.x, y: nodeBox.y, width: nodeBox.width, height: nodeBox.height },
+    };
+  }, label);
+  if (metrics === null) throw new Error(`Missing map metrics for ${label}`);
+  return metrics;
+};
+
+const centered = (metrics: MapMetrics): { x: number; y: number } => ({
+  x: Math.abs(metrics.node.x + metrics.node.width / 2 - (metrics.svg.x + metrics.svg.width / 2)),
+  y: Math.abs(metrics.node.y + metrics.node.height / 2 - (metrics.svg.y + metrics.svg.height / 2)),
+});
+
+const textBounds = async (
+  page: Page,
+): Promise<{ minX: number; minY: number; maxX: number; maxY: number }> => {
+  const bounds = await page.evaluate(() => {
+    const rects = [...document.querySelectorAll('.mm-markmap-svg text')].map((element) =>
+      element.getBoundingClientRect(),
+    );
+    return {
+      minX: Math.min(...rects.map((rect) => rect.left)),
+      minY: Math.min(...rects.map((rect) => rect.top)),
+      maxX: Math.max(...rects.map((rect) => rect.right)),
+      maxY: Math.max(...rects.map((rect) => rect.bottom)),
+    };
+  });
+  return bounds;
+};
+
 test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) => {
   await page.goto('/dev/');
 
@@ -63,16 +112,121 @@ test('[R-02] renders a real Markmap and mounts its toolbar', async ({ page }) =>
   await expect(page.locator('.mm-markmap-svg g').first()).toBeVisible();
   await expect(page.locator('.markmap-toolbar')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fit to view' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reset view' })).toBeVisible();
 });
 
-test('[R-02] opens a map at no more than 100% scale', async ({ page }) => {
-  await page.setViewportSize({ width: 1200, height: 800 });
+test('[R-02] opens a large file at 100% and Fit shows it whole', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
   await page.goto('/dev/?map=showcase');
   await expect(page.locator('.mm-markmap-svg')).toBeVisible();
 
-  const transform = await page.locator('.mm-markmap-svg > g').first().getAttribute('transform');
+  await page.getByRole('button', { name: 'Fit to view' }).click();
+  const fit = await page.locator('.mm-markmap-svg > g').first().getAttribute('transform');
+  expect(scaleOf(fit ?? '')).toBeLessThan(1);
 
-  expect(scaleOf(transform ?? '')).toBeLessThanOrEqual(1);
+  await page.getByRole('button', { name: 'Reset view' }).click();
+  const metrics = await mapMetrics(page, 'Atlas release');
+
+  expect(scaleOf(metrics.transform)).toBeCloseTo(1);
+  expect(centered(metrics).x).toBeLessThanOrEqual(20);
+  expect(centered(metrics).y).toBeLessThanOrEqual(20);
+});
+
+test('[R-02] opens a read-only file at 100% centered on the root', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=showcase&readonly=1');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  const metrics = await mapMetrics(page, 'Atlas release');
+
+  expect(scaleOf(metrics.transform)).toBeCloseTo(1);
+  expect(centered(metrics).x).toBeLessThanOrEqual(20);
+  expect(centered(metrics).y).toBeLessThanOrEqual(20);
+});
+
+test('[R-33] resets the view to 100% on the selected node', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=showcase');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await page.getByText('Product', { exact: true }).first().click();
+
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  await page.mouse.move(350, 250);
+  await page.mouse.wheel(80, 60);
+
+  await expect
+    .poll(async () => scaleOf((await mapMetrics(page, 'Product')).transform))
+    .toBeGreaterThan(1);
+
+  const reset = page.getByRole('button', { name: 'Reset view' });
+  await reset.focus();
+  await page.keyboard.press('Enter');
+
+  await expect
+    .poll(async () => scaleOf((await mapMetrics(page, 'Product')).transform))
+    .toBeCloseTo(1);
+  await expect
+    .poll(async () => centered(await mapMetrics(page, 'Product')).x)
+    .toBeLessThanOrEqual(20);
+  await expect
+    .poll(async () => centered(await mapMetrics(page, 'Product')).y)
+    .toBeLessThanOrEqual(20);
+});
+
+test('[R-33] centers a tree that fits at 100%', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=notes');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Tree' }).click();
+  await expect(page.getByRole('button', { name: 'Tree' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Reset view' }).click();
+
+  const bounds = await textBounds(page);
+
+  expect(bounds.minX).toBeGreaterThanOrEqual(0);
+  expect(bounds.maxX).toBeLessThanOrEqual(700);
+  expect(bounds.minY).toBeGreaterThanOrEqual(0);
+  expect(bounds.maxY).toBeLessThanOrEqual(500);
+  expect(Math.abs(bounds.minX - (700 - bounds.maxX))).toBeLessThanOrEqual(40);
+  expect(Math.abs(bounds.minY - (500 - bounds.maxY))).toBeLessThanOrEqual(40);
+});
+
+test('[R-33] starts a large tree at the left on reset', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=move');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Tree' }).click();
+  await expect(page.getByRole('button', { name: 'Tree' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Reset view' }).click();
+
+  const metrics = await mapMetrics(page, 'Atlas release');
+
+  expect(scaleOf(metrics.transform)).toBeCloseTo(1);
+  expect(metrics.node.x - metrics.svg.x).toBeLessThanOrEqual(80);
+  expect(centered(metrics).x).toBeGreaterThan(100);
+  expect(centered(metrics).y).toBeLessThanOrEqual(20);
+});
+
+test('[R-33] starts a large org chart at the top on reset', async ({ page }) => {
+  await page.setViewportSize({ width: 700, height: 500 });
+  await page.goto('/dev/?map=move');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Reset view' }).click();
+
+  const metrics = await mapMetrics(page, 'Atlas release');
+
+  expect(scaleOf(metrics.transform)).toBeCloseTo(1);
+  expect(metrics.node.y - metrics.svg.y).toBeLessThanOrEqual(80);
+  expect(centered(metrics).y).toBeGreaterThan(100);
+  expect(centered(metrics).x).toBeLessThanOrEqual(20);
 });
 
 test('[R-02] opens a file as a two-sided map by default', async ({ page }) => {
@@ -808,13 +962,14 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
     expect(result.panelBackground).toBe(result.expectedBackground);
     expect(result.panelForeground).toBe(result.expectedForeground);
     expect(result.fieldForeground).toBe(result.expectedForeground);
-    expect(result.iconCount).toBeGreaterThanOrEqual(15);
+    expect(result.iconCount).toBeGreaterThanOrEqual(16);
     expect(result.outlineIcons).toBe(true);
-    expect(result.topGeometry).toHaveLength(9);
+    expect(result.topGeometry).toHaveLength(10);
     expect(result.buttonNames).toEqual([
       'Zoom in',
       'Zoom out',
       'Fit to view',
+      'Reset view',
       'Expand all',
       'Tree',
       'Two-sided',

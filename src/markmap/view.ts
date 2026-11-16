@@ -2,6 +2,7 @@ import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
 import { labelText, parseDocument } from '@markmap/model';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap } from '@markmap/view';
+import { select } from 'd3-selection';
 
 import { createClipboard } from './clipboard';
 import { messageOf } from './errors';
@@ -10,6 +11,7 @@ import { wheelZoomDelta } from './gestures';
 import { layoutFor, type MarkmapLayout } from './layouts';
 import { optionsFor, type MarkmapColorScheme } from './options';
 import { createToolbarItems } from './toolbar-items';
+import { placeAtFullScale } from './zoom';
 
 export type { MarkmapColorScheme } from './options';
 
@@ -25,6 +27,7 @@ export type MarkmapView = {
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
   editNotes: () => void;
+  resetView: () => void;
   commit: () => void;
   snapshotForSave: () => string | null;
   destroy: () => void;
@@ -61,6 +64,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
   let editor: MarkmapEditor | null = null;
   let toolbar: ReturnType<typeof createToolbar> | null = null;
   let clipboard: { destroy: () => void } | null = null;
+  let placement: (() => void) | null = null;
 
   try {
     const source = mount.markdown;
@@ -70,8 +74,45 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     markmap = Markmap.create(mount.svg, parsed.tree, resolved.options);
     const instance = markmap;
     let layoutName = resolved.layout;
+    const panBy = (dx: number, dy: number): void => {
+      const { k } = instance.transform;
+      instance.zoomBehavior.transform(
+        select(instance.element),
+        instance.transform.translate(dx / k, dy / k),
+      );
+    };
+    const placementView = {
+      get element() {
+        return instance.element;
+      },
+      get transform() {
+        return instance.transform;
+      },
+      get result() {
+        return instance.result;
+      },
+      focusNode: (id: string, options?: { scale?: number; animate?: boolean }) =>
+        instance.focusNode(id, options),
+      screenRect: (id: string) => instance.screenRect(id),
+      panBy,
+    };
+    placement = placeAtFullScale(placementView, parsed.tree.id, {
+      layout: layoutName,
+      root: true,
+    }).cancel;
     instance.zoomBehavior.wheelDelta(wheelZoomDelta);
-    toolbar = createToolbar(instance, { items: createToolbarItems() });
+    const resetView = (): void => {
+      const selected = editor?.selected ?? parsed.tree.id;
+      const placed = placeAtFullScale(placementView, selected, {
+        layout: layoutName,
+        root: selected === parsed.tree.id,
+      });
+      if (!placed.placed) {
+        placeAtFullScale(placementView, parsed.tree.id, { layout: layoutName, root: true });
+      }
+      editor?.focus();
+    };
+    toolbar = createToolbar(instance, { items: createToolbarItems(resetView) });
 
     if (mount.editable) {
       const created = new MarkmapEditor({
@@ -143,11 +184,14 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       editNotes: () => {
         editor?.editNotes();
       },
+      resetView,
       commit: () => {
         editor?.commit();
       },
       snapshotForSave: () => editor?.snapshot() ?? null,
       destroy: () => {
+        placement?.();
+        placement = null;
         mount.svg.removeEventListener('click', handleLink, true);
         clipboard?.destroy();
         clipboard = null;
@@ -162,6 +206,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     };
     return { ok: true, view };
   } catch (error) {
+    placement?.();
+    placement = null;
     clipboard?.destroy();
     editor?.destroy();
     toolbar?.destroy();
