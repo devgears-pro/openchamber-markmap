@@ -26,7 +26,7 @@ A merge into `dev` is not a release. `dev` is tested by hand. A stable release p
 ## Stable release
 
 1. Make sure `dev` is green and tested, and every visual feature has a presentation comment.
-2. Refresh the roadmap issue, README, and docs. Prepare the release notes and milestone demo.
+2. Refresh the roadmap issue, README, docs, and README screenshots from the release presentations. Prepare the release notes and milestone demo.
 3. Open a PR from `dev` into `main` and merge it with a **merge commit, not squash**.
 4. Release Please opens the release PR. Review the version; CI must be green.
 5. Merge the release PR. Release Please creates the tag and a **draft** release.
