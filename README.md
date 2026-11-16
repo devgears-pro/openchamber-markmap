@@ -196,8 +196,6 @@ The process is documented in:
 - [`docs/process/releases.md`](docs/process/releases.md) (branches, versions, tags, and release notes).
 - [`docs/requirements.md`](docs/requirements.md) (requirement tree and traceability).
 
-Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
-
 ## Credits
 
 Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.

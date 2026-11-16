@@ -1,6 +1,6 @@
 # Change lifecycle
 
-This repository uses a small, deterministic loop: requirement, failing test, minimal implementation, verification, documented evidence.
+This repository uses a small, deterministic loop: requirement, failing test, minimal implementation, verification, review, documented evidence.
 
 ## Principles
 
@@ -10,14 +10,40 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 - Every check runs locally and in CI with the same command.
 - Docs are public. Use placeholders and synthetic examples; no local paths, usernames, sessions, or personal data.
 
+## Planning
+
+A feature or task is a GitHub issue from the feature template: a story (`As a ROLE, I want OUTCOME, so that REASON`), acceptance criteria, the `R-xx` it adds or changes, and scope. Acceptance criteria are testable statements, one per line.
+
+A story joins one version milestone when it is planned, grouped by theme rather than date. A new feature joins the milestone whose theme fits; do not renumber or shift versions. Release mechanics are in [`releases.md`](releases.md). The roadmap is [issue #3](https://github.com/mmospanenko/openchamber-markmap/issues/3): one row per release, the release themes, and the 1.0 criteria. Do not mirror milestones or criteria in the repository.
+
+The issue owns the outcome; [`requirements.md`](../requirements.md) owns the behavior; tests own the proof. Do not restate the requirement in the issue.
+
+## Decision records
+
+Most choices need no record. Write an ADR only when there were real options and the choice matters later. Discuss it with the user first, then add `docs/adr/NNNN-short-title.md`, starting at `0001`, link it from the issue, and commit it with the change it explains.
+
+Keep it to the decision in the title, why, the options, and the trade-offs:
+
+```md
+# <Decision>
+
+## Why
+
+## Options
+
+## Trade-offs
+```
+
+Do not restate the requirement or walk through the code. Do not rewrite an accepted ADR; add a new one and link both. The decision map in [issue #2](https://github.com/mmospanenko/openchamber-markmap/issues/2) links the records.
+
 ## Change types
 
-| Type    | First artifact                           | Required proof                         |
-| ------- | ---------------------------------------- | -------------------------------------- |
-| Feature | Requirement ID in `docs/requirements.md` | Failing test with `[R-xx]`, then green |
-| Bug     | Issue with reproduction steps            | Failing regression test, then green    |
-| Chore   | No behavior change                       | Existing checks stay green             |
-| Docs    | No behavior change                       | Markdownlint                           |
+| Type    | First artifact                                             | Required proof                         |
+| ------- | ---------------------------------------------------------- | -------------------------------------- |
+| Feature | Story issue and a requirement ID in `docs/requirements.md` | Failing test with `[R-xx]`, then green |
+| Bug     | Issue with reproduction steps                              | Failing regression test, then green    |
+| Chore   | No behavior change                                         | Existing checks stay green             |
+| Docs    | No behavior change                                         | Markdownlint                           |
 
 ## Steps
 
@@ -29,7 +55,8 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 6. **Run acceptance when rendering changes.** `bun run test:acceptance` drives a real browser and the real Markmap packages.
 7. **Rebuild the artifact.** `bun run build` updates `editor/main.js` and `chat/main.js`; commit both with the source.
 8. **Update traceability.** Keep `docs/requirements.md` aligned with the tests.
-9. **Report evidence.** Use the chat report below.
+9. **Review before the PR.** Start two fresh subagents: a core review of the code, and a design review of the solution and its architecture against the original story and its decision. Give both the story, the ADR when one exists, and the code. Address findings before opening the PR.
+10. **Report evidence.** Use the chat report below.
 
 ## Chat report
 
@@ -100,6 +127,7 @@ After the PR merges, post the closing proof on the issue and close it. A merged 
 - Acceptance is green when rendering changed.
 - `editor/main.js` is rebuilt and committed.
 - Docs and traceability are updated.
+- Core and design reviews are addressed.
 - README screenshots are uploaded to GitHub for visible UI changes.
 - Release steps are in [`releases.md`](releases.md).
 - The commit message describes the behavior, not the implementation.
