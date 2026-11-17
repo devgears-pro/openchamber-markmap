@@ -49,6 +49,18 @@ export type Command = {
 } | {
     type: 'toggleCheck';
     node: string;
+} | {
+    type: 'createGroup';
+    nodes: string[];
+    label?: string;
+    random?: RandomSource;
+} | {
+    type: 'deleteGroup';
+    groupIndex: number;
+} | {
+    type: 'setGroupLabel';
+    groupIndex: number;
+    text: string;
 };
 export interface EditResult {
     document: Document;

@@ -10,6 +10,7 @@ import type {
 import { createLayoutMenu } from './ui/layout-menu';
 import { createMarkerMenu } from './ui/marker-menu';
 import { createNotesMenu } from './ui/notes-menu';
+import { createGroupMenu } from './ui/group-menu';
 import { ensureStyles } from './ui/styles';
 
 export type MarkmapHost = Pick<
@@ -185,6 +186,11 @@ export const mountApp = (
         toolbar.append(
           createNotesMenu(() => {
             result.view.editNotes();
+          }),
+        );
+        toolbar.append(
+          createGroupMenu(() => {
+            result.view.createGroup();
           }),
         );
       }

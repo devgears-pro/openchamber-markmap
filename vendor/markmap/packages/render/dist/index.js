@@ -684,6 +684,8 @@ var CONTENT_TOKENS = {
 	"mm-mark-bg": "#ffeaa7",
 	"mm-checkbox": "#555",
 	"mm-note-dot": "#999",
+	"mm-group-border": "rgba(0, 122, 255, 0.45)",
+	"mm-group-fill": "rgba(0, 122, 255, 0.08)",
 	"mm-syntax-keyword": "#cf222e",
 	"mm-syntax-string": "#0a3069",
 	"mm-syntax-comment": "#6e7781",
@@ -698,6 +700,8 @@ var DARK_CONTENT_TOKENS = {
 	"mm-mark-bg": "#6b5a1e",
 	"mm-checkbox": "#bbb",
 	"mm-note-dot": "#888",
+	"mm-group-border": "rgba(88, 166, 255, 0.45)",
+	"mm-group-fill": "rgba(88, 166, 255, 0.12)",
 	"mm-syntax-keyword": "#ff7b72",
 	"mm-syntax-string": "#a5d6ff",
 	"mm-syntax-comment": "#8b949e",
@@ -1783,6 +1787,41 @@ function measureTree(root, options, defer) {
 	}
 	return result;
 }
+function isRecord(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function isStringArray(value) {
+	return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+function isRenderGroup(value) {
+	if (!isRecord(value)) return false;
+	return isStringArray(value["roots"]);
+}
+function readGroups(data) {
+	const groups = data["groups"];
+	if (!Array.isArray(groups)) return [];
+	return groups.filter(isRenderGroup);
+}
+function groupPadding(layoutName) {
+	if (layoutName === "org-chart") return {
+		top: 16,
+		right: 16,
+		bottom: 20,
+		left: 16
+	};
+	if (layoutName === "two-sided") return {
+		top: 14,
+		right: 20,
+		bottom: 14,
+		left: 20
+	};
+	return {
+		top: 14,
+		right: 20,
+		bottom: 14,
+		left: 16
+	};
+}
 /** Measure, lay out and draw a tree as backend-neutral primitives. */
 function renderTree(root, options) {
 	const theme = options.theme ?? classicTheme;
@@ -1816,22 +1855,62 @@ function renderTree(root, options) {
 		levelGap: options.levelGap,
 		siblingGap: options.siblingGap
 	});
-	const state = { nodes: layout.nodes.map((item) => {
-		const ctx = contextOf(item);
-		const measuredNode = measured.get(item.node.id);
-		let { text } = measuredNode;
-		const align = theme.node.textAlign?.(ctx) ?? "start";
-		if (align !== "start" && text.lines > 1) text = labelLayout(item.node, theme, options, measuredNode.label, align, (task) => tasks.push(task));
-		return {
-			node: item.node,
-			parentId: item.parent?.node.id,
-			rect: item.rect,
-			ctx,
-			text,
-			label: measuredNode.label,
-			presence: 1
+	const rawGroups = options.groups ?? readGroups(root.data);
+	const pad = groupPadding(options.layout?.name);
+	const drawGroups = [];
+	rawGroups.forEach((group, index) => {
+		if (group.roots.length === 0) return;
+		if (group.roots.some((r) => {
+			const p = paths.get(r);
+			return !p || p.some((id) => options.folded?.has(id));
+		})) return;
+		const groupNodes = layout.nodes.filter((item) => {
+			const path = paths.get(item.node.id);
+			return path !== void 0 && group.roots.some((r) => path.includes(r));
+		});
+		if (groupNodes.length === 0) return;
+		let minX = Infinity;
+		let minY = Infinity;
+		let maxX = -Infinity;
+		let maxY = -Infinity;
+		for (const node of groupNodes) {
+			if (node.rect.x < minX) minX = node.rect.x;
+			if (node.rect.y < minY) minY = node.rect.y;
+			if (node.rect.x + node.rect.width > maxX) maxX = node.rect.x + node.rect.width;
+			if (node.rect.y + node.rect.height > maxY) maxY = node.rect.y + node.rect.height;
+		}
+		const rect = {
+			x: minX - pad.left,
+			y: minY - pad.top,
+			width: maxX - minX + pad.left + pad.right,
+			height: maxY - minY + pad.top + pad.bottom
 		};
-	}) };
+		drawGroups.push({
+			id: group.id ?? `group-${index}`,
+			roots: [...group.roots],
+			label: group.label ?? null,
+			rect
+		});
+	});
+	const state = {
+		nodes: layout.nodes.map((item) => {
+			const ctx = contextOf(item);
+			const measuredNode = measured.get(item.node.id);
+			let { text } = measuredNode;
+			const align = theme.node.textAlign?.(ctx) ?? "start";
+			if (align !== "start" && text.lines > 1) text = labelLayout(item.node, theme, options, measuredNode.label, align, (task) => tasks.push(task));
+			return {
+				node: item.node,
+				parentId: item.parent?.node.id,
+				rect: item.rect,
+				ctx,
+				text,
+				label: measuredNode.label,
+				presence: 1
+			};
+		}),
+		groups: drawGroups
+	};
 	const primitives = drawState(state, theme);
 	const bounds = unionRects([layout.bounds, primitiveBounds(primitives)]);
 	const pending = tasks.length ? Promise.allSettled(tasks).then(() => void 0) : void 0;
@@ -1864,6 +1943,44 @@ async function renderTreeAsync(root, options, rounds = 3) {
 * moves edges along with them.
 */
 function drawState(state, theme) {
+	const underlays = (state.groups ?? []).map((group) => {
+		const children = [{
+			kind: "rect",
+			x: group.rect.x,
+			y: group.rect.y,
+			w: group.rect.width,
+			h: group.rect.height,
+			r: 8,
+			fill: "var(--mm-group-fill)",
+			stroke: "var(--mm-group-border)",
+			strokeWidth: 1.5
+		}];
+		if (group.label) children.push({
+			kind: "text",
+			x: group.rect.x + 8,
+			y: group.rect.y - 6,
+			runs: [{
+				text: group.label,
+				x: 0,
+				y: 0,
+				font: {
+					family: theme.font.family,
+					size: 12,
+					weight: 600,
+					style: "normal",
+					lineHeight: 14
+				},
+				fill: "var(--mm-text)"
+			}]
+		});
+		return {
+			kind: "group",
+			key: `group:${group.id}`,
+			groupId: group.id,
+			bounds: expandRect(group.rect, BOUNDS_MARGIN),
+			children
+		};
+	});
 	const byId = new Map(state.nodes.map((item) => [item.node.id, item]));
 	const looks = /* @__PURE__ */ new Map();
 	const lookOf = (item) => {
@@ -1917,7 +2034,11 @@ function drawState(state, theme) {
 			}]
 		};
 	});
-	return [...edges, ...nodes];
+	return [
+		...underlays,
+		...edges,
+		...nodes
+	];
 }
 /** Room around a node or edge for what themes draw past it, such as fold circles. */
 var BOUNDS_MARGIN = 24;
@@ -1976,7 +2097,17 @@ function primitiveBounds(primitives) {
 				height: p.h
 			};
 			addBox(outer, box, p.kind === "rect" ? strokeOf(p) : 0);
-		} else if (p.kind === "path") {
+		} else if (p.kind === "text") for (const run of p.runs) {
+			const width = run.width ?? run.text.length * run.font.size * .6;
+			const box = {
+				x: p.x + run.x,
+				y: p.y + run.y - run.font.size,
+				width,
+				height: run.font.size
+			};
+			addBox(outer, box, 0);
+		}
+		else if (p.kind === "path") {
 			const s = strokeOf(p);
 			for (const [x, y] of pathPoints(p.d)) addPoint(outer, x, y, s);
 		}
@@ -2061,7 +2192,8 @@ function serialize(primitives, options) {
 				out += `<g${attrs({
 					transform: p.transform && `matrix(${p.transform.map(num).join(" ")})`,
 					opacity: p.opacity,
-					"data-node-id": p.nodeId
+					"data-node-id": p.nodeId,
+					"data-group-id": p.groupId
 				})}>${p.clip ? clipped(content, p.clip) : content}</g>`;
 				break;
 			}
@@ -2250,6 +2382,18 @@ function interpolateFrames(from, to, t, ctx) {
 }
 /** Interpolate draw states with the layout's own interpolation, or the default one. */
 function interpolateStates(from, to, t, theme, layout) {
-	return (layout?.interpolate ?? interpolateFrames)(from, to, t, { anchor: (item, side) => theme.node.anchor(item.rect, side, item.ctx) });
+	const frame = (layout?.interpolate ?? interpolateFrames)(from, to, t, { anchor: (item, side) => theme.node.anchor(item.rect, side, item.ctx) });
+	const fromGroups = new Map((from.groups ?? []).map((g) => [g.id, g]));
+	const groups = (to.groups ?? []).map((g) => {
+		const old = fromGroups.get(g.id);
+		return old ? {
+			...g,
+			rect: lerpRect(old.rect, g.rect, t)
+		} : g;
+	});
+	return {
+		...frame,
+		groups
+	};
 }
 export { DEFAULT_COLORS, approximateMeasurer, basicContent, branchColors, branchIndex, builtinLayouts, builtinThemes, cardsTheme, classicTheme, configureTheme, createCanvasMeasurer, createCardsTheme, createClassicTheme, createImageContent, createSoftTheme, defaultContentPlugins, drawState, easeCubicInOut, escapeXml, fontToCss, imageContent, interpolateFrames, interpolateStates, layoutOrgChart, layoutText, layoutTree, layoutTwoSided, measureTree, minimalTheme, nodePaths, noteContent, orgChartLayout, primitiveBounds, primitivesToSVG, renderTree, renderTreeAsync, resolvePaint, resolveRenderOptions, sanitizeImageUrl, sanitizeUrl, softTheme, splitBranches, themeCSS, themeTokens, toSVGString, tokensToCSS, transformContent, treeLayout, twoSidedLayout, visibleNodes };

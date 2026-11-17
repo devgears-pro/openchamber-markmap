@@ -1,5 +1,10 @@
 import { type ContentPlugin, type FrameNode, type Layout, type LayoutResult, type Measurer, type MarkmapNode, type NodeContext, type Primitive, type Rect, type ResolvedLabelStyle, type Size, type Theme } from '@markmap/core';
 import { type TextLayout } from './text';
+export interface RenderGroup {
+    id?: string;
+    roots: readonly string[];
+    label?: string | null;
+}
 export interface RenderOptions {
     measurer: Measurer;
     theme?: Theme;
@@ -13,6 +18,7 @@ export interface RenderOptions {
     siblingGap?: number;
     /** Inline content renderers. Defaults to {@link defaultContentPlugins}. */
     plugins?: readonly ContentPlugin[];
+    groups?: readonly RenderGroup[];
 }
 export interface RenderResult {
     theme: Theme;
@@ -58,9 +64,16 @@ export interface DrawNode extends FrameNode {
     text: TextLayout;
     label?: ResolvedLabelStyle;
 }
+export interface DrawGroup {
+    id: string;
+    roots: string[];
+    label: string | null;
+    rect: Rect;
+}
 /** Everything needed to draw one frame. Parents come before their children. */
 export interface DrawState {
     nodes: DrawNode[];
+    groups?: DrawGroup[];
 }
 /**
  * Draw a state as primitives: edges first, then nodes, each in a keyed group so

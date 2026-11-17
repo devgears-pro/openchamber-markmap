@@ -119,6 +119,7 @@ type FakeFactory = {
   commits: () => number;
   snapshots: () => number;
   notesEdits: () => number;
+  groupCreates: () => number;
   setSnapshotContent: (content: string | null) => void;
   beginEditing: () => void;
   isEditing: () => boolean;
@@ -142,6 +143,7 @@ const createMarkmapFactory = (): FakeFactory => {
   let commitCount = 0;
   let snapshotCount = 0;
   let notesEditCount = 0;
+  let groupCreateCount = 0;
   let snapshotContent: string | null = null;
   let editing = false;
   const view: MarkmapView = {
@@ -161,6 +163,9 @@ const createMarkmapFactory = (): FakeFactory => {
     },
     editNotes: () => {
       notesEditCount += 1;
+    },
+    createGroup: () => {
+      groupCreateCount += 1;
     },
     resetView: () => undefined,
     commit: () => {
@@ -184,6 +189,7 @@ const createMarkmapFactory = (): FakeFactory => {
     commits: () => commitCount,
     snapshots: () => snapshotCount,
     notesEdits: () => notesEditCount,
+    groupCreates: () => groupCreateCount,
     setSnapshotContent: (content) => {
       snapshotContent = content;
     },
@@ -279,6 +285,9 @@ const createRealEditorFactory = (): RealEditorFactory => {
       editNotes: () => {
         editor.editNotes();
       },
+      createGroup: () => {
+        editor.createGroup();
+      },
       resetView: () => undefined,
       commit: () => {
         editor.commit();
@@ -332,7 +341,7 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts[0]?.editable).toBe(true);
     expect(markmaps.mounts[0]?.svg).toBe(root.querySelector('.mm-markmap-svg'));
     expect(markmaps.mounts[0]?.surface).toBe(root.querySelector('.mm-editor-surface'));
-    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(4);
+    expect(root.querySelector('.mm-markmap-toolbar')?.childElementCount).toBe(5);
     expect(root.querySelector('.mm-error')).toBeNull();
   });
 
@@ -364,6 +373,18 @@ describe('Markmap file editor', () => {
     expect(markmaps.layouts).toEqual(['org-chart']);
     expect(root.querySelector('.mm-marker-select')).toBeNull();
     expect(root.querySelector('.mm-notes-menu')).toBeNull();
+    expect(root.querySelector('.mm-group-menu')).toBeNull();
+  });
+
+  test('[R-36] creates group from the toolbar', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const button = root.querySelector<HTMLButtonElement>('.mm-group-menu button');
+    if (button === null) throw new Error('No group button');
+
+    button.click();
+
+    expect(markmaps.groupCreates()).toBe(1);
   });
 
   test('[R-18] adds the chosen marker from the toolbar', () => {

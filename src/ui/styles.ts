@@ -159,6 +159,13 @@ const MARKMAP_CSS = `
     padding-left: 6px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
+  .mm-group-menu {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding-left: 6px;
+    border-left: 1px solid var(--oc-border, #34343c);
+  }
   .mm-marker-select {
     position: relative;
     z-index: 1;

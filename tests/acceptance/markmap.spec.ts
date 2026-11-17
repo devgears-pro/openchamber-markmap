@@ -1888,3 +1888,24 @@ test('[R-29] [R-15] undoes and redoes root creation in one entry', async ({ page
   await page.keyboard.press(`${modifier}+Shift+z`);
   expect(await snapshotOf(page)).toBe('# Plan\n\n- Alpha\n- Beta\n');
 });
+
+test('[R-36] renders group boundaries and supports creation and deletion', async ({ page }) => {
+  await page.goto('/dev/?map=graph');
+  const groupLabel = page.getByText('Delivery', { exact: true });
+  await expect(groupLabel).toBeVisible();
+
+  await page.getByText('B', { exact: true }).first().click();
+  await page.getByLabel('Create group').click();
+
+  const snapshot = await snapshotOf(page);
+  expect(snapshot).toContain('roots:');
+
+  const groupEl = page.locator('g[data-group-id="group-0"]');
+  await expect(groupEl).toBeVisible();
+  await groupLabel.click();
+  await expect(groupEl).toHaveClass(/mm-editor-group-selected/u);
+
+  await page.keyboard.press('Delete');
+  const deletedSnapshot = await snapshotOf(page);
+  expect(deletedSnapshot).not.toContain('Delivery');
+});

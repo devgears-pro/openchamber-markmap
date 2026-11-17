@@ -1,5 +1,6 @@
 import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
 import { labelText, parseDocument } from '@markmap/model';
+import type { DrawGroup } from '@markmap/render';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap } from '@markmap/view';
 import { select } from 'd3-selection';
@@ -27,6 +28,7 @@ export type MarkmapView = {
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
   editNotes: () => void;
+  createGroup: () => void;
   resetView: () => void;
   commit: () => void;
   snapshotForSave: () => string | null;
@@ -59,6 +61,13 @@ const linkOf = (target: EventTarget | null): string | null => {
   return HTTP_URL.test(href) ? href : null;
 };
 
+const groupsOf = (instance: Markmap): readonly DrawGroup[] | undefined => {
+  const result = instance.result;
+  if (result === undefined) return undefined;
+  if (!('state' in result)) return undefined;
+  return result.state.groups;
+};
+
 export const createMarkmapView: MarkmapFactory = (mount) => {
   let markmap: Markmap | null = null;
   let editor: MarkmapEditor | null = null;
@@ -74,6 +83,60 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     markmap = Markmap.create(mount.svg, parsed.tree, resolved.options);
     const instance = markmap;
     let layoutName = resolved.layout;
+
+    const syncGroupElements = (): void => {
+      const groups = groupsOf(instance);
+      if (groups === undefined) return;
+      groups.forEach((group, index) => {
+        const el = instance.element.querySelector(`g[data-key="group:${group.id}"]`);
+        if (el !== null) {
+          el.setAttribute('data-group-id', group.id);
+          el.setAttribute('data-group-index', String(index));
+        }
+      });
+    };
+    syncGroupElements();
+    instance.on('render', syncGroupElements);
+
+    const groupScreenRect = (
+      id: string | number,
+    ): { x: number; y: number; width: number; height: number } | undefined => {
+      const groups = groupsOf(instance);
+      if (groups === undefined) return undefined;
+      const group = groups.find((g, i) => i === id || g.id === id);
+      if (group === undefined) return undefined;
+      const svgRect = instance.element.getBoundingClientRect();
+      const t = instance.transform;
+      return {
+        x: svgRect.x + t.applyX(group.rect.x),
+        y: svgRect.y + t.applyY(group.rect.y),
+        width: group.rect.width * t.k,
+        height: group.rect.height * t.k,
+      };
+    };
+    Reflect.set(instance, 'groupScreenRect', groupScreenRect);
+
+    const originalHitAt = instance.hitAt.bind(instance);
+    const hitAtWithGroups = (
+      x: number,
+      y: number,
+    ): ReturnType<typeof originalHitAt> | { kind: 'group'; groupId: string } => {
+      const hit = originalHitAt(x, y);
+      if (hit !== undefined) return hit;
+      const groups = groupsOf(instance);
+      if (groups === undefined) return undefined;
+      for (const group of [...groups].reverse()) {
+        const top = group.rect.y - (group.label === null ? 0 : 24);
+        const bottom = group.rect.y + group.rect.height;
+        const left = group.rect.x;
+        const right = group.rect.x + group.rect.width;
+        if (x >= left && x <= right && y >= top && y <= bottom) {
+          return { kind: 'group', groupId: group.id };
+        }
+      }
+      return undefined;
+    };
+    Reflect.set(instance, 'hitAt', hitAtWithGroups);
     const panBy = (dx: number, dy: number): void => {
       const { k } = instance.transform;
       instance.zoomBehavior.transform(
@@ -183,6 +246,9 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       },
       editNotes: () => {
         editor?.editNotes();
+      },
+      createGroup: () => {
+        editor?.createGroup();
       },
       resetView,
       commit: () => {

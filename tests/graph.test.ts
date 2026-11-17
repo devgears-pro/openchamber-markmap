@@ -456,3 +456,72 @@ describe('R-34 identity generation', () => {
     expect(model.mintIdentity(all, () => 0)).toBeNull();
   });
 });
+
+describe('R-36 group boundaries', () => {
+  test('[R-36] creates group boundary for single subtree and contiguous siblings', () => {
+    const doc = model.parseDocument('# Root\n\n- A\n- B\n- C\n').document;
+    const b = find(doc, 'B');
+    const c = find(doc, 'C');
+    const result = edit.applyCommand(doc, {
+      type: 'createGroup',
+      nodes: [b.id, c.id],
+      label: 'Team',
+      random,
+    });
+    expect(result.document.graph.groups).toHaveLength(1);
+    expect(result.document.graph.groups[0]?.label).toBe('Team');
+    const bId = find(result.document, 'B').identity?.id;
+    const cId = find(result.document, 'C').identity?.id;
+    expect(result.document.graph.groups[0]?.roots).toEqual([bId, cId]);
+    expect(model.validateConventions(result.document)).toEqual([]);
+  });
+
+  test('[R-36] rejects overlapping group subtrees and non-contiguous siblings', () => {
+    const doc = model.parseDocument(
+      '# Root\n\n- P\n  - A <!-- ^a -->\n- S1\n- Mid\n- S2\n\n<!-- markmap: graph\ngroups:\n  - roots: [a]\n-->\n',
+    ).document;
+    const p = find(doc, 'P');
+    expect(() =>
+      edit.applyCommand(doc, {
+        type: 'createGroup',
+        nodes: [p.id],
+      }),
+    ).toThrow();
+
+    const s1 = find(doc, 'S1');
+    const s2 = find(doc, 'S2');
+    expect(() =>
+      edit.applyCommand(doc, {
+        type: 'createGroup',
+        nodes: [s1.id, s2.id],
+      }),
+    ).toThrow();
+  });
+
+  test('[R-36] deletes group boundary and prunes unreferenced markers', () => {
+    const doc = model.parseDocument(
+      '# Root\n\n- A <!-- ^a -->\n\n<!-- markmap: graph\ngroups:\n  - roots: [a]\n    label: G\n-->\n',
+    ).document;
+    const result = edit.applyCommand(doc, {
+      type: 'deleteGroup',
+      groupIndex: 0,
+    });
+    expect(result.document.graph.groups).toHaveLength(0);
+    expect(result.document.graph.block).toBeNull();
+    expect(find(result.document, 'A').identity).toBeNull();
+    expect(result.document.source).toBe('# Root\n\n- A\n');
+  });
+
+  test('[R-36] updates group label in graph metadata', () => {
+    const doc = model.parseDocument(
+      '# Root\n\n- A <!-- ^a -->\n\n<!-- markmap: graph\ngroups:\n  - roots: [a]\n    label: Old\n-->\n',
+    ).document;
+    const result = edit.applyCommand(doc, {
+      type: 'setGroupLabel',
+      groupIndex: 0,
+      text: 'New Label',
+    });
+    expect(result.document.graph.groups[0]?.label).toBe('New Label');
+    expect(model.validateConventions(result.document)).toEqual([]);
+  });
+});

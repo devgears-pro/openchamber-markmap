@@ -7,6 +7,8 @@ export declare const CONTENT_TOKENS: {
     'mm-mark-bg': string;
     'mm-checkbox': string;
     'mm-note-dot': string;
+    'mm-group-border': string;
+    'mm-group-fill': string;
     'mm-syntax-keyword': string;
     'mm-syntax-string': string;
     'mm-syntax-comment': string;
@@ -21,6 +23,8 @@ export declare const DARK_CONTENT_TOKENS: {
     'mm-mark-bg': string;
     'mm-checkbox': string;
     'mm-note-dot': string;
+    'mm-group-border': string;
+    'mm-group-fill': string;
     'mm-syntax-keyword': string;
     'mm-syntax-string': string;
     'mm-syntax-comment': string;

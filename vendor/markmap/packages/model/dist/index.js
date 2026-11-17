@@ -524,6 +524,14 @@ function buildFromTree(source, root, meta) {
 		canCreateHeading: kind === "synthetic" ? !topH1 : kind === "title" ? !headingChild : false
 	};
 	const conventions = readConventions(source, nodes, order, root.id, bodyStart, meta.htmlBlocks ?? []);
+	if (!conventions.issues.some((issue) => issue.code === "E_GRAPH")) {
+		const resolve = (ref) => ref === "root" ? root.id : conventions.identities.get(ref);
+		root.data["groups"] = conventions.graph.groups.map((group, index) => ({
+			id: `group-${index}`,
+			roots: group.roots.map(resolve).filter((id) => id !== void 0),
+			label: group.label
+		}));
+	} else root.data["groups"] = [];
 	return {
 		source,
 		root: root.id,

@@ -23,11 +23,13 @@ export interface EditView {
         animate?: boolean;
     }): boolean;
     screenRect(id: string): Rect | undefined;
+    groupScreenRect?(id: string | number): Rect | undefined;
     direction(id: string): Side | undefined;
     labelStyle?(id: string): EditLabelStyle | undefined;
     hitAt(x: number, y: number): {
         kind: string;
         nodeId?: string;
+        groupId?: string;
     } | undefined;
     layoutPoint(clientX: number, clientY: number): [number, number];
     on(type: 'render' | 'zoom' | 'fold', listener: () => void): () => void;
@@ -52,4 +54,5 @@ export interface HistoryEntry {
     selection: number;
     folded: string[];
     group?: number[];
+    selectedGroup?: number | null;
 }
