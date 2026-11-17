@@ -23,6 +23,8 @@ export declare class MarkmapEditor {
     private selectedIds;
     private selectionOffset;
     private editing;
+    private editingGroup;
+    private selectedBoundaryIndex;
     private notes;
     private drag;
     private suppressClick;
@@ -39,6 +41,12 @@ export declare class MarkmapEditor {
     get isEditingNotes(): boolean;
     get canUndo(): boolean;
     get canRedo(): boolean;
+    get selectedBoundary(): number | null;
+    createGroup(label?: string): boolean;
+    deleteGroup(index?: number): boolean;
+    setGroupLabel(index: number, text: string): boolean;
+    selectBoundary(index: number | null): void;
+    editGroupLabel(index?: number): void;
     focus(): void;
     setSource(source: string, options?: {
         selection?: number;
@@ -63,6 +71,9 @@ export declare class MarkmapEditor {
     private handleViewChange;
     private handleClick;
     private handleDoubleClick;
+    private positionGroupEditing;
+    private commitGroupEditing;
+    private cancelGroupEditing;
     private handleMouseDown;
     private handlePointerDown;
     private handlePointerMove;

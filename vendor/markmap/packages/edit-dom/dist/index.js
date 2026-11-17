@@ -173,6 +173,8 @@ var MarkmapEditor = class {
 	selectedIds = [];
 	selectionOffset = 0;
 	editing = null;
+	editingGroup = null;
+	selectedBoundaryIndex = null;
 	notes = null;
 	drag = null;
 	suppressClick = false;
@@ -240,7 +242,7 @@ var MarkmapEditor = class {
 		return this.selectionOffset;
 	}
 	get isEditing() {
-		return this.editing !== null;
+		return this.editing !== null || this.editingGroup !== null;
 	}
 	get isEditingNotes() {
 		return this.notes !== null;
@@ -250,6 +252,65 @@ var MarkmapEditor = class {
 	}
 	get canRedo() {
 		return this.history.canRedo;
+	}
+	get selectedBoundary() {
+		return this.selectedBoundaryIndex;
+	}
+	createGroup(label) {
+		if (this.editing && this.commitEditing() === "error") return false;
+		const nodes = this.selectedIds;
+		if (nodes.length === 0) return false;
+		return this.run({
+			type: "createGroup",
+			nodes,
+			label,
+			random: this.random
+		}) !== null;
+	}
+	deleteGroup(index) {
+		if (this.editing && this.commitEditing() === "error") return false;
+		const targetIndex = index ?? this.selectedBoundaryIndex;
+		if (targetIndex === null || targetIndex < 0 || targetIndex >= this.doc.graph.groups.length) return false;
+		return this.run({
+			type: "deleteGroup",
+			groupIndex: targetIndex
+		}) !== null;
+	}
+	setGroupLabel(index, text) {
+		if (index < 0 || index >= this.doc.graph.groups.length) return false;
+		return this.run({
+			type: "setGroupLabel",
+			groupIndex: index,
+			text
+		}) !== null;
+	}
+	selectBoundary(index) {
+		if (this.selectedBoundaryIndex === index) return;
+		if (this.editing && this.commitEditing() === "error") return;
+		if (index !== null) {
+			this.selectedId = null;
+			this.selectedIds = [];
+		}
+		this.selectedBoundaryIndex = index;
+		this.paintSelection();
+		if (index !== null) this.container.focus({ preventScroll: true });
+	}
+	editGroupLabel(index) {
+		const groupIndex = index ?? this.selectedBoundaryIndex;
+		if (groupIndex === null || groupIndex < 0 || groupIndex >= this.doc.graph.groups.length) return;
+		const group = this.doc.graph.groups[groupIndex];
+		if (!group) return;
+		const initialText = group.label ?? "";
+		this.field.value = initialText;
+		this.editingGroup = {
+			index: groupIndex,
+			original: initialText
+		};
+		this.positionGroupEditing();
+		if (!this.editingGroup) return;
+		this.setMode(true);
+		this.field.focus({ preventScroll: true });
+		this.field.select();
 	}
 	focus() {
 		this.container.focus({ preventScroll: true });
@@ -436,6 +497,7 @@ var MarkmapEditor = class {
 		if (this.notes) this.positionNotes();
 		if (this.previewing) return;
 		if (this.editing) this.positionEditing();
+		if (this.editingGroup) this.positionGroupEditing();
 		this.paintSelection();
 		this.paintEditing();
 		const drag = this.drag;
@@ -456,28 +518,83 @@ var MarkmapEditor = class {
 			if (this.commitNotes({ keepOpen: false }) === "error") return;
 		}
 		if (this.editing && target instanceof Node && this.editing.field.contains(target)) return;
+		if (this.editingGroup) {
+			if (target instanceof Node && this.field.contains(target)) return;
+			this.commitGroupEditing();
+		}
 		if (event.button !== 0) return;
 		if (this.editing && this.commitEditing() === "error") return;
 		const hit = this.hitAt(event);
 		if (!hit) {
 			this.select(null, { reveal: false });
+			this.selectBoundary(null);
 			this.container.blur();
 			return;
 		}
 		if ((hit.kind === "node" || hit.kind === "toggle") && hit.nodeId) {
+			this.selectBoundary(null);
 			this.selectFromClick(hit.nodeId, event);
 			this.container.focus({ preventScroll: true });
+		} else if (hit.kind === "group" && hit.groupId) {
+			const idx = this.doc.graph.groups.findIndex((g, i) => `group-${i}` === hit.groupId || String(i) === hit.groupId || g.roots.join(",") === hit.groupId);
+			if (idx !== -1) {
+				this.select(null, { reveal: false });
+				this.selectBoundary(idx);
+			}
 		}
 	};
 	handleDoubleClick = (event) => {
-		if (this.editing || this.notes) return;
+		if (this.editing || this.notes || this.editingGroup) return;
 		const hit = this.hitAt(event);
 		if (hit?.kind === "node" && hit.nodeId) {
+			this.selectBoundary(null);
 			this.select(hit.nodeId, { reveal: false });
 			this.startEditing(hit.nodeId);
 			event.preventDefault();
+		} else if (hit?.kind === "group" && hit.groupId) {
+			const idx = this.doc.graph.groups.findIndex((g, i) => `group-${i}` === hit.groupId || String(i) === hit.groupId || g.roots.join(",") === hit.groupId);
+			if (idx !== -1) {
+				this.editGroupLabel(idx);
+				event.preventDefault();
+			}
 		}
 	};
+	positionGroupEditing() {
+		if (!this.editingGroup) return;
+		const rect = this.view.groupScreenRect?.(this.editingGroup.index);
+		if (!rect) {
+			this.cancelGroupEditing();
+			return;
+		}
+		const box = this.container.getBoundingClientRect();
+		this.field.style.display = "block";
+		this.field.style.left = `${rect.x - box.x + 8}px`;
+		this.field.style.top = `${rect.y - box.y - 24}px`;
+		this.field.style.width = `${Math.max(120, Math.min(240, rect.width))}px`;
+		this.field.style.height = "24px";
+		this.field.style.fontSize = "12px";
+		this.field.style.lineHeight = "16px";
+		this.field.style.padding = "2px 6px";
+	}
+	commitGroupEditing() {
+		const editing = this.editingGroup;
+		if (!editing) return;
+		const text = this.field.value.trim();
+		this.editingGroup = null;
+		this.field.style.display = "none";
+		this.setMode(false);
+		if (text !== editing.original) this.setGroupLabel(editing.index, text);
+		else this.paintSelection();
+		this.container.focus({ preventScroll: true });
+	}
+	cancelGroupEditing() {
+		if (!this.editingGroup) return;
+		this.editingGroup = null;
+		this.field.style.display = "none";
+		this.setMode(false);
+		this.paintSelection();
+		this.container.focus({ preventScroll: true });
+	}
 	handleMouseDown = (event) => {
 		if (event.button !== 0) return;
 		if (this.notes) {
@@ -976,6 +1093,19 @@ var MarkmapEditor = class {
 			this.handleNotesKey(event);
 			return;
 		}
+		if (this.editingGroup) {
+			if (event.key === "Enter") {
+				event.preventDefault();
+				this.commitGroupEditing();
+				return;
+			}
+			if (event.key === "Escape") {
+				event.preventDefault();
+				this.cancelGroupEditing();
+				return;
+			}
+			return;
+		}
 		if (this.editing) {
 			this.handleEditingKey(event);
 			return;
@@ -991,6 +1121,23 @@ var MarkmapEditor = class {
 			event.preventDefault();
 			if (this.selectedId) this.view.toggle(this.selectedId);
 			return;
+		}
+		if (this.selectedBoundaryIndex !== null) {
+			if (event.key === "Delete" || event.key === "Backspace") {
+				event.preventDefault();
+				this.deleteGroup(this.selectedBoundaryIndex);
+				return;
+			}
+			if (event.key === "Escape") {
+				event.preventDefault();
+				this.selectBoundary(null);
+				return;
+			}
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				this.editGroupLabel(this.selectedBoundaryIndex);
+				return;
+			}
 		}
 		if (!this.selectedId) return;
 		if (mod && event.shiftKey && event.key.startsWith("Arrow")) {
@@ -1397,6 +1544,19 @@ var MarkmapEditor = class {
 			const anchor = moved[0];
 			this.selectionOffset = this.offsetOf(anchor);
 			this.selectGroup(moved, anchor, { reveal: false });
+		} else if (command.type === "createGroup") {
+			this.selectedBoundaryIndex = result.document.graph.groups.length - 1;
+			this.selectedId = null;
+			this.selectedIds = [];
+			this.paintSelection();
+		} else if (command.type === "deleteGroup") {
+			this.selectedBoundaryIndex = null;
+			this.selectAt(result.selection, { reveal: false });
+		} else if (command.type === "setGroupLabel") {
+			this.selectedBoundaryIndex = command.groupIndex;
+			this.selectedId = null;
+			this.selectedIds = [];
+			this.paintSelection();
 		} else this.selectAt(result.selection, { reveal: false });
 		if (command.type === "setNotes") this.select(command.node, { reveal: false });
 		this.emitChange();
@@ -1737,7 +1897,8 @@ var MarkmapEditor = class {
 		const entry = {
 			source: this.doc.source,
 			selection: this.selectedId ? this.offsetOf(this.selectedId) : this.selectionOffset,
-			folded: [...this.view.foldedIds]
+			folded: [...this.view.foldedIds],
+			selectedGroup: this.selectedBoundaryIndex
 		};
 		if (group.length > 1) entry.group = group.map((id) => this.offsetOf(id));
 		return entry;
@@ -1754,6 +1915,11 @@ var MarkmapEditor = class {
 		this.emitChange();
 	}
 	restoreSelection(entry) {
+		if (entry.selectedGroup !== void 0 && entry.selectedGroup !== null && entry.selectedGroup >= 0 && entry.selectedGroup < this.doc.graph.groups.length) {
+			this.selectBoundary(entry.selectedGroup);
+			return;
+		}
+		this.selectBoundary(null);
 		const group = entry.group;
 		if (group?.length) {
 			const ids = [];
@@ -1792,8 +1958,25 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-selected").forEach((element) => {
 			element.classList.remove("mm-editor-selected");
 		});
+		this.view.element.querySelectorAll(".mm-editor-group-selected").forEach((element) => {
+			element.classList.remove("mm-editor-group-selected");
+		});
 		for (const box of this.extraSelectionBoxes) box.remove();
 		this.extraSelectionBoxes.length = 0;
+		if (this.selectedBoundaryIndex !== null) {
+			const groupEl = this.view.element.querySelector(`g[data-group-id="group-${this.selectedBoundaryIndex}"]`);
+			if (groupEl) groupEl.classList.add("mm-editor-group-selected");
+			const rect = this.view.groupScreenRect?.(this.selectedBoundaryIndex);
+			if (rect) {
+				const box = this.container.getBoundingClientRect();
+				this.selectionBox.style.display = "block";
+				this.selectionBox.style.left = `${rect.x - box.x - 2}px`;
+				this.selectionBox.style.top = `${rect.y - box.y - 2}px`;
+				this.selectionBox.style.width = `${rect.width + 4}px`;
+				this.selectionBox.style.height = `${rect.height + 4}px`;
+				return;
+			}
+		}
 		const painted = this.editing ? [this.editing.previewId] : this.selectedIds;
 		for (const id of painted) this.nodeGroup(id)?.classList.add("mm-editor-selected");
 		const id = this.editing?.previewId ?? this.selectedId;
@@ -1893,6 +2076,7 @@ function createEditView(mm) {
 		toggle: (id) => mm.toggle(id),
 		focusNode: (id, options) => mm.focusNode(id, options),
 		screenRect: (id) => mm.screenRect(id),
+		groupScreenRect: (id) => mm.groupScreenRect(id),
 		direction: (id) => mm.result?.layout.byId.get(id)?.direction,
 		labelStyle: (id) => {
 			const result = mm.result;

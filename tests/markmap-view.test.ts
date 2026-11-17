@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => {
     editorEditing: { value: false },
     editorEditingNotes: { value: false },
     editorEditNotes: vi.fn<(nodeId?: string | null) => boolean>(() => true),
+    editorCreateGroup: vi.fn<(label?: string) => boolean>(() => true),
     editorSource: { value: '# Root' },
     editorSelectedBlock: vi.fn<() => string | null>(() => '# Root'),
     editorNodes: new Map<string, unknown>([['root', {}]]),
@@ -113,6 +114,10 @@ vi.mock('@markmap/edit-dom', () => ({
       return mocks.editorEditNotes(nodeId);
     }
 
+    createGroup(label?: string): boolean {
+      return mocks.editorCreateGroup(label);
+    }
+
     focus(): void {
       mocks.editorFocus();
     }
@@ -143,15 +148,37 @@ type FakeMarkmap = {
     x: number;
     y: number;
     apply: (point: [number, number]) => [number, number];
+    applyX?: (v: number) => number;
+    applyY?: (v: number) => number;
     translate: ReturnType<typeof vi.fn>;
   };
-  result: { bounds: { x: number; y: number; width: number; height: number } };
+  result?:
+    | {
+        bounds: { x: number; y: number; width: number; height: number };
+        state?:
+          | {
+              groups?:
+                | {
+                    id: string;
+                    label: string | null;
+                    rect: { x: number; y: number; width: number; height: number };
+                  }[]
+                | undefined;
+            }
+          | undefined;
+      }
+    | undefined;
   screenRect: ReturnType<typeof vi.fn>;
+  groupScreenRect?: (
+    id: string | number,
+  ) => { x: number; y: number; width: number; height: number } | undefined;
   zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn>; transform: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
   fit: ReturnType<typeof vi.fn>;
   focusNode: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
+  on?: ReturnType<typeof vi.fn>;
+  hitAt?: (x: number, y: number) => { kind: string; groupId?: string; nodeId?: string } | undefined;
 };
 
 const root: MarkmapNode = {
@@ -172,9 +199,11 @@ const fakeMarkmap = (svg: SVGSVGElement): FakeMarkmap => {
       x: 0,
       y: 0,
       apply: ([x, y]) => [x, y],
+      applyX: (v) => v,
+      applyY: (v) => v,
       translate: vi.fn(),
     },
-    result: { bounds: { x: 0, y: 0, width: 400, height: 200 } },
+    result: { bounds: { x: 0, y: 0, width: 400, height: 200 }, state: { groups: [] } },
     screenRect: vi.fn(() => ({ x: 0, y: 0, width: 100, height: 40 })),
     zoomBehavior: { wheelDelta: vi.fn(), transform: vi.fn() },
     setOptions: vi.fn((next: Record<string, unknown>) => {
@@ -183,6 +212,8 @@ const fakeMarkmap = (svg: SVGSVGElement): FakeMarkmap => {
     fit: vi.fn(),
     focusNode: vi.fn(() => true),
     destroy: vi.fn(),
+    on: vi.fn(),
+    hitAt: vi.fn(() => undefined),
   };
   return markmap;
 };
@@ -595,6 +626,99 @@ describe('Markmap adapter', () => {
     result.view.editNotes();
 
     expect(mocks.editorEditNotes).not.toHaveBeenCalled();
+  });
+
+  test('[R-36] creates group through the editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.createGroup();
+
+    expect(mocks.editorCreateGroup).toHaveBeenCalledOnce();
+  });
+
+  test('[R-12] [R-36] skips group creation for a read-only file', () => {
+    const { result } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.createGroup();
+
+    expect(mocks.editorCreateGroup).not.toHaveBeenCalled();
+  });
+
+  test('[R-36] syncs group elements on render and exposes groupScreenRect and hitAt', () => {
+    const { svg, markmap } = setup();
+    const groupEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    groupEl.setAttribute('data-key', 'group:group-0');
+    svg.append(groupEl);
+
+    if (markmap.result !== undefined) {
+      markmap.result.state = {
+        groups: [
+          { id: 'group-0', label: 'Delivery', rect: { x: 10, y: 20, width: 100, height: 50 } },
+          { id: 'group-1', label: null, rect: { x: 120, y: 20, width: 100, height: 50 } },
+        ],
+      };
+    }
+
+    let renderCallback: (() => void) | undefined;
+    markmap.on = vi.fn((event: string, callback: () => void) => {
+      if (event === 'render') renderCallback = callback;
+    });
+
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '# Test',
+      colorScheme: 'light',
+      editable: true,
+      onSource: vi.fn(),
+      onDraft: vi.fn(),
+      onError: vi.fn(),
+      onOpenUrl: vi.fn(),
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(groupEl.getAttribute('data-group-id')).toBe('group-0');
+    expect(groupEl.getAttribute('data-group-index')).toBe('0');
+
+    renderCallback?.();
+
+    expect(markmap.groupScreenRect?.('group-0')).toBeDefined();
+    expect(markmap.groupScreenRect?.(0)).toBeDefined();
+    expect(markmap.groupScreenRect?.('nonexistent')).toBeUndefined();
+
+    expect(markmap.hitAt?.(20, 10)).toEqual({ kind: 'group', groupId: 'group-0' });
+    expect(markmap.hitAt?.(130, 25)).toEqual({ kind: 'group', groupId: 'group-1' });
+    expect(markmap.hitAt?.(5, 25)).toBeUndefined();
+    expect(markmap.hitAt?.(115, 25)).toBeUndefined();
+    expect(markmap.hitAt?.(20, -10)).toBeUndefined();
+    expect(markmap.hitAt?.(20, 80)).toBeUndefined();
+    expect(markmap.hitAt?.(500, 500)).toBeUndefined();
+
+    if (markmap.result !== undefined) {
+      markmap.result.state = { groups: undefined };
+    }
+    expect(markmap.groupScreenRect?.('group-0')).toBeUndefined();
+    expect(markmap.hitAt?.(20, 10)).toBeUndefined();
+    markmap.result = undefined;
+    expect(markmap.groupScreenRect?.('group-0')).toBeUndefined();
+    if (renderCallback !== undefined) renderCallback();
+
+    markmap.hitAt = () => ({ kind: 'node', nodeId: 'test' });
+    const resultWithHitAt = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '# Test',
+      colorScheme: 'light',
+      editable: true,
+      onSource: vi.fn(),
+      onDraft: vi.fn(),
+      onError: vi.fn(),
+      onOpenUrl: vi.fn(),
+    });
+    if (!resultWithHitAt.ok) throw new Error(resultWithHitAt.message);
+    expect(markmap.hitAt(0, 0)).toEqual({ kind: 'node', nodeId: 'test' });
   });
 
   test('[R-04] updates the color scheme without recreating the view', () => {

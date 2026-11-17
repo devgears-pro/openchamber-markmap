@@ -697,6 +697,9 @@ function applyCommand(doc, command) {
 function planCommand(doc, command) {
 	if (command.type === "deleteNodes") return planDeleteNodes(doc, command.nodes);
 	if (command.type === "moveNodes") return planMoveNodes(doc, command.nodes, command.parent, command.index);
+	if (command.type === "createGroup") return planCreateGroup(doc, command.nodes, command.label, command.random);
+	if (command.type === "deleteGroup") return planDeleteGroup(doc, command.groupIndex);
+	if (command.type === "setGroupLabel") return planSetGroupLabel(doc, command.groupIndex, command.text);
 	const node = nodeOf(doc, command.node);
 	switch (command.type) {
 		case "setLabel": return planSetLabel(doc, node, command.text);
@@ -1683,5 +1686,156 @@ function countSubtree(doc, node) {
 }
 function shape(message) {
 	return new EditError("E_SHAPE", message);
+}
+function planCreateGroup(doc, nodeIds, label, random) {
+	if (nodeIds.length === 0) throw new EditError("E_SHAPE", "A group must have at least one root");
+	for (const id of nodeIds) if (!doc.nodes.has(id)) throw new EditError("E_NODE", `No node with id ${id}`, id);
+	if (nodeIds.length > 1) {
+		const commonParent = doc.nodes.get(nodeIds[0])?.parent;
+		if (commonParent === null || commonParent === void 0) throw new EditError("E_SHAPE", "Group roots must share a common parent");
+		if (!nodeIds.every((id) => doc.nodes.get(id)?.parent === commonParent)) throw new EditError("E_SHAPE", "Group roots must share a common parent");
+		const parentNode = doc.nodes.get(commonParent);
+		if (!parentNode) throw new EditError("E_SHAPE", "Group parent not found");
+		const indices = nodeIds.map((id) => parentNode.children.indexOf(id));
+		if (!indices.every((idx, i) => idx !== -1 && idx === indices[0] + i)) throw new EditError("E_SHAPE", "Group roots must be contiguous siblings");
+	}
+	const newSubtree = /* @__PURE__ */ new Set();
+	for (const rootId of nodeIds) for (const id of subtreeIds(doc, rootId)) newSubtree.add(id);
+	const resolve = (ref) => ref === "root" ? doc.root : doc.identities.get(ref);
+	for (const existing of doc.graph.groups) for (const rootRef of existing.roots) {
+		const resolved = resolve(rootRef);
+		if (!resolved) continue;
+		for (const id of subtreeIds(doc, resolved)) if (newSubtree.has(id)) throw new EditError("E_SHAPE", "Group subtrees overlap");
+	}
+	const ending = lineEnding(doc.source);
+	const taken = new Set(doc.identities.keys());
+	for (const node of doc.nodes.values()) if (node.identity && node.identity.range !== null) taken.add(node.identity.id);
+	const rng = random ?? Math.random;
+	const markerSplices = [];
+	const roots = [];
+	for (const id of nodeIds) {
+		if (id === doc.root) {
+			roots.push("root");
+			continue;
+		}
+		const node = doc.nodes.get(id);
+		if (!node || !node.block) throw new EditError("E_NODE", `Node ${id} has no block`);
+		if (node.identity) roots.push(node.identity.id);
+		else {
+			const minted = mintIdentity(taken, rng);
+			if (minted === null) throw new EditError("E_SHAPE", "No node identity characters remain");
+			taken.add(minted);
+			roots.push(minted);
+			const lineEndOffset = lineEnd(doc.source, node.block.start);
+			markerSplices.push({
+				from: lineEndOffset,
+				to: lineEndOffset,
+				insert: ` <!-- ^${minted} -->`
+			});
+		}
+	}
+	const cleanedLabel = label ? cleanLabel(label) : "";
+	if (cleanedLabel.includes("<!--") || cleanedLabel.includes("-->")) throw new EditError("E_SHAPE", "Group label cannot contain HTML comment markers");
+	const newGroup = {
+		roots,
+		label: cleanedLabel ? cleanedLabel : null
+	};
+	const nextGraph = {
+		edges: doc.graph.edges,
+		groups: [...doc.graph.groups, newGroup],
+		block: doc.graph.block
+	};
+	const graphSplice = doc.graph.block === null ? appendGraphSplice(doc.source, nextGraph, ending) : {
+		from: doc.graph.block.start,
+		to: doc.graph.block.end,
+		insert: doc.source.slice(doc.graph.block.start, doc.graph.block.end).endsWith("\r\n") ? `${serializeGraphBlock(nextGraph, ending)}\r\n` : doc.source.slice(doc.graph.block.start, doc.graph.block.end).endsWith("\n") ? `${serializeGraphBlock(nextGraph, ending)}\n` : serializeGraphBlock(nextGraph, ending)
+	};
+	if (graphSplice === null) throw new EditError("E_SHAPE", "Failed to generate graph block");
+	return {
+		edits: [...markerSplices, graphSplice].toSorted((a, b) => a.from - b.from),
+		selection: {
+			kind: "source",
+			offset: doc.nodes.get(nodeIds[0])?.label?.start ?? 0
+		},
+		verify(next) {
+			if (next.graph.groups.length !== doc.graph.groups.length + 1) throw shape("The group was not created");
+		}
+	};
+}
+function planDeleteGroup(doc, groupIndex) {
+	if (groupIndex < 0 || groupIndex >= doc.graph.groups.length) throw new EditError("E_SHAPE", "Group index out of range");
+	const nextGroups = doc.graph.groups.filter((_, i) => i !== groupIndex);
+	const referenced = /* @__PURE__ */ new Set();
+	for (const edge of doc.graph.edges) {
+		referenced.add(edge.from);
+		referenced.add(edge.to);
+	}
+	for (const group of nextGroups) for (const root of group.roots) referenced.add(root);
+	const drop = [];
+	for (const id of doc.order) {
+		const identity = doc.nodes.get(id)?.identity;
+		if (!identity || identity.range === null) continue;
+		if (!referenced.has(identity.id)) drop.push({
+			nodeId: id,
+			range: identity.range
+		});
+	}
+	const removal = {
+		graph: {
+			edges: doc.graph.edges,
+			groups: nextGroups,
+			block: doc.graph.block
+		},
+		drop,
+		changed: true
+	};
+	const markerSplices = markerRemovalSplices(doc.source, removal);
+	const graphSplices = graphBlockSplices(doc.source, doc, removal, {
+		start: 0,
+		end: 0
+	});
+	return {
+		edits: [...markerSplices, ...graphSplices].toSorted((a, b) => a.from - b.from),
+		selection: {
+			kind: "source",
+			offset: 0
+		},
+		verify(next) {
+			if (next.graph.groups.length !== doc.graph.groups.length - 1) throw shape("The group was not deleted");
+		}
+	};
+}
+function planSetGroupLabel(doc, groupIndex, rawText) {
+	if (groupIndex < 0 || groupIndex >= doc.graph.groups.length) throw new EditError("E_SHAPE", "Group index out of range");
+	const text = cleanLabel(rawText);
+	if (text.includes("<!--") || text.includes("-->")) throw new EditError("E_SHAPE", "Group label cannot contain HTML comment markers");
+	const ending = lineEnding(doc.source);
+	const nextGroups = doc.graph.groups.map((group, i) => i === groupIndex ? {
+		...group,
+		label: text ? text : null
+	} : group);
+	const nextGraph = {
+		edges: doc.graph.edges,
+		groups: nextGroups,
+		block: doc.graph.block
+	};
+	if (doc.graph.block === null) throw new EditError("E_SHAPE", "The document has no graph block");
+	const original = doc.source.slice(doc.graph.block.start, doc.graph.block.end);
+	const trailing = original.endsWith("\r\n") ? "\r\n" : original.endsWith("\n") ? "\n" : "";
+	return {
+		edits: [{
+			from: doc.graph.block.start,
+			to: doc.graph.block.end,
+			insert: `${serializeGraphBlock(nextGraph, ending)}${trailing}`
+		}],
+		selection: {
+			kind: "source",
+			offset: 0
+		},
+		verify(next) {
+			const updated = next.graph.groups[groupIndex];
+			if (!updated || updated.label !== (text ? text : null)) throw shape("The group label was not updated");
+		}
+	};
 }
 export { EditError, appendGraphSplice, applyCommand, applySplices, copyBlock, graphBlockSplices, lineEnding, mapOffset, markerRemovalSplices, mergeGraphSplice, readPastedGraph, removeGraphNodes, rootHeadingRefusal, subtreeIds };
