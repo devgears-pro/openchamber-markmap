@@ -2,6 +2,15 @@
 
 The tree is the contract for this extension. Every requirement has an ID, and every ID appears in at least one automated test name. `bun run check:requirements` fails when an ID is missing, unknown, or unused.
 
+## Experience principles
+
+These principles guide new requirements; the numbered requirements below define observable behavior and its proof.
+
+- **Flow:** Keep map interaction visually clear, predictable, and responsive, with immediate feedback and no unnecessary interruption.
+- **Intuition:** Make selection, editing, navigation, and cancellation behave consistently with their visible state.
+- **Responsiveness:** Keep common actions fast on small and 1,000-node maps, and measure them with repeatable scenario benchmarks.
+- **Readable source:** Keep files easy for people and language models to understand through conventional Markdown and documented extensions.
+
 ## Product
 
 ### R-01 Manifest
@@ -14,7 +23,7 @@ A matching text file opens as an interactive Markmap. The renderer receives the 
 
 ### R-03 Node selection
 
-A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node. The focused surface draws no browser focus ring; the selection frame is the only focus mark.
+A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node. A left click on the empty canvas clears the selection, its SVG highlight, and its frame, and moves DOM focus out of the editor surface; a later click on a node selects it again and restores focus to the surface. The frame follows the node's screen rectangle, not the edit field, including for an empty first-level topic. The focused surface draws no browser focus ring; the selection frame is the only focus mark.
 
 ### R-04 Theme
 
@@ -116,7 +125,7 @@ Cmd/Ctrl+Shift+Up and Down move the selected node among its siblings, Left makes
 
 ### R-32 Soft tree
 
-Maps without an explicit `markmap.theme` use a depth-based soft tree: the root is a dark filled rounded block with larger white semibold text, first-level topics are pale branch-tinted rounded blocks with medium text, and deeper nodes are smaller regular neutral labels with a thin branch-colored underline and no block. Each first-level branch gets one muted color shared by its descendants by default; `color` and `colorDepth` still apply. Root-to-first-level edges taper smoothly, deeper edges use a long flat start and arrival and stay thin. The default soft layout uses 14 px between siblings and 110 px between levels; frontmatter `siblingGap` and `levelGap` override them. Padding and spacing keep labels inside their blocks without clipping or overlap. The editor, read-only maps, and chat block share the theme and follow the host light or dark mode. An explicit frontmatter theme is unchanged. While a label is edited, the overlay field uses the selected node's resolved font family, size, weight, line height, text fill, padding, and alignment at every zoom, with no jump when editing starts or the label grows. Markdown bytes stay unchanged.
+Maps without an explicit `markmap.theme` use a depth-based soft tree: the root is a dark filled rounded block with larger white semibold text, first-level topics are pale branch-tinted rounded blocks with medium text, and deeper nodes are smaller regular neutral labels with a thin branch-colored underline and no block. Each first-level branch gets one muted color shared by its descendants by default; `color` and `colorDepth` still apply. The default first-level palette is distinct and balanced, keeps the brown tone as one accent rather than the dominant color, and stays legible in light and dark modes. An explicit frontmatter `color`, `colorDepth`, or theme keeps its values. Root-to-first-level edges taper smoothly, deeper edges use a long flat start and arrival and stay thin. The default soft layout uses 14 px between siblings and 110 px between levels; frontmatter `siblingGap` and `levelGap` override them. Padding and spacing keep labels inside their blocks without clipping or overlap. An empty first-level node keeps its topic padding, including 14 px horizontally. Its edit field keeps a 40-unit minimum in map coordinates, stays centered on the visible topic block, and may be wider than it; the zero-width placeholder does not shift either, and the selection frame stays on the node's screen rectangle rather than the edit field. The editor, read-only maps, and chat block share the theme and follow the host light or dark mode. An explicit frontmatter theme is unchanged. While a label is edited, the overlay field uses the selected node's resolved font family, size, weight, line height, text fill, padding, and alignment at every zoom, with no jump when editing starts or the label grows. Markdown bytes stay unchanged.
 
 ### R-33 View reset
 

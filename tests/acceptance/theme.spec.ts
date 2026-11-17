@@ -12,6 +12,54 @@ type LabelStyle = {
   fill: string;
 };
 
+type Rgba = { r: number; g: number; b: number; a: number };
+
+const paletteTopics = ['Coral', 'Violet', 'Indigo', 'Ochre', 'Green', 'Blue'];
+
+const parseColor = (color: string): Rgba => {
+  const [r = 0, g = 0, b = 0, a = 1] = (color.match(/[\d.]+/gu) ?? []).map(Number);
+  return { r, g, b, a };
+};
+
+const hueOf = (color: string): number => {
+  const { r, g, b } = parseColor(color);
+  const red = r / 255;
+  const green = g / 255;
+  const blue = b / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  if (delta === 0) return 0;
+  const raw =
+    max === red
+      ? ((green - blue) / delta) % 6
+      : max === green
+        ? (blue - red) / delta + 2
+        : (red - green) / delta + 4;
+  return (raw * 60 + 360) % 360;
+};
+
+const composite = (foreground: Rgba, background: Rgba): Rgba => ({
+  r: foreground.r * foreground.a + background.r * (1 - foreground.a),
+  g: foreground.g * foreground.a + background.g * (1 - foreground.a),
+  b: foreground.b * foreground.a + background.b * (1 - foreground.a),
+  a: 1,
+});
+
+const luminance = (color: Rgba): number => {
+  const channel = (value: number): number => {
+    const normalized = value / 255;
+    return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+};
+
+const contrast = (first: Rgba, second: Rgba): number => {
+  const high = Math.max(luminance(first), luminance(second));
+  const low = Math.min(luminance(first), luminance(second));
+  return (high + 0.05) / (low + 0.05);
+};
+
 const labelLocator = (page: Page, label: string, selector = '.mm-markmap-svg text'): Locator =>
   page.locator(selector).filter({ hasText: label }).first();
 
@@ -104,6 +152,52 @@ test('[R-32] draws the soft hierarchy in light and dark', async ({ page }) => {
       );
     expect(edges.some((edge) => edge.fill !== 'none')).toBe(true);
     expect(edges.some((edge) => edge.stroke !== 'none')).toBe(true);
+  }
+});
+
+test('[R-32] keeps the default branch palette distinct and balanced in light and dark', async ({
+  page,
+}) => {
+  for (const url of ['/dev/?map=palette&theme=light', '/dev/?map=palette']) {
+    await page.goto(url);
+
+    const colors: string[] = [];
+    for (const topic of paletteTopics) {
+      const fills = await directRectFills(page, topic);
+      const fill = fills[0];
+      if (fill === undefined) throw new Error(`Missing branch fill for ${topic}`);
+      colors.push(fill);
+    }
+
+    expect(new Set(colors).size).toBe(paletteTopics.length);
+    const hues = colors.map(hueOf);
+    expect(new Set(hues.map((hue) => Math.round(hue / 10))).size).toBeGreaterThanOrEqual(5);
+    expect(hues.filter((hue) => hue >= 20 && hue <= 50)).toHaveLength(1);
+
+    for (const topic of paletteTopics) {
+      const text = must(await styleOf(page, topic));
+      const fills = await directRectFills(page, topic);
+      const branch = fills[0];
+      const tint = fills[1];
+      if (branch === undefined || tint === undefined) {
+        throw new Error(`Missing topic surface for ${topic}`);
+      }
+      const background = composite(parseColor(tint), parseColor(branch));
+      expect(contrast(parseColor(text.fill), background)).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});
+
+test('[R-32] keeps a frontmatter color override in light and dark', async ({ page }) => {
+  const expected = new Set(['rgb(47, 111, 78)', 'rgb(122, 79, 154)']);
+  const topics = ['One', 'Two', 'Three', 'Four', 'Five', 'Six'];
+
+  for (const url of ['/dev/?map=palette-color&theme=light', '/dev/?map=palette-color']) {
+    await page.goto(url);
+    for (const topic of topics) {
+      const fills = await directRectFills(page, topic);
+      expect(expected.has(fills[0] ?? '')).toBe(true);
+    }
   }
 });
 

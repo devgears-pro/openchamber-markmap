@@ -29,6 +29,7 @@ bun run check:requirements
 bun run test
 bun run test:coverage
 bun run test:acceptance
+bun run benchmark
 bun run screenshots
 bun run build
 bun run verify
@@ -51,6 +52,7 @@ bunx openchamber-guest-check
 - `dev/`: Vite harness, synthetic samples, and host theme tokens for screenshots.
 - `tmp/`: generated screenshots from `bun run screenshots`; do not commit.
 - `tests/`: Vitest unit and DOM tests plus Playwright acceptance tests.
+- `benchmarks/`: the standalone Playwright performance benchmark; it reports p50 and p95 and is not a CI gate.
 - `scripts/`: requirement traceability and reproducible-build checks.
 
 The host owns the file. The editor receives text through `onFileOpen`, returns the current Markdown through `onFileSnapshot`, and reports dirty state through `reportFileChange`. Nodes are edited directly on the map; there is no Markdown sidebar, custom parser, layout engine, serializer, or palette in `src/`.

@@ -30,12 +30,14 @@
   "include": [
     "src",
     "tests",
+    "benchmarks",
     "dev",
     "scripts",
     "vite.config.ts",
     "vite.config.chat.ts",
     "vitest.config.ts",
     "playwright.config.ts",
-    "playwright.screenshots.config.ts"
+    "playwright.screenshots.config.ts",
+    "playwright.benchmark.config.ts"
   ]
 }

@@ -34,6 +34,85 @@ const center = async (page: Page, label: string): Promise<{ x: number; y: number
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+type Box = { x: number; y: number; width: number; height: number };
+
+type TopicGeometry = {
+  block: Box;
+  frame: Box;
+  frameBorder: number;
+  field:
+    | (Box & {
+        centerX: number;
+        paddingTop: number;
+        paddingRight: number;
+        paddingBottom: number;
+        paddingLeft: number;
+        textAlign: string;
+        scale: number;
+      })
+    | null;
+  placeholderWidth: number;
+};
+
+const emptyCanvasPoint = async (page: Page): Promise<{ x: number; y: number }> =>
+  page.evaluate(() => {
+    const svg = document.querySelector('.mm-markmap-svg');
+    if (!(svg instanceof SVGSVGElement)) throw new Error('Missing map');
+    const box = svg.getBoundingClientRect();
+    for (let y = box.y + 40; y < box.y + box.height - 40; y += 20) {
+      for (let x = box.x + 40; x < box.x + box.width - 40; x += 20) {
+        const hit = document.elementFromPoint(x, y);
+        if (!(hit instanceof Element)) continue;
+        if (hit.closest('g[data-key]') !== null) continue;
+        if (hit.closest('.mm-markmap-toolbar') !== null) continue;
+        if (hit.closest('.mm-notice') !== null) continue;
+        return { x, y };
+      }
+    }
+    throw new Error('No empty canvas point');
+  });
+
+const topicGeometry = async (page: Page): Promise<TopicGeometry> =>
+  page.evaluate(() => {
+    const group = document.querySelector('.mm-editor-selected');
+    const frame = document.querySelector('.mm-editor-selection');
+    const block = group?.querySelector('rect');
+    if (!(frame instanceof HTMLElement) || !(block instanceof SVGGraphicsElement)) {
+      throw new Error('Missing selection geometry');
+    }
+    const rectOf = (element: Element): { x: number; y: number; width: number; height: number } => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    };
+    const input = document.querySelector('textarea.mm-editor-field');
+    const inputStyle = input instanceof HTMLTextAreaElement ? getComputedStyle(input) : null;
+    const inputRect = input instanceof HTMLTextAreaElement ? input.getBoundingClientRect() : null;
+    const label = group?.querySelector('text');
+    return {
+      block: rectOf(block),
+      frame: rectOf(frame),
+      frameBorder: Number.parseFloat(getComputedStyle(frame).borderLeftWidth),
+      field:
+        inputRect === null || inputStyle === null || inputStyle.display === 'none'
+          ? null
+          : {
+              x: inputRect.x,
+              y: inputRect.y,
+              width: inputRect.width,
+              height: inputRect.height,
+              centerX: inputRect.x + inputRect.width / 2,
+              paddingTop: Number.parseFloat(inputStyle.paddingTop),
+              paddingRight: Number.parseFloat(inputStyle.paddingRight),
+              paddingBottom: Number.parseFloat(inputStyle.paddingBottom),
+              paddingLeft: Number.parseFloat(inputStyle.paddingLeft),
+              textAlign: inputStyle.textAlign,
+              scale: inputStyle.transform === 'none' ? 1 : new DOMMatrix(inputStyle.transform).a,
+            },
+      placeholderWidth:
+        label === null || label === undefined ? 0 : label.getBoundingClientRect().width,
+    };
+  });
+
 const nodeBoxOf = async (
   page: Page,
   label: string,
@@ -336,6 +415,103 @@ test('[R-03] draws no browser focus ring around the focused editor surface', asy
   const outline = await surface.evaluate((node) => getComputedStyle(node).outlineStyle);
 
   expect(outline).toBe('none');
+});
+
+test('[R-03] clears selection and focus when clicking the empty canvas', async ({ page }) => {
+  const surface = page.locator('.mm-editor-surface');
+  await page.goto('/dev/?map=showcase&theme=light');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await page.getByText('Product', { exact: true }).first().click();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Product');
+  await expect(page.locator('.mm-editor-selection')).toBeVisible();
+  await expect(surface).toBeFocused();
+
+  const point = await emptyCanvasPoint(page);
+  await page.mouse.click(point.x, point.y);
+
+  await expect(surface).not.toBeFocused();
+  await expect(page.locator('.mm-editor-selected')).toHaveCount(0);
+  await expect(page.locator('.mm-editor-selection')).toBeHidden();
+
+  await page.getByText('Design', { exact: true }).first().click();
+  await expect(page.locator('.mm-editor-selected')).toContainText('Design');
+  await expect(page.locator('.mm-editor-selection')).toBeVisible();
+  await expect(surface).toBeFocused();
+});
+
+test('[R-03] [R-32] keeps an empty first-level topic frame and edit field aligned at initial scale', async ({
+  page,
+}) => {
+  await page.goto('/dev/?map=showcase&theme=light');
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await page.getByText('Atlas release', { exact: true }).first().click();
+  await page.keyboard.press('Tab');
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+
+  const editing = await topicGeometry(page);
+  const input = editing.field;
+  if (input === null) throw new Error('Missing edit field');
+  const blockCenterX = editing.block.x + editing.block.width / 2;
+  expect(input.paddingTop).toBe(9);
+  expect(input.paddingRight).toBe(14);
+  expect(input.paddingBottom).toBe(9);
+  expect(input.paddingLeft).toBe(14);
+  expect(input.textAlign).toBe('center');
+  expect(editing.placeholderWidth).toBe(0);
+  expect(Math.abs(input.centerX - blockCenterX)).toBeLessThanOrEqual(2);
+  expect(Math.abs(input.y - editing.block.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(input.height - editing.block.height)).toBeLessThanOrEqual(2);
+  expect(input.width).toBeGreaterThanOrEqual(editing.block.width);
+  expect(input.scale).toBe(1);
+  expect(input.width / input.scale).toBeGreaterThanOrEqual(40);
+
+  const frameLeft = editing.frame.x + editing.frameBorder;
+  const frameTop = editing.frame.y + editing.frameBorder;
+  const frameWidth = editing.frame.width - editing.frameBorder * 2;
+  const frameHeight = editing.frame.height - editing.frameBorder * 2;
+  expect(Math.abs(frameLeft - editing.block.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(frameTop - editing.block.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(frameWidth - editing.block.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(frameHeight - editing.block.height)).toBeLessThanOrEqual(2);
+
+  await page.keyboard.type('x');
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      }),
+  );
+  const grown = await topicGeometry(page);
+  if (grown.field === null) throw new Error('Missing grown edit field');
+  const grownBlockCenterX = grown.block.x + grown.block.width / 2;
+  expect(Math.abs(grown.field.centerX - grownBlockCenterX)).toBeLessThanOrEqual(2);
+  const grownFrameLeft = grown.frame.x + grown.frameBorder;
+  const grownFrameTop = grown.frame.y + grown.frameBorder;
+  const grownFrameWidth = grown.frame.width - grown.frameBorder * 2;
+  const grownFrameHeight = grown.frame.height - grown.frameBorder * 2;
+  expect(Math.abs(grownFrameLeft - grown.block.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(grownFrameTop - grown.block.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(grownFrameWidth - grown.block.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(grownFrameHeight - grown.block.height)).toBeLessThanOrEqual(2);
+
+  await page.keyboard.press('Escape');
+  await expect(field).toBeHidden();
+  const selected = await topicGeometry(page);
+  expect(selected.field).toBeNull();
+  expect(Math.abs(selected.block.x + selected.block.width / 2 - blockCenterX)).toBeLessThanOrEqual(
+    2,
+  );
+  const selectedFrameLeft = selected.frame.x + selected.frameBorder;
+  const selectedFrameTop = selected.frame.y + selected.frameBorder;
+  const selectedFrameWidth = selected.frame.width - selected.frameBorder * 2;
+  const selectedFrameHeight = selected.frame.height - selected.frameBorder * 2;
+  expect(Math.abs(selectedFrameLeft - selected.block.x)).toBeLessThanOrEqual(2);
+  expect(Math.abs(selectedFrameTop - selected.block.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(selectedFrameWidth - selected.block.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(selectedFrameHeight - selected.block.height)).toBeLessThanOrEqual(2);
 });
 
 test('[R-19] Enter exits editing before the next Enter inserts a sibling', async ({ page }) => {

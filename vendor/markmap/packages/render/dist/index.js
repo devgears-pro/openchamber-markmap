@@ -1000,20 +1000,20 @@ var minimalTheme = {
 };
 // src/themes/soft.ts
 var LIGHT_COLORS = [
-	"#dc7768",
-	"#9c6c9d",
-	"#7369a1",
-	"#cb9c40",
-	"#77a76b",
-	"#6c95bd"
+	"#4a7fa8",
+	"#5f8b4c",
+	"#8a6aa8",
+	"#b08434",
+	"#3f8f8a",
+	"#b45f6a"
 ];
 var DARK_COLORS = [
-	"#e39487",
-	"#c08bb6",
-	"#9b93c9",
+	"#7fb2e0",
+	"#9dc98a",
+	"#b39ad8",
 	"#dbb76c",
-	"#93c287",
-	"#86aed0"
+	"#6fc6bb",
+	"#e08ba8"
 ];
 var LIGHT_TEXT = "#2b3138";
 var DARK_TEXT = "#e8edf4";

@@ -31,6 +31,7 @@
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",
     "screenshots": "playwright test -c playwright.screenshots.config.ts",
+    "benchmark": "playwright test -c playwright.benchmark.config.ts",
     "test": "vitest run",
     "test:acceptance": "playwright test",
     "test:coverage": "vitest run --coverage",

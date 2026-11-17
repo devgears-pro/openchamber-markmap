@@ -6,12 +6,19 @@
       "entry": [
         "dev/main.ts",
         "dev/block.ts",
+        "benchmarks/**/*.spec.ts",
         "scripts/**/*.ts",
         "tests/**/*.test.ts",
         "tests/**/*.spec.ts",
         "*.config.ts"
       ],
-      "project": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts", "dev/**/*.ts"]
+      "project": [
+        "src/**/*.ts",
+        "benchmarks/**/*.ts",
+        "tests/**/*.ts",
+        "scripts/**/*.ts",
+        "dev/**/*.ts"
+      ]
     }
   }
 }

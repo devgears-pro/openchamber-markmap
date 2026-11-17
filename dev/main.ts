@@ -2,7 +2,10 @@ import type { FileEditorChange } from '@openchamber/sdk';
 
 import { mountApp, type MarkmapHost } from '../src/app';
 import { createMarkmapView } from '../src/markmap/view';
+import { benchmarkMarkdown } from './benchmark';
 import { devContext } from './theme';
+import palette from './palette.md?raw';
+import paletteColor from './palette-color.md?raw';
 import sample from './sample.md?raw';
 import move from './move.md?raw';
 import notes from './notes.md?raw';
@@ -54,6 +57,16 @@ const maps: Record<string, { content: string; name: string }> = {
   'list-only': { content: listOnly, name: 'list-only.markmap.md' },
   'frontmatter-only': { content: frontmatterOnly, name: 'frontmatter-only.markmap.md' },
   nested: { content: nested, name: 'nested.markmap.md' },
+  palette: { content: palette, name: 'palette.markmap.md' },
+  'palette-color': { content: paletteColor, name: 'palette-color.markmap.md' },
+  'benchmark-small': {
+    content: benchmarkMarkdown(3, 3, 4),
+    name: 'benchmark-small.markmap.md',
+  },
+  'benchmark-1000': {
+    content: benchmarkMarkdown(9, 10, 10),
+    name: 'benchmark-1000.markmap.md',
+  },
 };
 const selected = maps[params.get('map') ?? ''] ?? {
   content: sample,
