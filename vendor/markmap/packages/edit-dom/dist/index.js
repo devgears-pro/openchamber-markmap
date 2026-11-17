@@ -70,6 +70,15 @@ var STYLE = `
 .mm-editor-drop-line{background:var(--oc-focus,#0097e6);border-radius:999px}
 .mm-editor-drop-frame{border:2px solid var(--oc-focus,#0097e6);border-radius:8px}
 .mm-editor-dragging{cursor:grabbing;user-select:none}
+.mm-editor-connect-handle{position:absolute;display:none;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;background:var(--oc-focus,#0097e6);border:2px solid var(--oc-elevated,light-dark(#fff,#1f1f1f));box-shadow:0 1px 4px rgba(0,0,0,.24);cursor:crosshair;pointer-events:auto;z-index:4;box-sizing:border-box}
+.mm-editor-connect-preview{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:3}
+.mm-editor-connect-preview path{stroke:var(--oc-focus,#0097e6);stroke-width:2px;stroke-dasharray:4 4;fill:none}
+.mm-editor-connect-preview .mm-editor-connect-arrow{fill:var(--oc-focus,#0097e6);stroke:none}
+.mm-editor-connect-target{outline:2px dashed var(--oc-focus,#0097e6);outline-offset:2px}
+.mm-editor-relation-selected .mm-relation-line{stroke:var(--oc-focus,#0097e6);stroke-width:2.5px}
+.mm-editor-relation-selected .mm-relation-arrow{fill:var(--oc-focus,#0097e6)}
+.mm-editor-relation-selected .mm-relation-label rect{stroke:var(--oc-focus,#0097e6);stroke-width:2px}
+.mm-editor-relation-field{position:absolute;display:none;min-width:60px;max-width:240px;height:24px;padding:2px 8px;margin:-12px 0 0 0;transform:translate(-50%,-50%);border:1px solid var(--oc-focus,#0097e6);border-radius:4px;background:var(--oc-elevated,light-dark(#fff,#1f1f1f));color:inherit;font:inherit;font-size:12px;line-height:20px;text-align:center;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:auto;z-index:5;box-sizing:border-box}
 `;
 var styleUsers = /* @__PURE__ */ new WeakMap();
 var NOTE_ICON = "M3 13l1-3.4L11 2.6a1.7 1.7 0 0 1 2.4 2.4L6.4 12 3 13zM9.9 3.7l2.4 2.4";
@@ -158,6 +167,11 @@ var MarkmapEditor = class {
 	extraSelectionBoxes = [];
 	indicator;
 	layer;
+	connectHandle;
+	connectPreviewSvg;
+	connectPreviewLine;
+	connectPreviewArrow;
+	relationField;
 	history = new History();
 	onChange;
 	onDraftChange;
@@ -171,12 +185,14 @@ var MarkmapEditor = class {
 	title = "";
 	selectedId = null;
 	selectedIds = [];
+	selectedRelationRef = null;
 	selectionOffset = 0;
 	editing = null;
 	editingGroup = null;
 	selectedBoundaryIndex = null;
 	notes = null;
 	drag = null;
+	connectDrag = null;
 	suppressClick = false;
 	previewFrame = null;
 	previewing = false;
@@ -214,7 +230,25 @@ var MarkmapEditor = class {
 		this.field.setAttribute("autocapitalize", "off");
 		this.field.setAttribute("wrap", "soft");
 		this.field.addEventListener("input", this.handleInput);
-		this.layer.append(this.selectionBox, this.indicator, this.field);
+		this.connectHandle = doc.createElement("div");
+		this.connectHandle.className = "mm-editor-connect-handle";
+		this.connectHandle.setAttribute("title", "Connect");
+		this.connectHandle.addEventListener("pointerdown", this.handleConnectHandlePointerDown);
+		this.connectPreviewSvg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
+		this.connectPreviewSvg.setAttribute("class", "mm-editor-connect-preview");
+		this.connectPreviewSvg.style.display = "none";
+		this.connectPreviewLine = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+		this.connectPreviewArrow = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+		this.connectPreviewArrow.setAttribute("class", "mm-editor-connect-arrow");
+		this.connectPreviewSvg.append(this.connectPreviewLine, this.connectPreviewArrow);
+		this.relationField = doc.createElement("input");
+		this.relationField.type = "text";
+		this.relationField.className = "mm-editor-relation-field";
+		this.relationField.spellcheck = false;
+		this.relationField.autocomplete = "off";
+		this.relationField.addEventListener("keydown", this.handleRelationFieldKey);
+		this.relationField.addEventListener("blur", this.handleRelationFieldBlur);
+		this.layer.append(this.selectionBox, this.indicator, this.field, this.connectHandle, this.connectPreviewSvg, this.relationField);
 		container.append(this.layer);
 		container.addEventListener("keydown", this.handleKeyDown);
 		container.addEventListener("click", this.handleClick);
@@ -223,6 +257,7 @@ var MarkmapEditor = class {
 		container.addEventListener("mousedown", this.handleMouseDown, true);
 		this.stops.push(this.view.on("render", this.handleViewChange));
 		this.stops.push(this.view.on("zoom", this.handleViewChange));
+		this.view.setGraph?.(this.doc.graph, this.doc.identities);
 		this.selectedId = this.doc.root;
 		this.selectedIds = [this.doc.root];
 		this.selectionOffset = this.doc.nodes.get(this.doc.root)?.label?.start ?? 0;
@@ -238,8 +273,74 @@ var MarkmapEditor = class {
 	get selected() {
 		return this.selectedId;
 	}
+	get selectedRelation() {
+		return this.selectedRelationRef ? { ...this.selectedRelationRef } : null;
+	}
 	get selection() {
 		return this.selectionOffset;
+	}
+	selectRelation(rel) {
+		this.selectedRelationRef = rel;
+		if (rel) {
+			this.selectedId = null;
+			this.selectedIds = [];
+			if (this.relationField.style.display !== "none") this.relationField.style.display = "none";
+		}
+		this.paintSelection();
+	}
+	deleteSelectedRelation() {
+		if (!this.selectedRelationRef) return false;
+		const { from, to } = this.selectedRelationRef;
+		const before = this.historyEntry();
+		if (!this.apply({
+			type: "deleteEdge",
+			from,
+			to
+		})) return false;
+		this.selectedRelationRef = null;
+		if (this.doc.source !== before.source) this.history.push(before);
+		return true;
+	}
+	createEdge(from, to) {
+		const before = this.historyEntry();
+		if (!this.apply({
+			type: "createEdge",
+			from,
+			to
+		})) return false;
+		if (this.doc.source !== before.source) this.history.push(before);
+		return true;
+	}
+	deleteEdge(from, to) {
+		const before = this.historyEntry();
+		if (!this.apply({
+			type: "deleteEdge",
+			from,
+			to
+		})) return false;
+		if (this.doc.source !== before.source) this.history.push(before);
+		return true;
+	}
+	setEdgeLabel(from, to, label) {
+		const before = this.historyEntry();
+		if (!this.apply({
+			type: "setEdgeLabel",
+			from,
+			to,
+			label: label ?? null
+		})) return false;
+		if (this.doc.source !== before.source) this.history.push(before);
+		return true;
+	}
+	startEditingRelationLabel() {
+		if (!this.selectedRelationRef) return;
+		const { from, to } = this.selectedRelationRef;
+		const currentLabel = (this.doc.graph?.edges.find((e) => e.from === from && e.to === to))?.label ?? "";
+		this.relationField.value = currentLabel;
+		this.positionRelationField(from, to);
+		this.relationField.style.display = "block";
+		this.relationField.focus();
+		this.relationField.select();
 	}
 	get isEditing() {
 		return this.editing !== null || this.editingGroup !== null;
@@ -476,6 +577,7 @@ var MarkmapEditor = class {
 		this.field.removeEventListener("input", this.handleInput);
 		this.cancelPreview();
 		this.cancelDrag();
+		this.finishConnectDrag(true);
 		this.closeNotes(false);
 		this.layer.remove();
 		releaseStyle(this.container.ownerDocument);
@@ -485,6 +587,7 @@ var MarkmapEditor = class {
 		this.editing = null;
 		this.selectedId = null;
 		this.selectedIds = [];
+		this.selectedRelationRef = null;
 	}
 	handleInput = () => {
 		if (!this.editing) return;
@@ -498,6 +601,7 @@ var MarkmapEditor = class {
 		if (this.previewing) return;
 		if (this.editing) this.positionEditing();
 		if (this.editingGroup) this.positionGroupEditing();
+		if (this.relationField.style.display !== "none" && this.selectedRelationRef) this.positionRelationField(this.selectedRelationRef.from, this.selectedRelationRef.to);
 		this.paintSelection();
 		this.paintEditing();
 		const drag = this.drag;
@@ -522,12 +626,34 @@ var MarkmapEditor = class {
 			if (target instanceof Node && this.field.contains(target)) return;
 			this.commitGroupEditing();
 		}
+		if (target instanceof Node && this.relationField.contains(target)) return;
 		if (event.button !== 0) return;
 		if (this.editing && this.commitEditing() === "error") return;
+		if (this.relationField.style.display !== "none") this.commitRelationLabel();
+		const relElement = target instanceof Element ? target.closest("[data-key^=\"relation:\"]") : null;
+		if (relElement) {
+			const key = relElement.getAttribute("data-key");
+			if (key && key.startsWith("relation:")) {
+				const rest = key.slice(9);
+				const colon = rest.indexOf(":");
+				if (colon > 0) {
+					const from = rest.slice(0, colon);
+					const to = rest.slice(colon + 1);
+					this.selectRelation({
+						from,
+						to
+					});
+					this.container.focus({ preventScroll: true });
+					event.preventDefault();
+					return;
+				}
+			}
+		}
 		const hit = this.hitAt(event);
 		if (!hit) {
 			this.select(null, { reveal: false });
 			this.selectBoundary(null);
+			this.selectRelation(null);
 			this.container.blur();
 			return;
 		}
@@ -545,6 +671,26 @@ var MarkmapEditor = class {
 	};
 	handleDoubleClick = (event) => {
 		if (this.editing || this.notes || this.editingGroup) return;
+		const target = event.target;
+		const relElement = target instanceof Element ? target.closest("[data-key^=\"relation:\"]") : null;
+		if (relElement) {
+			const key = relElement.getAttribute("data-key");
+			if (key && key.startsWith("relation:")) {
+				const rest = key.slice(9);
+				const colon = rest.indexOf(":");
+				if (colon > 0) {
+					const from = rest.slice(0, colon);
+					const to = rest.slice(colon + 1);
+					this.selectRelation({
+						from,
+						to
+					});
+					this.startEditingRelationLabel();
+					event.preventDefault();
+					return;
+				}
+			}
+		}
 		const hit = this.hitAt(event);
 		if (hit?.kind === "node" && hit.nodeId) {
 			this.selectBoundary(null);
@@ -597,8 +743,10 @@ var MarkmapEditor = class {
 	}
 	handleMouseDown = (event) => {
 		if (event.button !== 0) return;
+		const target = event.target;
+		if (target instanceof Node && this.connectHandle.contains(target)) return;
+		if (target instanceof Node && this.relationField.contains(target)) return;
 		if (this.notes) {
-			const target = event.target;
 			if (!(target instanceof Node) || !this.notes.panel.contains(target)) {
 				if (this.commitNotes({ keepOpen: false }) === "error") {
 					event.preventDefault();
@@ -615,8 +763,10 @@ var MarkmapEditor = class {
 		if (event.pointerType === "touch") return;
 		if (event.button !== 0 || event.isPrimary === false) return;
 		if (this.destroyed) return;
+		const target = event.target;
+		if (target instanceof Node && this.connectHandle.contains(target)) return;
+		if (target instanceof Node && this.relationField.contains(target)) return;
 		if (this.notes) {
-			const target = event.target;
 			if (!(target instanceof Node) || !this.notes.panel.contains(target)) {
 				if (this.commitNotes({ keepOpen: false }) === "error") return;
 			}
@@ -1138,6 +1288,25 @@ var MarkmapEditor = class {
 				this.editGroupLabel(this.selectedBoundaryIndex);
 				return;
 			}
+			return;
+		}
+		if (this.selectedRelationRef) {
+			if (event.key === "Delete" || event.key === "Backspace") {
+				event.preventDefault();
+				this.deleteSelectedRelation();
+				return;
+			}
+			if (event.key === "Enter" || event.key === " ") {
+				event.preventDefault();
+				this.startEditingRelationLabel();
+				return;
+			}
+			if (event.key === "Escape") {
+				event.preventDefault();
+				this.selectRelation(null);
+				return;
+			}
+			return;
 		}
 		if (!this.selectedId) return;
 		if (mod && event.shiftKey && event.key.startsWith("Arrow")) {
@@ -1557,6 +1726,19 @@ var MarkmapEditor = class {
 			this.selectedId = null;
 			this.selectedIds = [];
 			this.paintSelection();
+		} else if (command.type === "createEdge" || command.type === "deleteEdge" || command.type === "setEdgeLabel") {
+			if (command.type === "deleteEdge") this.selectRelation(null);
+			else if (command.type === "createEdge") {
+				const edges = result.document.graph?.edges;
+				const edge = edges && edges.length > 0 ? edges[edges.length - 1] : void 0;
+				this.selectRelation(edge ? {
+					from: edge.from,
+					to: edge.to
+				} : null);
+			} else if (command.type === "setEdgeLabel") this.selectRelation({
+				from: command.from,
+				to: command.to
+			});
 		} else this.selectAt(result.selection, { reveal: false });
 		if (command.type === "setNotes") this.select(command.node, { reveal: false });
 		this.emitChange();
@@ -1662,6 +1844,7 @@ var MarkmapEditor = class {
 		};
 	}
 	render(source, tree) {
+		this.view.setGraph?.(this.doc.graph, this.doc.identities);
 		this.view.setTree(tree);
 		this.renderedSource = source;
 	}
@@ -1862,6 +2045,7 @@ var MarkmapEditor = class {
 		this.selectGroup(id ? [id] : [], id, options);
 	}
 	selectGroup(ids, anchor, options = {}) {
+		this.selectedRelationRef = null;
 		const ordered = this.selectedIdsInOrder(ids);
 		this.selectedIds = ordered;
 		this.selectedId = anchor && ordered.includes(anchor) ? anchor : ordered[0] ?? null;
@@ -1961,6 +2145,9 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-group-selected").forEach((element) => {
 			element.classList.remove("mm-editor-group-selected");
 		});
+		this.view.element.querySelectorAll(".mm-editor-relation-selected").forEach((element) => {
+			element.classList.remove("mm-editor-relation-selected");
+		});
 		for (const box of this.extraSelectionBoxes) box.remove();
 		this.extraSelectionBoxes.length = 0;
 		if (this.selectedBoundaryIndex !== null) {
@@ -1974,23 +2161,34 @@ var MarkmapEditor = class {
 				this.selectionBox.style.top = `${rect.y - box.y - 2}px`;
 				this.selectionBox.style.width = `${rect.width + 4}px`;
 				this.selectionBox.style.height = `${rect.height + 4}px`;
+				this.connectHandle.style.display = "none";
 				return;
 			}
+		}
+		if (this.selectedRelationRef) {
+			const { from, to } = this.selectedRelationRef;
+			this.view.element.querySelector(`[data-key="relation:${from}:${to}"]`)?.classList.add("mm-editor-relation-selected");
+			this.selectionBox.style.display = "none";
+			this.connectHandle.style.display = "none";
+			return;
 		}
 		const painted = this.editing ? [this.editing.previewId] : this.selectedIds;
 		for (const id of painted) this.nodeGroup(id)?.classList.add("mm-editor-selected");
 		const id = this.editing?.previewId ?? this.selectedId;
 		if (!id) {
 			this.selectionBox.style.display = "none";
+			this.connectHandle.style.display = "none";
 			return;
 		}
 		const selected = this.doc.nodes.get(id);
 		if (!this.editing && selected?.kind === "root" && this.doc.source.trim() === "") {
 			this.selectionBox.style.display = "none";
+			this.connectHandle.style.display = "none";
 			return;
 		}
-		if (this.drag?.active) {
+		if (this.drag?.active || this.connectDrag?.active) {
 			this.selectionBox.style.display = "none";
+			this.connectHandle.style.display = "none";
 			return;
 		}
 		const boxes = [this.selectionBox];
@@ -2016,6 +2214,212 @@ var MarkmapEditor = class {
 			frame.style.width = `${rect.width + 4}px`;
 			frame.style.height = `${rect.height + 4}px`;
 		}
+		if (this.selectedIds.length === 1 && !this.editing && !this.notes && !this.drag?.active && !this.connectDrag?.active && selected && !selected.opaque) {
+			const rect = this.view.screenRect(selected.id);
+			if (rect) {
+				const handleX = this.view.direction(selected.id) === "left" ? rect.x - box.x : rect.x - box.x + rect.width;
+				const handleY = rect.y - box.y + rect.height / 2;
+				this.connectHandle.style.left = `${handleX}px`;
+				this.connectHandle.style.top = `${handleY}px`;
+				this.connectHandle.style.display = "block";
+			} else this.connectHandle.style.display = "none";
+		} else this.connectHandle.style.display = "none";
+	}
+	handleConnectHandlePointerDown = (event) => {
+		if (event.pointerType === "touch") return;
+		if (event.button !== 0 || event.isPrimary === false) return;
+		const sourceId = this.selectedId;
+		if (!sourceId) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const win = this.container.ownerDocument.defaultView ?? window;
+		this.connectDrag = {
+			sourceId,
+			pointerId: event.pointerId,
+			startX: event.clientX,
+			startY: event.clientY,
+			clientX: event.clientX,
+			clientY: event.clientY,
+			active: false,
+			targetId: null,
+			win
+		};
+		win.addEventListener("pointermove", this.handleConnectPointerMove, true);
+		win.addEventListener("pointerup", this.handleConnectPointerUp, true);
+		win.addEventListener("pointercancel", this.handleConnectPointerCancel, true);
+		win.addEventListener("keydown", this.handleConnectDragKey, true);
+	};
+	handleConnectPointerMove = (event) => {
+		const drag = this.connectDrag;
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		drag.clientX = event.clientX;
+		drag.clientY = event.clientY;
+		if (!drag.active) {
+			if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < DRAG_THRESHOLD) return;
+			drag.active = true;
+			this.container.classList.add("mm-editor-connecting");
+		}
+		this.updateConnectDrag(drag);
+	};
+	handleConnectPointerUp = (event) => {
+		const drag = this.connectDrag;
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		if (!drag.active) {
+			this.finishConnectDrag(false);
+			return;
+		}
+		drag.clientX = event.clientX;
+		drag.clientY = event.clientY;
+		this.finishConnectDrag(false);
+	};
+	handleConnectPointerCancel = () => {
+		this.finishConnectDrag(true);
+	};
+	handleConnectDragKey = (event) => {
+		if (event.key === "Escape") {
+			event.preventDefault();
+			this.finishConnectDrag(true);
+		}
+	};
+	updateConnectDrag(drag) {
+		let candidateId = null;
+		const hit = this.hitAt(drag);
+		if (hit?.kind === "node" && hit.nodeId) candidateId = hit.nodeId;
+		else {
+			const attr = (drag.win.document.elementFromPoint(drag.clientX, drag.clientY)?.closest("[data-key^=\"node:\"]"))?.getAttribute("data-key");
+			if (attr && attr.startsWith("node:")) candidateId = attr.slice(5);
+		}
+		const targetId = candidateId && this.isValidConnectTarget(drag.sourceId, candidateId) ? candidateId : null;
+		if (drag.targetId !== targetId) {
+			if (drag.targetId) this.nodeGroup(drag.targetId)?.classList.remove("mm-editor-connect-target");
+			drag.targetId = targetId;
+			if (drag.targetId) this.nodeGroup(drag.targetId)?.classList.add("mm-editor-connect-target");
+		}
+		this.updateConnectPreview(drag);
+	}
+	updateConnectPreview(drag) {
+		const sRect = this.view.screenRect(drag.sourceId);
+		const box = this.container.getBoundingClientRect();
+		if (!sRect) {
+			this.connectPreviewSvg.style.display = "none";
+			return;
+		}
+		const sDir = this.view.direction(drag.sourceId);
+		const sX = sDir === "left" ? sRect.x - box.x : sRect.x - box.x + sRect.width;
+		const sY = sRect.y - box.y + sRect.height / 2;
+		let tX = drag.clientX - box.x;
+		let tY = drag.clientY - box.y;
+		if (drag.targetId) {
+			const tRect = this.view.screenRect(drag.targetId);
+			if (tRect) {
+				tX = this.view.direction(drag.targetId) === "left" ? tRect.x - box.x + tRect.width : tRect.x - box.x;
+				tY = tRect.y - box.y + tRect.height / 2;
+			}
+		}
+		const dx = tX - sX;
+		const dy = tY - sY;
+		const offset = Math.max(20, Math.min(Math.hypot(dx, dy) * .4, 120));
+		const d = `M${sX},${sY}C${sDir === "left" ? sX - offset : sX + offset},${sY} ${dx >= 0 ? tX - offset : tX + offset},${tY} ${tX},${tY}`;
+		this.connectPreviewLine.setAttribute("d", d);
+		const angle = dx >= 0 ? 0 : Math.PI;
+		const baseX = tX - 8 * Math.cos(angle);
+		const baseY = tY - 8 * Math.sin(angle);
+		const w1X = baseX - 4 * Math.sin(angle);
+		const w1Y = baseY + 4 * Math.cos(angle);
+		const w2X = baseX + 4 * Math.sin(angle);
+		const w2Y = baseY - 4 * Math.cos(angle);
+		const arrowD = `M${tX},${tY}L${w1X},${w1Y}L${w2X},${w2Y}Z`;
+		this.connectPreviewArrow.setAttribute("d", arrowD);
+		this.connectPreviewSvg.style.display = "block";
+	}
+	finishConnectDrag(cancelled) {
+		const drag = this.connectDrag;
+		if (!drag) return;
+		drag.win.removeEventListener("pointermove", this.handleConnectPointerMove, true);
+		drag.win.removeEventListener("pointerup", this.handleConnectPointerUp, true);
+		drag.win.removeEventListener("pointercancel", this.handleConnectPointerCancel, true);
+		drag.win.removeEventListener("keydown", this.handleConnectDragKey, true);
+		if (drag.targetId) this.nodeGroup(drag.targetId)?.classList.remove("mm-editor-connect-target");
+		this.container.classList.remove("mm-editor-connecting");
+		this.connectPreviewSvg.style.display = "none";
+		const targetId = !cancelled && drag.active ? drag.targetId : null;
+		const sourceId = drag.sourceId;
+		this.connectDrag = null;
+		if (targetId && this.isValidConnectTarget(sourceId, targetId)) {
+			if (this.createEdge(sourceId, targetId)) this.startEditingRelationLabel();
+		}
+	}
+	isValidConnectTarget(sourceId, targetId) {
+		if (targetId === sourceId) return false;
+		const sourceNode = this.doc.nodes.get(sourceId);
+		const targetNode = this.doc.nodes.get(targetId);
+		if (!sourceNode || !targetNode || sourceNode.opaque || targetNode.opaque) return false;
+		const fromMarker = sourceNode.identity?.id ?? (sourceNode.id === this.doc.root ? "root" : null);
+		const toMarker = targetNode.identity?.id ?? (targetNode.id === this.doc.root ? "root" : null);
+		return !this.doc.graph?.edges.some((edge) => {
+			const edgeFromNodeId = edge.from === "root" ? this.doc.root : this.doc.identities?.get(edge.from) ?? edge.from;
+			const edgeToNodeId = edge.to === "root" ? this.doc.root : this.doc.identities?.get(edge.to) ?? edge.to;
+			return (edge.from === sourceId || edge.from === fromMarker || edgeFromNodeId === sourceId) && (edge.to === targetId || edge.to === toMarker || edgeToNodeId === targetId);
+		});
+	}
+	positionRelationField(from, to) {
+		const labelGroup = this.view.element.querySelector(`[data-key="relation:${from}:${to}"]`)?.querySelector(".mm-relation-label");
+		const box = this.container.getBoundingClientRect();
+		if (labelGroup) {
+			const lRect = labelGroup.getBoundingClientRect();
+			if (lRect.width > 0) {
+				this.relationField.style.left = `${lRect.x - box.x + lRect.width / 2}px`;
+				this.relationField.style.top = `${lRect.y - box.y + lRect.height / 2}px`;
+				return;
+			}
+		}
+		const srcNodeId = from === "root" ? this.doc.root : this.doc.identities.get(from) ?? from;
+		const tgtNodeId = to === "root" ? this.doc.root : this.doc.identities.get(to) ?? to;
+		const sRect = this.view.screenRect(srcNodeId);
+		const tRect = this.view.screenRect(tgtNodeId);
+		if (sRect && tRect) {
+			const midX = (sRect.x + sRect.width / 2 + tRect.x + tRect.width / 2) / 2;
+			const midY = (sRect.y + sRect.height / 2 + tRect.y + tRect.height / 2) / 2;
+			this.relationField.style.left = `${midX - box.x}px`;
+			this.relationField.style.top = `${midY - box.y}px`;
+			return;
+		}
+		this.relationField.style.left = "50%";
+		this.relationField.style.top = "50%";
+	}
+	handleRelationFieldKey = (event) => {
+		event.stopPropagation();
+		if (event.key === "Enter") {
+			event.preventDefault();
+			this.commitRelationLabel();
+		} else if (event.key === "Escape") {
+			event.preventDefault();
+			this.relationField.style.display = "none";
+			this.container.focus({ preventScroll: true });
+		}
+	};
+	handleRelationFieldBlur = () => {
+		if (this.relationField.style.display !== "none") this.commitRelationLabel();
+	};
+	commitRelationLabel() {
+		if (!this.selectedRelationRef) {
+			this.relationField.style.display = "none";
+			return;
+		}
+		const { from, to } = this.selectedRelationRef;
+		const newText = this.relationField.value.trim();
+		const currentLabel = (this.doc.graph?.edges.find((e) => e.from === from && e.to === to))?.label ?? "";
+		this.relationField.style.display = "none";
+		this.container.focus({ preventScroll: true });
+		if (newText === currentLabel) return;
+		const label = newText === "" ? null : newText;
+		const before = this.historyEntry();
+		if (this.apply({
+			type: "setEdgeLabel",
+			from,
+			to,
+			label
+		}) && this.doc.source !== before.source) this.history.push(before);
 	}
 	paintEditing() {
 		this.view.element.querySelectorAll(".mm-editor-editing").forEach((element) => {
@@ -2071,6 +2475,7 @@ function createEditView(mm) {
 			return mm.foldedIds;
 		},
 		setTree: (root) => mm.setTree(root),
+		setGraph: (graph, identities) => mm.setGraph(graph, identities),
 		setFolded: (id, folded) => mm.setFolded(id, folded),
 		setFoldedIds: (ids, options) => mm.setFoldedIds(ids, options),
 		toggle: (id) => mm.toggle(id),

@@ -8,6 +8,11 @@ export declare class MarkmapEditor {
     private readonly extraSelectionBoxes;
     private readonly indicator;
     private readonly layer;
+    private readonly connectHandle;
+    private readonly connectPreviewSvg;
+    private readonly connectPreviewLine;
+    private readonly connectPreviewArrow;
+    private readonly relationField;
     private readonly history;
     private readonly onChange?;
     private readonly onDraftChange?;
@@ -21,12 +26,14 @@ export declare class MarkmapEditor {
     private title;
     private selectedId;
     private selectedIds;
+    private selectedRelationRef;
     private selectionOffset;
     private editing;
     private editingGroup;
     private selectedBoundaryIndex;
     private notes;
     private drag;
+    private connectDrag;
     private suppressClick;
     private previewFrame;
     private previewing;
@@ -36,7 +43,20 @@ export declare class MarkmapEditor {
     get source(): string;
     get document(): MarkdownDocument;
     get selected(): string | null;
+    get selectedRelation(): {
+        from: string;
+        to: string;
+    } | null;
     get selection(): number;
+    selectRelation(rel: {
+        from: string;
+        to: string;
+    } | null): void;
+    deleteSelectedRelation(): boolean;
+    createEdge(from: string, to: string): boolean;
+    deleteEdge(from: string, to: string): boolean;
+    setEdgeLabel(from: string, to: string, label?: string | null): boolean;
+    startEditingRelationLabel(): void;
     get isEditing(): boolean;
     get isEditingNotes(): boolean;
     get canUndo(): boolean;
@@ -155,6 +175,19 @@ export declare class MarkmapEditor {
     private captureFolds;
     private restoreFolds;
     private paintSelection;
+    private handleConnectHandlePointerDown;
+    private handleConnectPointerMove;
+    private handleConnectPointerUp;
+    private handleConnectPointerCancel;
+    private handleConnectDragKey;
+    private updateConnectDrag;
+    private updateConnectPreview;
+    private finishConnectDrag;
+    private isValidConnectTarget;
+    private positionRelationField;
+    private handleRelationFieldKey;
+    private handleRelationFieldBlur;
+    private commitRelationLabel;
     private paintEditing;
     private nodeGroup;
     private hitAt;

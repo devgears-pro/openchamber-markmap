@@ -68,7 +68,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 - An open label reports each valid draft as the saveable text before the first snapshot, so a clean file becomes dirty while the field keeps focus; the committed document still arrives through `onSource`. Notes keep the snapshot-driven path: they do not report drafts, and a note is committed when the host requests a snapshot. `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version without exiting edit mode or moving focus. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.
 - A binary file or a Markmap failure must call `reportFileUnsupported()` so OpenChamber can show the source view.
-- Use the vendored `@markmap/model`, `@markmap/render`, `@markmap/edit`, and `@markmap/edit-dom`, plus the published `@markmap/view` and `@markmap/toolbar`. Do not copy their logic into `src/`.
+- Use the vendored `@markmap/model`, `@markmap/render`, `@markmap/edit`, `@markmap/edit-dom`, and `@markmap/view`, plus the published `@markmap/toolbar`. Do not copy their logic into `src/`.
 - The host theme wins over `markmap.colorScheme` from frontmatter. Keep the map readable in both modes.
 - The map is the only editing surface. Read-only files render without `MarkmapEditor`. Notes use the fork's panel and one `markmap-note` fenced block under the node; the dot popover stays read-only.
 - Unmodified wheel events pan by screen pixels, coalesced once per animation frame; line/page deltas use 40/800, and Shift maps vertical to horizontal. Cmd/Ctrl + wheel zooms with clamped deltas. The custom gesture layer is in `src/markmap/gestures.ts`.

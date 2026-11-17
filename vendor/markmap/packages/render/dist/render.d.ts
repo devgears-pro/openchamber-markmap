@@ -1,4 +1,4 @@
-import { type ContentPlugin, type FrameNode, type Layout, type LayoutResult, type Measurer, type MarkmapNode, type NodeContext, type Primitive, type Rect, type ResolvedLabelStyle, type Size, type Theme } from '@markmap/core';
+import { type ContentPlugin, type FrameNode, type GraphData, type GraphEdge, type Layout, type LayoutResult, type Measurer, type MarkmapNode, type NodeContext, type Primitive, type Rect, type ResolvedLabelStyle, type Size, type Theme } from '@markmap/core';
 import { type TextLayout } from './text';
 export interface RenderGroup {
     id?: string;
@@ -19,6 +19,8 @@ export interface RenderOptions {
     /** Inline content renderers. Defaults to {@link defaultContentPlugins}. */
     plugins?: readonly ContentPlugin[];
     groups?: readonly RenderGroup[];
+    graph?: GraphData;
+    identities?: ReadonlyMap<string, string>;
 }
 export interface RenderResult {
     theme: Theme;
@@ -74,6 +76,10 @@ export interface DrawGroup {
 export interface DrawState {
     nodes: DrawNode[];
     groups?: DrawGroup[];
+    rootId?: string;
+    relations?: readonly GraphEdge[];
+    identities?: ReadonlyMap<string, string>;
+    folded?: ReadonlySet<string>;
 }
 /**
  * Draw a state as primitives: edges first, then nodes, each in a keyed group so

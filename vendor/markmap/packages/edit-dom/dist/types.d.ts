@@ -1,4 +1,4 @@
-import type { MarkmapNode, Rect, ResolvedLabelStyle, Side, TextAlign } from '@markmap/core';
+import type { GraphData, MarkmapNode, Rect, ResolvedLabelStyle, Side, TextAlign } from '@markmap/core';
 import type { Document, RandomSource } from '@markmap/model';
 export interface EditLabelStyle extends ResolvedLabelStyle {
     align: TextAlign;
@@ -14,6 +14,7 @@ export interface EditView {
     readonly foldedIds: ReadonlySet<string>;
     panBy(dx: number, dy: number): void;
     setTree(root: MarkmapNode): void;
+    setGraph?(graph: GraphData | undefined, identities: ReadonlyMap<string, string> | undefined): void;
     setFolded(id: string, folded: boolean): void;
     setFoldedIds(ids: Iterable<string>, options?: {
         animate?: boolean;

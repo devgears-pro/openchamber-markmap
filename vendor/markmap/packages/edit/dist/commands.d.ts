@@ -61,6 +61,21 @@ export type Command = {
     type: 'setGroupLabel';
     groupIndex: number;
     text: string;
+} | {
+    type: 'createEdge';
+    from: string;
+    to: string;
+    label?: string | null;
+    random?: RandomSource;
+} | {
+    type: 'deleteEdge';
+    from: string;
+    to: string;
+} | {
+    type: 'setEdgeLabel';
+    from: string;
+    to: string;
+    label: string | null;
 };
 export interface EditResult {
     document: Document;
@@ -68,5 +83,20 @@ export interface EditResult {
     edits: Splice[];
     selection: number;
 }
+type SelectionPlan = {
+    kind: 'insert';
+    edit: number;
+    offset: number;
+} | {
+    kind: 'source';
+    offset: number;
+};
+export interface Plan {
+    edits: Splice[];
+    selection: SelectionPlan;
+    verify: (next: Document, selection: number) => void;
+}
 export declare function applyCommand(doc: Document, command: Command): EditResult;
+export declare function planCommand(doc: Document, command: Command): Plan;
 export declare function rootHeadingRefusal(doc: Document, nodeId?: string): EditError | null;
+export {};

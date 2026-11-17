@@ -80,7 +80,11 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     const parsed = parseDocument(source);
     const resolved = optionsFor(mount.colorScheme, parsed.frontmatter);
     for (const warning of resolved.warnings) mount.onError(warning);
-    markmap = Markmap.create(mount.svg, parsed.tree, resolved.options);
+    markmap = Markmap.create(mount.svg, parsed.tree, {
+      ...resolved.options,
+      graph: parsed.document.graph,
+      identities: parsed.document.identities,
+    });
     const instance = markmap;
     let layoutName = resolved.layout;
 

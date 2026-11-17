@@ -691,7 +691,9 @@ var CONTENT_TOKENS = {
 	"mm-syntax-comment": "#6e7781",
 	"mm-syntax-number": "#0550ae",
 	"mm-syntax-title": "#8250df",
-	"mm-syntax-attr": "#116329"
+	"mm-syntax-attr": "#116329",
+	"mm-edge-relation": "#8c959f",
+	"mm-edge-relation-label": "#57606a"
 };
 var DARK_CONTENT_TOKENS = {
 	"mm-link": "#4fb3f6",
@@ -707,7 +709,9 @@ var DARK_CONTENT_TOKENS = {
 	"mm-syntax-comment": "#8b949e",
 	"mm-syntax-number": "#79c0ff",
 	"mm-syntax-title": "#d2a8ff",
-	"mm-syntax-attr": "#7ee787"
+	"mm-syntax-attr": "#7ee787",
+	"mm-edge-relation": "#8b949e",
+	"mm-edge-relation-label": "#c9d1d9"
 };
 var SYSTEM_FONT = {
 	family: "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif",
@@ -1383,6 +1387,154 @@ function themeTokens(theme, scheme = "light") {
 		...theme.darkTokens
 	} : { ...theme.tokens };
 }
+// src/relation.ts
+function sideVector(side) {
+	if (side === "left") return {
+		x: -1,
+		y: 0
+	};
+	if (side === "right") return {
+		x: 1,
+		y: 0
+	};
+	if (side === "top") return {
+		x: 0,
+		y: -1
+	};
+	return {
+		x: 0,
+		y: 1
+	};
+}
+function computeRelationCurve(p0, p3, srcSide, tgtSide) {
+	const dist = Math.hypot(p3.x - p0.x, p3.y - p0.y);
+	const offset = Math.max(30, Math.min(dist * .4, 150));
+	const v0 = sideVector(srcSide);
+	const v3 = sideVector(tgtSide);
+	const p1 = {
+		x: p0.x + v0.x * offset,
+		y: p0.y + v0.y * offset
+	};
+	const p2 = {
+		x: p3.x + v3.x * offset,
+		y: p3.y + v3.y * offset
+	};
+	const d = `M${p0.x},${p0.y}C${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`;
+	let tanX = p3.x - p2.x;
+	let tanY = p3.y - p2.y;
+	if (Math.hypot(tanX, tanY) === 0) {
+		tanX = p3.x - p0.x;
+		tanY = p3.y - p0.y;
+	}
+	const angle = Math.atan2(tanY, tanX);
+	const baseX = p3.x - 8 * Math.cos(angle);
+	const baseY = p3.y - 8 * Math.sin(angle);
+	const w1X = baseX - 4 * Math.sin(angle);
+	const w1Y = baseY + 4 * Math.cos(angle);
+	const w2X = baseX + 4 * Math.sin(angle);
+	const w2Y = baseY - 4 * Math.cos(angle);
+	return {
+		p0,
+		p1,
+		p2,
+		p3,
+		d,
+		arrowD: `M${p3.x},${p3.y}L${w1X},${w1Y}L${w2X},${w2Y}Z`,
+		midX: .125 * p0.x + .375 * p1.x + .375 * p2.x + .125 * p3.x,
+		midY: .125 * p0.y + .375 * p1.y + .375 * p2.y + .125 * p3.y,
+		angle
+	};
+}
+function renderRelationEdges({ edges, identities, nodesById, rootId, folded, theme }) {
+	const primitives = [];
+	for (const edge of edges) {
+		const sourceNodeId = edge.from === "root" ? rootId ?? "" : identities?.get(edge.from) ?? edge.from;
+		const targetNodeId = edge.to === "root" ? rootId ?? "" : identities?.get(edge.to) ?? edge.to;
+		if (folded?.has(sourceNodeId) || folded?.has(targetNodeId)) continue;
+		const source = nodesById.get(sourceNodeId);
+		const target = nodesById.get(targetNodeId);
+		if (!source || !target) continue;
+		if (source.ctx.folded || target.ctx.folded) continue;
+		const srcCenter = {
+			x: source.rect.x + source.rect.width / 2,
+			y: source.rect.y + source.rect.height / 2
+		};
+		const tgtCenter = {
+			x: target.rect.x + target.rect.width / 2,
+			y: target.rect.y + target.rect.height / 2
+		};
+		const dx = tgtCenter.x - srcCenter.x;
+		const dy = tgtCenter.y - srcCenter.y;
+		let srcSide;
+		let tgtSide;
+		if (Math.abs(dx) >= Math.abs(dy)) {
+			srcSide = dx >= 0 ? "right" : "left";
+			tgtSide = dx >= 0 ? "left" : "right";
+		} else {
+			srcSide = dy >= 0 ? "bottom" : "top";
+			tgtSide = dy >= 0 ? "top" : "bottom";
+		}
+		const p0 = theme.node.anchor(source.rect, srcSide, source.ctx);
+		const p3 = theme.node.anchor(target.rect, tgtSide, target.ctx);
+		const curve = computeRelationCurve(p0, p3, srcSide, tgtSide);
+		const children = [{
+			kind: "path",
+			d: curve.d,
+			stroke: "var(--mm-edge-relation, #8c959f)",
+			strokeWidth: 1.5
+		}, {
+			kind: "path",
+			d: curve.arrowD,
+			fill: "var(--mm-edge-relation, #8c959f)"
+		}];
+		if (edge.label && edge.label.length > 0) {
+			const labelText = edge.label;
+			const labelWidth = Math.max(28, labelText.length * 7 + 14);
+			const labelHeight = 20;
+			const rect = {
+				kind: "rect",
+				x: curve.midX - labelWidth / 2,
+				y: curve.midY - labelHeight / 2,
+				w: labelWidth,
+				h: labelHeight,
+				r: 4,
+				fill: "var(--mm-bg, #ffffff)",
+				stroke: "var(--mm-edge-relation, #8c959f)",
+				strokeWidth: 1
+			};
+			const text = {
+				kind: "text",
+				x: 0,
+				y: 0,
+				runs: [{
+					text: labelText,
+					x: curve.midX - labelText.length * 7 / 2,
+					y: curve.midY + 4,
+					font: SYSTEM_FONT,
+					fill: "var(--mm-edge-relation-label, #57606a)"
+				}]
+			};
+			children.push(rect, text);
+		}
+		const minX = Math.min(p0.x, p3.x, curve.midX - 30);
+		const minY = Math.min(p0.y, p3.y, curve.midY - 15);
+		const maxX = Math.max(p0.x, p3.x, curve.midX + 30);
+		const maxY = Math.max(p0.y, p3.y, curve.midY + 15);
+		const bounds = {
+			x: minX - 10,
+			y: minY - 10,
+			width: maxX - minX + 20,
+			height: maxY - minY + 20
+		};
+		primitives.push({
+			kind: "group",
+			key: `relation:${edge.from}:${edge.to}`,
+			bounds,
+			children
+		});
+	}
+	return primitives;
+}
 // src/text.ts
 function registry(plugins) {
 	const styles = /* @__PURE__ */ new Map();
@@ -1909,7 +2061,11 @@ function renderTree(root, options) {
 				presence: 1
 			};
 		}),
-		groups: drawGroups
+		groups: drawGroups,
+		rootId: root.id,
+		relations: options.graph?.edges,
+		identities: options.identities,
+		folded: options.folded
 	};
 	const primitives = drawState(state, theme);
 	const bounds = unionRects([layout.bounds, primitiveBounds(primitives)]);
@@ -2034,10 +2190,19 @@ function drawState(state, theme) {
 			}]
 		};
 	});
+	const relations = state.relations ? renderRelationEdges({
+		edges: state.relations,
+		identities: state.identities,
+		nodesById: byId,
+		rootId: state.rootId,
+		folded: state.folded,
+		theme
+	}) : [];
 	return [
 		...underlays,
 		...edges,
-		...nodes
+		...nodes,
+		...relations
 	];
 }
 /** Room around a node or edge for what themes draw past it, such as fold circles. */
@@ -2393,7 +2558,11 @@ function interpolateStates(from, to, t, theme, layout) {
 	});
 	return {
 		...frame,
-		groups
+		groups,
+		rootId: to.rootId,
+		relations: to.relations,
+		identities: to.identities,
+		folded: to.folded
 	};
 }
-export { DEFAULT_COLORS, approximateMeasurer, basicContent, branchColors, branchIndex, builtinLayouts, builtinThemes, cardsTheme, classicTheme, configureTheme, createCanvasMeasurer, createCardsTheme, createClassicTheme, createImageContent, createSoftTheme, defaultContentPlugins, drawState, easeCubicInOut, escapeXml, fontToCss, imageContent, interpolateFrames, interpolateStates, layoutOrgChart, layoutText, layoutTree, layoutTwoSided, measureTree, minimalTheme, nodePaths, noteContent, orgChartLayout, primitiveBounds, primitivesToSVG, renderTree, renderTreeAsync, resolvePaint, resolveRenderOptions, sanitizeImageUrl, sanitizeUrl, softTheme, splitBranches, themeCSS, themeTokens, toSVGString, tokensToCSS, transformContent, treeLayout, twoSidedLayout, visibleNodes };
+export { DEFAULT_COLORS, approximateMeasurer, basicContent, branchColors, branchIndex, builtinLayouts, builtinThemes, cardsTheme, classicTheme, computeRelationCurve, configureTheme, createCanvasMeasurer, createCardsTheme, createClassicTheme, createImageContent, createSoftTheme, defaultContentPlugins, drawState, easeCubicInOut, escapeXml, fontToCss, imageContent, interpolateFrames, interpolateStates, layoutOrgChart, layoutText, layoutTree, layoutTwoSided, measureTree, minimalTheme, nodePaths, noteContent, orgChartLayout, primitiveBounds, primitivesToSVG, renderRelationEdges, renderTree, renderTreeAsync, resolvePaint, resolveRenderOptions, sanitizeImageUrl, sanitizeUrl, sideVector, softTheme, splitBranches, themeCSS, themeTokens, toSVGString, tokensToCSS, transformContent, treeLayout, twoSidedLayout, visibleNodes };
