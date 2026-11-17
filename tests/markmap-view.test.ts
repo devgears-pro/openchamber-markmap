@@ -892,6 +892,27 @@ describe('Markmap adapter', () => {
     expect(surface.querySelector('.mm-clipboard-sink')).toBeNull();
   });
 
+  test('[R-37] passes graph metadata and identities to Markmap.create', () => {
+    const graph = { edges: [{ from: 'a', to: 'b', label: 'depends' }], groups: [], block: null };
+    const identities = new Map([
+      ['a', 'id-a'],
+      ['b', 'id-b'],
+    ]);
+    mount({}, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { graph, identities },
+      });
+    });
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ graph, identities }),
+    );
+  });
+
   test('[R-06] reports a failure while resolving options', () => {
     mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
     mocks.resolveViewOptions.mockImplementation(() => {

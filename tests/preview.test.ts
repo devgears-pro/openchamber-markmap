@@ -72,6 +72,28 @@ describe('chat preview', () => {
     );
   });
 
+  test('[R-37] passes graph and identities to the view renderer', () => {
+    const { svg, onError } = setup();
+    const graphData = { edges: [{ from: 'a', to: 'b', label: 'link' }], groups: [], block: null };
+    const identities = new Map([
+      ['a', 'node-a'],
+      ['b', 'node-b'],
+    ]);
+    mocks.parseDocument.mockReturnValue({
+      tree: { id: 'root' },
+      frontmatter: {},
+      document: { graph: graphData, identities },
+    });
+
+    createMarkmapPreview({ svg, markdown: '# Root', colorScheme: 'dark', onError });
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      svg,
+      { id: 'root' },
+      expect.objectContaining({ graph: graphData, identities }),
+    );
+  });
+
   test('[R-24] reports ignored frontmatter values', () => {
     const { svg, onError } = setup();
     mocks.resolveViewOptions.mockReturnValue({

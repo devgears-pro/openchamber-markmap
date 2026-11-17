@@ -26,7 +26,11 @@ export const createMarkmapPreview: MarkmapPreviewFactory = (mount) => {
     const parsed = parseDocument(mount.markdown);
     const resolved = optionsFor(mount.colorScheme, parsed.frontmatter);
     for (const warning of resolved.warnings) mount.onError(warning);
-    const markmap = Markmap.create(mount.svg, parsed.tree, resolved.options);
+    const markmap = Markmap.create(mount.svg, parsed.tree, {
+      ...resolved.options,
+      graph: parsed.document.graph,
+      identities: parsed.document.identities,
+    });
     return {
       ok: true,
       preview: {

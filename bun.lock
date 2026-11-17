@@ -11,7 +11,7 @@
         "@markmap/model": "workspace:*",
         "@markmap/render": "workspace:*",
         "@markmap/toolbar": "1.1.1",
-        "@markmap/view": "1.1.1",
+        "@markmap/view": "workspace:*",
         "@openchamber/sdk": "^2.7.1",
         "d3-selection": "^3.0.1",
       },
@@ -107,6 +107,30 @@
         "@types/d3-flextree": "^2.1.4",
       },
     },
+    "vendor/markmap/packages/view": {
+      "name": "@markmap/view",
+      "version": "1.1.1",
+      "dependencies": {
+        "@markmap/core": "workspace:*",
+        "@markmap/render": "workspace:*",
+        "d3-selection": "^3.0.1",
+        "d3-zoom": "^3.0.1",
+        "flatbush": "^4.7.0",
+        "hast-util-sanitize": "^5.0.2",
+        "hast-util-to-html": "^9.0.6",
+        "hast-util-to-text": "^4.0.3",
+        "lowlight": "^3.3.0",
+        "mdast-util-to-hast": "^13.2.1",
+      },
+      "devDependencies": {
+        "@markmap/parse": "workspace:*",
+        "@types/d3-selection": "^3.0.12",
+        "@types/d3-zoom": "^3.0.9",
+        "@types/hast": "^3.0.5",
+        "@types/mdast": "^4.0.4",
+        "happy-dom": "^21.0.4",
+      },
+    },
   },
   "packages": {
     "@babel/helper-string-parser": ["@babel/helper-string-parser@7.29.14", "", {}, "sha512-CXvKMFvM80ihI7Vox9jb+kQjnyjESQNPM+vB7U0Zz6TWuZA+Z/FL0QPMH300h33qJtIx+REeBhXqWOPW48TcAQ=="],
@@ -177,7 +201,7 @@
 
     "@markmap/toolbar": ["@markmap/toolbar@1.1.1", "", { "peerDependencies": { "@markmap/view": "^1.1.1" } }, "sha512-jkjO51HhjYH7N1AzhZ83sjJyWgfVIdKgebbcX9r+su71lGQ/f8fMQb9Dn1afGWUAUa/Pg00DVXHuNjg7yA8Pzw=="],
 
-    "@markmap/view": ["@markmap/view@1.1.1", "", { "dependencies": { "@markmap/core": "1.1.1", "@markmap/render": "1.1.1", "d3-selection": "^3.0.1", "d3-zoom": "^3.0.1", "flatbush": "^4.7.0", "hast-util-sanitize": "^5.0.2", "hast-util-to-html": "^9.0.6", "hast-util-to-text": "^4.0.3", "lowlight": "^3.3.0", "mdast-util-to-hast": "^13.2.1" } }, "sha512-094ev5E/NsVx+5jjTQ7pEuvK9stilpyeDTHsXXTWCj3ffK1NC/aD3Se2pPevMvnTmnSB66LXRgXDPFGxRauqtw=="],
+    "@markmap/view": ["@markmap/view@workspace:vendor/markmap/packages/view"],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.7", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3", "@emnapi/runtime": "^1.7.1 || 2.0.0-beta.2 || 2.0.0-beta.3" } }, "sha512-zJccwplOAbgfZju95IUHazLnx9RAPtPN2YGJXI6UbrgeaR9QfPjGrQL6ERkSAtnVCA4Q+83ApGyaX5zdpCaKkQ=="],
 

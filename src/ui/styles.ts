@@ -30,6 +30,8 @@ const MARKMAP_CSS = `
     width: 100%;
     height: 100%;
     background: var(--oc-bg, #1b1b1f);
+    --mm-edge-relation: var(--oc-muted, #8b949e);
+    --mm-edge-relation-label: var(--oc-fg, #ececf1);
   }
   .mm-markmap-toolbar {
     position: absolute;

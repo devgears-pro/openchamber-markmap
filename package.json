@@ -83,7 +83,7 @@
     "@markmap/model": "workspace:*",
     "@markmap/render": "workspace:*",
     "@markmap/toolbar": "1.1.1",
-    "@markmap/view": "1.1.1",
+    "@markmap/view": "workspace:*",
     "@openchamber/sdk": "^2.7.1",
     "d3-selection": "^3.0.1"
   },

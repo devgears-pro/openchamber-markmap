@@ -15,6 +15,8 @@ export declare const CONTENT_TOKENS: {
     'mm-syntax-number': string;
     'mm-syntax-title': string;
     'mm-syntax-attr': string;
+    'mm-edge-relation': string;
+    'mm-edge-relation-label': string;
 };
 export declare const DARK_CONTENT_TOKENS: {
     'mm-link': string;
@@ -31,6 +33,8 @@ export declare const DARK_CONTENT_TOKENS: {
     'mm-syntax-number': string;
     'mm-syntax-title': string;
     'mm-syntax-attr': string;
+    'mm-edge-relation': string;
+    'mm-edge-relation-label': string;
 };
 export declare const SYSTEM_FONT: Theme['font'];
 export declare const CODE_FONT = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";

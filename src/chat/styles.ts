@@ -19,6 +19,8 @@ const CHAT_CSS = `
     width: 100%;
     height: 100%;
     background: transparent;
+    --mm-edge-relation: var(--oc-muted, #8b949e);
+    --mm-edge-relation-label: var(--oc-fg, #ececf1);
   }
   .mm-chat-notice {
     position: absolute;
