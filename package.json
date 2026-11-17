@@ -22,6 +22,7 @@
     "dev-version": "bun scripts/dev-version.ts",
     "build": "vite build && vite build --config vite.config.chat.ts && bun scripts/minify.ts",
     "check:bundle-fresh": "git diff --exit-code -- editor/main.js chat/main.js",
+    "check:conventions": "bun scripts/check-conventions.ts",
     "check:requirements": "bun scripts/check-requirements.ts",
     "check:reproducible": "bun scripts/check-reproducible.ts",
     "format": "prettier --write .",
@@ -36,7 +37,7 @@
     "test:acceptance": "playwright test",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "verify": "bun run typecheck && bun run lint && bun run check:requirements && bun run build && bun run check:bundle-fresh && bun run check:reproducible && bun run test:coverage"
+    "verify": "bun run typecheck && bun run lint && bun run check:requirements && bun run check:conventions && bun run build && bun run check:bundle-fresh && bun run check:reproducible && bun run test:coverage"
   },
   "openchamber": {
     "apiVersion": 1,

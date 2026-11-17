@@ -163,6 +163,10 @@ A node line may end with a hidden identity marker `<!-- ^id -->`, where `id` is 
 
 Directed graph edges render as cubic Bezier curves connecting source and target nodes with directional arrowheads at the target anchor and centered text labels on elevated backgrounds. Anchor sides adapt to the relative geometry of the connected nodes. When either the source or target node is collapsed or hidden within a folded subtree, the relationship curve and its label are hidden. Selecting an arrow highlights the relationship path and arrowhead. An interactive connection handle on the selected node allows dragging a dashed preview curve to another node to create a directed edge, minting node identities when needed and opening an inline input field for the edge label. Selecting an arrow and pressing Enter opens an inline editor for its label; committing an empty label removes the label while keeping the edge. Pressing Delete or Backspace removes the selected edge and purges orphaned node identity markers. An untouched document stays byte-for-byte unchanged.
 
+### R-38 Convention diagnostics
+
+A standalone CLI script validates Markmap files for convention issues defined by R-34 and exits non-zero when any file has issues. The merge gate includes convention validation. The editor shows a non-blocking host toast when convention issues are detected in an opened file or introduced by an edit. Convention errors never break the rendered tree, corrupt document bytes, or block editing; invalid conventions are preserved safely without interfering with normal editing.
+
 ## Traceability
 
 | Requirement | Tests                                                                                                                     |
@@ -204,3 +208,4 @@ Directed graph edges render as cubic Bezier curves connecting source and target 
 | R-35        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-36        | `tests/group-menu.test.ts`, `tests/graph.test.ts`, `tests/markmap-view.test.ts`, `tests/app.test.ts`, acceptance          |
 | R-37        | `tests/relationship-arrows.test.ts`, acceptance                                                                           |
+| R-38        | `tests/conventions.test.ts`, `tests/app.test.ts`, `tests/markmap-view.test.ts`                                            |

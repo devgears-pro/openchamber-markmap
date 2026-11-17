@@ -152,6 +152,10 @@ const host: MarkmapHost = {
     window.open(url, '_blank', 'noopener,noreferrer');
     return Promise.resolve();
   },
+  toast: (request) => {
+    console.warn(`[toast:${request.kind}] ${request.message}`);
+    return Promise.resolve();
+  },
 };
 
 mountApp(host, root, { createMarkmap: createMarkmapView });

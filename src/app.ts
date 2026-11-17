@@ -1,3 +1,4 @@
+import type { Issue } from '@markmap/model';
 import { createFileSaveTracker, type FileEditorSnapshot, type HostClient } from '@openchamber/sdk';
 import { applyHostReady } from '@openchamber/sdk/ui';
 
@@ -22,6 +23,7 @@ export type MarkmapHost = Pick<
   | 'reportFileChange'
   | 'reportFileUnsupported'
   | 'openUrl'
+  | 'toast'
 >;
 
 export type MountOptions = {
@@ -143,6 +145,22 @@ export const mountApp = (
     notice.hidden = false;
   };
 
+  const handleDiagnostics = (issues: Issue[]): void => {
+    const first = issues[0];
+    if (first === undefined) return;
+    const message =
+      issues.length === 1
+        ? first.message
+        : `${issues.length} convention issues: ${issues.map((i) => i.message).join(', ')}`;
+    void host
+      .toast({
+        kind: 'error',
+        message,
+        dismiss: true,
+      })
+      .catch(() => undefined);
+  };
+
   const render = (): void => {
     stage.querySelector('.mm-error')?.remove();
 
@@ -163,6 +181,7 @@ export const mountApp = (
         onSource: handleSource,
         onDraft: handleDraft,
         onError: handleError,
+        onDiagnostics: handleDiagnostics,
         onOpenUrl: (url) => {
           void host.openUrl(url).catch(() => undefined);
         },

@@ -16,6 +16,10 @@ const mocks = vi.hoisted(() => {
   return {
     parseDocument: vi.fn(),
     labelText: vi.fn(),
+    validateConventions: vi.fn<(doc?: unknown) => MarkmapModel.Issue[]>(() => []),
+    newConventionIssues: vi.fn<(before?: unknown, after?: unknown) => MarkmapModel.Issue[]>(
+      () => [],
+    ),
     create: vi.fn<(target: SVGSVGElement, root?: MarkmapNode, options?: ViewOptions) => unknown>(),
     resolveViewOptions: vi.fn(),
     createToolbar: vi.fn<(target: unknown, options?: ToolbarOptions) => unknown>(),
@@ -54,6 +58,8 @@ const mocks = vi.hoisted(() => {
 vi.mock('@markmap/model', () => ({
   parseDocument: mocks.parseDocument,
   labelText: mocks.labelText,
+  validateConventions: mocks.validateConventions,
+  newConventionIssues: mocks.newConventionIssues,
 }));
 vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
@@ -261,7 +267,7 @@ const setup = (): Setup => {
         ? root
         : { ...root, source: { block: { start: 0, end: source.length } } },
     frontmatter: {},
-    document: {},
+    document: { conventionIssues: [] },
   }));
   mocks.resolveViewOptions.mockReturnValue(resolved);
   mocks.create.mockReturnValue(markmap);
@@ -827,7 +833,11 @@ describe('Markmap adapter', () => {
 
   test('[R-07] cleans up when the editor fails to construct', () => {
     const { markmap, toolbar, svg } = setup();
-    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+    mocks.parseDocument.mockReturnValue({
+      tree: root,
+      frontmatter: {},
+      document: { conventionIssues: [] },
+    });
     mocks.create.mockReturnValue(markmap);
     mocks.createToolbar.mockReturnValue(toolbar);
     mocks.createEditView.mockImplementation(() => {
@@ -914,7 +924,11 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-06] reports a failure while resolving options', () => {
-    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+    mocks.parseDocument.mockReturnValue({
+      tree: root,
+      frontmatter: {},
+      document: { conventionIssues: [] },
+    });
     mocks.resolveViewOptions.mockImplementation(() => {
       throw new Error('bad options');
     });
@@ -933,5 +947,75 @@ describe('Markmap adapter', () => {
 
     expect(result).toEqual({ ok: false, message: 'bad options' });
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  test('[R-38] reports initial convention issues through onDiagnostics callback', () => {
+    const onDiagnostics = vi.fn();
+    const issue = { code: 'E_IDENTITY' as const, message: 'duplicate' };
+    mocks.validateConventions.mockReturnValue([issue]);
+    const { result } = mount({ onDiagnostics }, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { conventionIssues: [issue] },
+      });
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(mocks.validateConventions).toHaveBeenCalled();
+    expect(onDiagnostics).toHaveBeenCalledWith([issue]);
+  });
+
+  test('[R-38] reports new convention issues introduced during editing', () => {
+    const onDiagnostics = vi.fn();
+    const newIssue = { code: 'E_GRAPH' as const, message: 'self loop' };
+    mocks.validateConventions.mockReturnValue([]);
+    mocks.newConventionIssues.mockReturnValue([newIssue]);
+    const { result } = mount({ onDiagnostics });
+    if (!result.ok) throw new Error(result.message);
+
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onChange?.({
+      source: '# Next',
+      selection: 4,
+      document: parseRealDocument('# Next').document,
+    });
+
+    expect(mocks.newConventionIssues).toHaveBeenCalled();
+    expect(onDiagnostics).toHaveBeenCalledWith([newIssue]);
+  });
+
+  test('[R-38] does not throw when convention issues exist but onDiagnostics is not provided', () => {
+    const issue = { code: 'E_IDENTITY' as const, message: 'duplicate' };
+    mocks.validateConventions.mockReturnValue([issue]);
+    const { result } = mount({}, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { conventionIssues: [issue] },
+      });
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test('[R-38] does not throw when new issues exist but onDiagnostics is not provided during edit', () => {
+    const newIssue = { code: 'E_GRAPH' as const, message: 'self loop' };
+    mocks.validateConventions.mockReturnValue([]);
+    mocks.newConventionIssues.mockReturnValue([newIssue]);
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    expect(() => {
+      editor.onChange?.({
+        source: '# Next',
+        selection: 4,
+        document: parseRealDocument('# Next').document,
+      });
+    }).not.toThrow();
   });
 });
