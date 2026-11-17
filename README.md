@@ -188,7 +188,7 @@ groups:
 
 The caret is reserved. The identity is one to three case-sensitive alphanumeric characters, it must be the last token on the node line, and the marker comment must stay on one line. The root identity is always `root`. A marked node must be referenced by an edge endpoint or a group root; an unreferenced or duplicate identity is a validation issue. At most one root-level hidden HTML comment carries the graph, and it is never a note. It holds directed edges plus non-overlapping groups; a graph with no edges or groups stores no block. A malformed or dangling graph leaves the map and every document byte unchanged and reports a validation issue through the model. Copying a subtree leaves the document graph block and its `root` references behind; copying the whole root as a standalone map keeps the original block exactly once. Delete keeps the remaining references consistent.
 
-Arrows and boundaries are not drawn yet; this release establishes the source contract and the model data that the drawing work consumes.
+Relationship arrows route around visible nodes where possible. Their shafts and group boundaries use dashed outlines; arrowheads remain solid, and dash gaps stay clickable. The connection handle avoids fold controls and the preview starts at the handle. Layout changes and folding do not change the Markdown.
 
 ## How it works
 
@@ -218,7 +218,7 @@ bun run screenshots
 
 `bun run verify` runs typecheck, lint, requirement traceability, convention validation, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run benchmark` prints p50 and p95 timings for open/render, selection, edit/type, commit, pan, and zoom on synthetic small and 1,000-node maps in headless Chromium with trusted input. Each interaction sample reloads the harness after one unmeasured warm-up. `p95` is the nearest-rank 19th of 20 samples. `open/render` includes Vite module loading and host mount. `edit/type` measures one typed character in an already open label field. `commit` measures the incremental Enter after that fully previewed draft plus a two-frame settle. The numbers are machine-local comparisons, not input-to-paint/INP or absolute user latency. It runs one local browser without external network access, real files, telemetry, or report output, and it is not a CI gate. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
 
-`editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green. The build minifies each entry with Vite and then terser, which keeps the committed IIFE within the 700 KB budget.
+`editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green. The build minifies each entry with Vite and then terser, which keeps each committed IIFE within the 775 KB budget.
 
 ## Quality workflow
 

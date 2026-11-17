@@ -8,6 +8,7 @@ import palette from './palette.md?raw';
 import paletteColor from './palette-color.md?raw';
 import sample from './sample.md?raw';
 import graph from './graph.md?raw';
+import relationshipRouting from './relationship-routing.md?raw';
 import move from './move.md?raw';
 import notes from './notes.md?raw';
 import showcase from './showcase.md?raw';
@@ -45,6 +46,10 @@ const maps: Record<string, { content: string; name: string }> = {
   empty: { content: '', name: 'empty.markmap.md' },
   showcase: { content: showcase, name: 'showcase.markmap.md' },
   graph: { content: graph, name: 'graph.markmap.md' },
+  'relationship-routing': {
+    content: relationshipRouting,
+    name: 'relationship-routing.markmap.md',
+  },
   notes: { content: notes, name: 'notes.markmap.md' },
   move: { content: move, name: 'move.markmap.md' },
   title: { content: title, name: 'title.markmap.md' },

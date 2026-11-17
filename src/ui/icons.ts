@@ -16,6 +16,7 @@ export const createIcon = (name: IconName): SVGSVGElement => {
   svg.setAttribute('aria-hidden', 'true');
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
   path.setAttribute('d', ICONS[name]);
+  if (name === 'group') path.setAttribute('stroke-dasharray', '2 2');
   svg.append(path);
   return svg;
 };

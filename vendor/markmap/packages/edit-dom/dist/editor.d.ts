@@ -10,6 +10,7 @@ export declare class MarkmapEditor {
     private readonly layer;
     private readonly connectHandle;
     private readonly connectPreviewSvg;
+    private readonly connectPreviewGroup;
     private readonly connectPreviewLine;
     private readonly connectPreviewArrow;
     private readonly relationField;
@@ -175,6 +176,9 @@ export declare class MarkmapEditor {
     private captureFolds;
     private restoreFolds;
     private paintSelection;
+    private paintRelationPaths;
+    private connectHandlePosition;
+    private connectHandleCenter;
     private handleConnectHandlePointerDown;
     private handleConnectPointerMove;
     private handleConnectPointerUp;

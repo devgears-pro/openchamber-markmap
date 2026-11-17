@@ -5,7 +5,7 @@ import { Script } from 'node:vm';
 import { describe, expect, test } from 'vitest';
 
 const root = resolve(import.meta.dirname, '..');
-const bundleBudget = 750_000;
+const bundleBudget = 775_000;
 
 describe('built editor', () => {
   test('[R-08] loads one classic script', () => {

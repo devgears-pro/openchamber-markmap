@@ -46,6 +46,9 @@ var DRAG_EDGE = 60;
 var DRAG_PAN_MAX = 14;
 var DRAG_EXPAND_MS = 400;
 var SNAP_BACK_MS = 140;
+var CONNECT_HANDLE_HALF_SIZE = 6;
+var CONNECT_FOLD_HIT_RADIUS = 10;
+var CONNECT_HANDLE_GAP = 2;
 var STYLE = `
 .mm-editor-layer{position:absolute;inset:0;pointer-events:none;z-index:2}
 .mm-editor-field{position:absolute;display:none;margin:0;padding:0 8px;border:0;background:transparent;color:inherit;font:inherit;line-height:1.25;text-align:center;white-space:pre-wrap;resize:none;overflow:hidden;outline:none;box-sizing:border-box;pointer-events:auto;transform-origin:top left}
@@ -75,8 +78,8 @@ var STYLE = `
 .mm-editor-connect-preview path{stroke:var(--oc-focus,#0097e6);stroke-width:2px;stroke-dasharray:4 4;fill:none}
 .mm-editor-connect-preview .mm-editor-connect-arrow{fill:var(--oc-focus,#0097e6);stroke:none}
 .mm-editor-connect-target{outline:2px dashed var(--oc-focus,#0097e6);outline-offset:2px}
-.mm-editor-relation-selected .mm-relation-line{stroke:var(--oc-focus,#0097e6);stroke-width:2.5px}
-.mm-editor-relation-selected .mm-relation-arrow{fill:var(--oc-focus,#0097e6)}
+.mm-editor-relation-selected .mm-relation-line{stroke:var(--oc-focus,#0097e6)!important;stroke-width:2.5px!important}
+.mm-editor-relation-selected .mm-relation-arrow{fill:var(--oc-focus,#0097e6)!important}
 .mm-editor-relation-selected .mm-relation-label rect{stroke:var(--oc-focus,#0097e6);stroke-width:2px}
 .mm-editor-relation-field{position:absolute;display:none;min-width:60px;max-width:240px;height:24px;padding:2px 8px;margin:-12px 0 0 0;transform:translate(-50%,-50%);border:1px solid var(--oc-focus,#0097e6);border-radius:4px;background:var(--oc-elevated,light-dark(#fff,#1f1f1f));color:inherit;font:inherit;font-size:12px;line-height:20px;text-align:center;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:auto;z-index:5;box-sizing:border-box}
 `;
@@ -169,6 +172,7 @@ var MarkmapEditor = class {
 	layer;
 	connectHandle;
 	connectPreviewSvg;
+	connectPreviewGroup;
 	connectPreviewLine;
 	connectPreviewArrow;
 	relationField;
@@ -237,10 +241,12 @@ var MarkmapEditor = class {
 		this.connectPreviewSvg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
 		this.connectPreviewSvg.setAttribute("class", "mm-editor-connect-preview");
 		this.connectPreviewSvg.style.display = "none";
+		this.connectPreviewGroup = doc.createElementNS("http://www.w3.org/2000/svg", "g");
 		this.connectPreviewLine = doc.createElementNS("http://www.w3.org/2000/svg", "path");
 		this.connectPreviewArrow = doc.createElementNS("http://www.w3.org/2000/svg", "path");
 		this.connectPreviewArrow.setAttribute("class", "mm-editor-connect-arrow");
-		this.connectPreviewSvg.append(this.connectPreviewLine, this.connectPreviewArrow);
+		this.connectPreviewGroup.append(this.connectPreviewLine, this.connectPreviewArrow);
+		this.connectPreviewSvg.append(this.connectPreviewGroup);
 		this.relationField = doc.createElement("input");
 		this.relationField.type = "text";
 		this.relationField.className = "mm-editor-relation-field";
@@ -282,6 +288,7 @@ var MarkmapEditor = class {
 	selectRelation(rel) {
 		this.selectedRelationRef = rel;
 		if (rel) {
+			this.selectedBoundaryIndex = null;
 			this.selectedId = null;
 			this.selectedIds = [];
 			if (this.relationField.style.display !== "none") this.relationField.style.display = "none";
@@ -389,6 +396,7 @@ var MarkmapEditor = class {
 		if (this.selectedBoundaryIndex === index) return;
 		if (this.editing && this.commitEditing() === "error") return;
 		if (index !== null) {
+			this.selectedRelationRef = null;
 			this.selectedId = null;
 			this.selectedIds = [];
 		}
@@ -609,6 +617,8 @@ var MarkmapEditor = class {
 			this.paintDragSource(drag);
 			this.paintDropTarget(drag);
 		}
+		const connectDrag = this.connectDrag;
+		if (connectDrag?.active) this.updateConnectDrag(connectDrag);
 	};
 	handleClick = (event) => {
 		if (this.suppressClick) {
@@ -1714,6 +1724,7 @@ var MarkmapEditor = class {
 			this.selectionOffset = this.offsetOf(anchor);
 			this.selectGroup(moved, anchor, { reveal: false });
 		} else if (command.type === "createGroup") {
+			this.selectedRelationRef = null;
 			this.selectedBoundaryIndex = result.document.graph.groups.length - 1;
 			this.selectedId = null;
 			this.selectedIds = [];
@@ -1722,6 +1733,7 @@ var MarkmapEditor = class {
 			this.selectedBoundaryIndex = null;
 			this.selectAt(result.selection, { reveal: false });
 		} else if (command.type === "setGroupLabel") {
+			this.selectedRelationRef = null;
 			this.selectedBoundaryIndex = command.groupIndex;
 			this.selectedId = null;
 			this.selectedIds = [];
@@ -2139,6 +2151,7 @@ var MarkmapEditor = class {
 		this.view.setFoldedIds(/* @__PURE__ */ new Set([...this.view.foldedIds, ...ids]), { animate: false });
 	}
 	paintSelection() {
+		this.paintRelationPaths();
 		this.view.element.querySelectorAll(".mm-editor-selected").forEach((element) => {
 			element.classList.remove("mm-editor-selected");
 		});
@@ -2215,15 +2228,60 @@ var MarkmapEditor = class {
 			frame.style.height = `${rect.height + 4}px`;
 		}
 		if (this.selectedIds.length === 1 && !this.editing && !this.notes && !this.drag?.active && !this.connectDrag?.active && selected && !selected.opaque) {
-			const rect = this.view.screenRect(selected.id);
-			if (rect) {
-				const handleX = this.view.direction(selected.id) === "left" ? rect.x - box.x : rect.x - box.x + rect.width;
-				const handleY = rect.y - box.y + rect.height / 2;
-				this.connectHandle.style.left = `${handleX}px`;
-				this.connectHandle.style.top = `${handleY}px`;
+			const handlePoint = this.connectHandlePosition(selected.id);
+			if (handlePoint) {
+				const layerRect = this.layer.getBoundingClientRect();
+				this.connectHandle.style.left = `${handlePoint.x - layerRect.x}px`;
+				this.connectHandle.style.top = `${handlePoint.y - layerRect.y}px`;
 				this.connectHandle.style.display = "block";
 			} else this.connectHandle.style.display = "none";
 		} else this.connectHandle.style.display = "none";
+	}
+	paintRelationPaths() {
+		for (const relation of this.view.element.querySelectorAll("[data-key^=\"relation:\"]")) for (const path of relation.querySelectorAll(":scope > path")) {
+			path.classList.remove("mm-relation-line", "mm-relation-arrow");
+			if (path.style.stroke && path.style.stroke !== "transparent") path.classList.add("mm-relation-line");
+			if (path.style.fill && path.style.fill !== "none") path.classList.add("mm-relation-arrow");
+		}
+	}
+	connectHandlePosition(nodeId) {
+		const rect = this.view.screenRect(nodeId);
+		if (!rect) return void 0;
+		const containerRect = this.container.getBoundingClientRect();
+		const viewRect = this.view.element.getBoundingClientRect();
+		const bounds = viewRect.width > 0 && viewRect.height > 0 ? viewRect : containerRect;
+		const margin = CONNECT_FOLD_HIT_RADIUS * (this.view.scale > 0 ? this.view.scale : 1) + CONNECT_HANDLE_HALF_SIZE + CONNECT_HANDLE_GAP;
+		if (this.view.direction(nodeId) === "bottom") {
+			const right = rect.x + rect.width + margin;
+			const left = rect.x - margin;
+			const rightFits = right + CONNECT_HANDLE_HALF_SIZE <= bounds.right;
+			const leftFits = left - CONNECT_HANDLE_HALF_SIZE >= bounds.left;
+			const side = rightFits || !leftFits ? "right" : "left";
+			return {
+				x: side === "right" ? right : left,
+				y: rect.y + rect.height / 2,
+				side
+			};
+		}
+		const above = rect.y - margin;
+		const below = rect.y + rect.height + margin;
+		const side = above - CONNECT_HANDLE_HALF_SIZE >= bounds.top ? "top" : "bottom";
+		return {
+			x: rect.x + rect.width / 2,
+			y: side === "top" ? above : below,
+			side
+		};
+	}
+	connectHandleCenter(nodeId) {
+		const position = this.connectHandlePosition(nodeId);
+		if (!position) return void 0;
+		const rect = this.connectHandle.getBoundingClientRect();
+		if (this.connectHandle.style.display !== "none" && rect.width > 0 && rect.height > 0) return {
+			...position,
+			x: rect.x + rect.width / 2,
+			y: rect.y + rect.height / 2
+		};
+		return position;
 	}
 	handleConnectHandlePointerDown = (event) => {
 		if (event.pointerType === "touch") return;
@@ -2298,36 +2356,44 @@ var MarkmapEditor = class {
 		this.updateConnectPreview(drag);
 	}
 	updateConnectPreview(drag) {
+		const handlePosition = this.connectHandleCenter(drag.sourceId);
 		const sRect = this.view.screenRect(drag.sourceId);
-		const box = this.container.getBoundingClientRect();
-		if (!sRect) {
+		if (!handlePosition || !sRect) {
 			this.connectPreviewSvg.style.display = "none";
 			return;
 		}
-		const sDir = this.view.direction(drag.sourceId);
-		const sX = sDir === "left" ? sRect.x - box.x : sRect.x - box.x + sRect.width;
-		const sY = sRect.y - box.y + sRect.height / 2;
-		let tX = drag.clientX - box.x;
-		let tY = drag.clientY - box.y;
+		const [sX, sY] = this.view.layoutPoint(handlePosition.x, handlePosition.y);
+		let [tX, tY] = this.view.layoutPoint(drag.clientX, drag.clientY);
 		if (drag.targetId) {
 			const tRect = this.view.screenRect(drag.targetId);
 			if (tRect) {
-				tX = this.view.direction(drag.targetId) === "left" ? tRect.x - box.x + tRect.width : tRect.x - box.x;
-				tY = tRect.y - box.y + tRect.height / 2;
+				const targetX = this.view.direction(drag.targetId) === "left" ? tRect.x + tRect.width : tRect.x;
+				const targetY = tRect.y + tRect.height / 2;
+				[tX, tY] = this.view.layoutPoint(targetX, targetY);
 			}
 		}
 		const dx = tX - sX;
 		const dy = tY - sY;
-		const offset = Math.max(20, Math.min(Math.hypot(dx, dy) * .4, 120));
-		const d = `M${sX},${sY}C${sDir === "left" ? sX - offset : sX + offset},${sY} ${dx >= 0 ? tX - offset : tX + offset},${tY} ${tX},${tY}`;
+		const dist = Math.hypot(dx, dy);
+		const transform = this.view.transform;
+		const scale = transform.k > 0 ? transform.k : 1;
+		const offset = Math.max(20, Math.min(dist * scale * .4, 120)) / scale;
+		const cp1X = handlePosition.side === "left" ? sX - offset : handlePosition.side === "right" ? sX + offset : sX;
+		const cp1Y = handlePosition.side === "top" ? sY - offset : handlePosition.side === "bottom" ? sY + offset : sY;
+		const cp2X = dx >= 0 ? tX - offset : tX + offset;
+		const cp2Y = tY;
+		const viewRect = this.view.element.getBoundingClientRect();
+		const layerRect = this.layer.getBoundingClientRect();
+		this.connectPreviewGroup.setAttribute("transform", `translate(${viewRect.x - layerRect.x + transform.x},${viewRect.y - layerRect.y + transform.y}) scale(${scale})`);
+		const d = `M${sX},${sY}C${cp1X},${cp1Y} ${cp2X},${cp2Y} ${tX},${tY}`;
 		this.connectPreviewLine.setAttribute("d", d);
 		const angle = dx >= 0 ? 0 : Math.PI;
-		const baseX = tX - 8 * Math.cos(angle);
-		const baseY = tY - 8 * Math.sin(angle);
-		const w1X = baseX - 4 * Math.sin(angle);
-		const w1Y = baseY + 4 * Math.cos(angle);
-		const w2X = baseX + 4 * Math.sin(angle);
-		const w2Y = baseY - 4 * Math.cos(angle);
+		const baseX = tX - 8 / scale * Math.cos(angle);
+		const baseY = tY - 8 / scale * Math.sin(angle);
+		const w1X = baseX - 4 / scale * Math.sin(angle);
+		const w1Y = baseY + 4 / scale * Math.cos(angle);
+		const w2X = baseX + 4 / scale * Math.sin(angle);
+		const w2Y = baseY - 4 / scale * Math.cos(angle);
 		const arrowD = `M${tX},${tY}L${w1X},${w1Y}L${w2X},${w2Y}Z`;
 		this.connectPreviewArrow.setAttribute("d", arrowD);
 		this.connectPreviewSvg.style.display = "block";
@@ -2363,15 +2429,21 @@ var MarkmapEditor = class {
 		});
 	}
 	positionRelationField(from, to) {
-		const labelGroup = this.view.element.querySelector(`[data-key="relation:${from}:${to}"]`)?.querySelector(".mm-relation-label");
-		const box = this.container.getBoundingClientRect();
-		if (labelGroup) {
-			const lRect = labelGroup.getBoundingClientRect();
-			if (lRect.width > 0) {
-				this.relationField.style.left = `${lRect.x - box.x + lRect.width / 2}px`;
-				this.relationField.style.top = `${lRect.y - box.y + lRect.height / 2}px`;
+		const relationLabel = this.view.element.querySelector(`[data-key="relation:${from}:${to}"]`)?.querySelector(":scope > text");
+		const box = this.layer.getBoundingClientRect();
+		if (relationLabel) {
+			const labelRect = relationLabel.getBoundingClientRect();
+			if (labelRect.width > 0 && labelRect.height > 0) {
+				this.relationField.style.left = `${labelRect.x - box.x + labelRect.width / 2}px`;
+				this.relationField.style.top = `${labelRect.y - box.y + labelRect.height / 2}px`;
 				return;
 			}
+		}
+		const midpointRect = this.view.element.querySelector(`[data-key="relation-midpoint:${from}:${to}"]`)?.querySelector(":scope > rect")?.getBoundingClientRect();
+		if (midpointRect && midpointRect.width > 0 && midpointRect.height > 0) {
+			this.relationField.style.left = `${midpointRect.x - box.x + midpointRect.width / 2}px`;
+			this.relationField.style.top = `${midpointRect.y - box.y + midpointRect.height / 2}px`;
+			return;
 		}
 		const srcNodeId = from === "root" ? this.doc.root : this.doc.identities.get(from) ?? from;
 		const tgtNodeId = to === "root" ? this.doc.root : this.doc.identities.get(to) ?? to;
