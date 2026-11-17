@@ -30,11 +30,19 @@ export type Command = {
     type: 'delete';
     node: string;
 } | {
+    type: 'deleteNodes';
+    nodes: string[];
+} | {
     type: 'outdent';
     node: string;
 } | {
     type: 'move';
     node: string;
+    parent: string;
+    index: number;
+} | {
+    type: 'moveNodes';
+    nodes: string[];
     parent: string;
     index: number;
 } | {

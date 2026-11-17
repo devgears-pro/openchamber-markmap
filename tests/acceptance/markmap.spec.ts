@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 declare global {
   interface Window {
@@ -133,6 +133,22 @@ const startDrag = async (page: Page, label: string): Promise<{ x: number; y: num
   await page.mouse.down();
   await page.mouse.move(from.x + 8, from.y + 2, { steps: 2 });
   return from;
+};
+
+const clickNode = async (
+  page: Page,
+  label: string,
+  modifiers: ('Control' | 'Meta' | 'Shift')[] = [],
+): Promise<void> => {
+  await page.getByText(label, { exact: true }).first().click({ modifiers });
+};
+
+const selectedNodes = (page: Page): Locator => page.locator('.mm-markmap-svg g.mm-editor-selected');
+
+const copySelectedBlock = async (page: Page): Promise<string> => {
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+c`);
+  return page.evaluate(() => navigator.clipboard.readText());
 };
 
 type MapMetrics = {
@@ -1305,6 +1321,345 @@ test('[R-30] has no drag on a read-only map', async ({ page }) => {
 
   await expect(page.locator('.mm-editor-drag-ghost')).toHaveCount(0);
   await page.mouse.up();
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-35] selects siblings without changing Markdown or dirty state', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  const changes = await page.evaluate(() => window.devFileChangeSummary());
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await expect(selectedNodes(page)).toContainText(['Engineering', 'Quality']);
+  expect(await markdownOf(page)).toBe(before);
+  expect(await page.evaluate(() => window.devFileChangeSummary())).toEqual(changes);
+});
+
+test('[R-35] toggles a sibling with Cmd/Ctrl-click', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await clickNode(page, 'Quality', [modifier]);
+
+  await expect(selectedNodes(page)).toHaveCount(1);
+  await expect(selectedNodes(page)).toContainText('Engineering');
+  await page.keyboard.press('Delete');
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('## Engineering');
+  expect(after).toContain('## Quality');
+});
+
+test('[R-35] selects a sibling range with Shift-click', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+
+  await clickNode(page, 'Interaction design');
+  await clickNode(page, 'Quality', ['Shift']);
+
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await expect(selectedNodes(page)).toContainText(['Interaction design', 'Engineering', 'Quality']);
+  await page.keyboard.press('Delete');
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('## Interaction design');
+  expect(after).not.toContain('## Engineering');
+  expect(after).not.toContain('## Quality');
+  expect(after).not.toContain('Navigation');
+  expect(after).toContain('## Product strategy');
+});
+
+test('[R-35] selects a reverse sibling range with Shift-click', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+
+  await clickNode(page, 'Quality');
+  await clickNode(page, 'Interaction design', ['Shift']);
+
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await expect(selectedNodes(page)).toContainText(['Interaction design', 'Engineering', 'Quality']);
+});
+
+test('[R-35] selects one node with a plain click on another sibling', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await clickNode(page, 'Quality');
+
+  await expect(selectedNodes(page)).toHaveCount(1);
+  await expect(selectedNodes(page)).toContainText('Quality');
+  await page.keyboard.press('Delete');
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('## Quality');
+  expect(after).toContain('## Engineering');
+});
+
+test('[R-35] starts a new selection on a node with another parent', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await clickNode(page, 'Editor');
+  await clickNode(page, 'Search', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await clickNode(page, 'Navigation');
+  await expect(selectedNodes(page)).toHaveCount(1);
+  await expect(selectedNodes(page)).toContainText('Navigation');
+  await page.keyboard.press(`${modifier}+x`);
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('Navigation');
+  expect(after).toContain('- Editor');
+  expect(after).toContain('- Search');
+});
+
+test('[R-35] moves a non-contiguous sibling selection as one block by pointer', async ({
+  page,
+}) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  const changes = await page.evaluate(() => window.devFileChangeSummary());
+
+  await clickNode(page, 'Product strategy');
+  await clickNode(page, 'Engineering', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+
+  const target = await nodeBoxOf(page, 'Quality');
+  await startDrag(page, 'Product strategy');
+  await page.mouse.move(target.x + target.width / 2, target.y + target.height - 2, { steps: 8 });
+  await expect(page.locator('.mm-editor-drop')).toHaveClass(/mm-editor-drop-line/u);
+  await page.mouse.up();
+
+  const after = await markdownOf(page);
+  const headings = [...after.matchAll(/^## (.+)$/gmu)].map((match) => match[1] ?? '');
+  expect(headings).toEqual(['Interaction design', 'Quality', 'Product strategy', 'Engineering']);
+  expect(after).toContain('- Editor\n  - Autosave snapshots\n  - Exact Markdown');
+  expect(after).toContain('- Search\n  - Keyboard navigation\n  - Branch filtering');
+  expect(after).toContain('- Parser\n  - Source ranges');
+  expect(after).toContain('- Layout\n  - Two-sided map\n  - Org chart');
+  expect(await page.evaluate(() => window.devFileChangeSummary().count)).toBe(changes.count + 1);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-35] moves selected siblings up with Cmd/Ctrl+Shift+Up', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  const changes = await page.evaluate(() => window.devFileChangeSummary());
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await page.keyboard.press(`${modifier}+Shift+ArrowUp`);
+
+  const after = await markdownOf(page);
+  expect(after.indexOf('## Product strategy')).toBeLessThan(after.indexOf('## Engineering'));
+  expect(after.indexOf('## Engineering')).toBeLessThan(after.indexOf('## Quality'));
+  expect(after.indexOf('## Quality')).toBeLessThan(after.indexOf('## Interaction design'));
+  expect(after).toContain('- Parser');
+  expect(after).toContain('- Acceptance tests');
+  const summary = await page.evaluate(() => window.devFileChangeSummary());
+  expect(summary.count).toBe(changes.count + 1);
+  expect(summary.dirty).toBe(true);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-35] moves selected siblings down with Cmd/Ctrl+Shift+Down', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  const changes = await page.evaluate(() => window.devFileChangeSummary());
+
+  await clickNode(page, 'Product strategy');
+  await clickNode(page, 'Interaction design', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await page.keyboard.press(`${modifier}+Shift+ArrowDown`);
+
+  const after = await markdownOf(page);
+  const headings = [...after.matchAll(/^## (.+)$/gmu)].map((match) => match[1] ?? '');
+  expect(headings).toEqual(['Engineering', 'Product strategy', 'Interaction design', 'Quality']);
+  expect(after).toContain('- Editor');
+  expect(after).toContain('- Navigation');
+  expect(after).toContain('- Empty states');
+  const summary = await page.evaluate(() => window.devFileChangeSummary());
+  expect(summary.count).toBe(changes.count + 1);
+  expect(summary.dirty).toBe(true);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-35] keeps moved siblings selected with the first moved node as primary', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+  await clickNode(page, 'Quality');
+  await clickNode(page, 'Engineering', [modifier]);
+  await clickNode(page, 'Interaction design', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await page.keyboard.press(`${modifier}+Shift+ArrowUp`);
+
+  const after = await markdownOf(page);
+  const headings = [...after.matchAll(/^## (.+)$/gmu)].map((match) => match[1] ?? '');
+  expect(headings).toEqual(['Interaction design', 'Engineering', 'Quality', 'Product strategy']);
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await expect(selectedNodes(page)).toContainText(['Interaction design', 'Engineering', 'Quality']);
+
+  const copied = await copySelectedBlock(page);
+  expect(copied).toContain('## Interaction design');
+  expect(copied).not.toContain('## Quality');
+});
+
+test('[R-35] restores the original and moved group selection on undo and redo', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/dev/?map=move');
+  await page.getByRole('button', { name: 'Tree' }).click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+
+  await clickNode(page, 'Quality');
+  await clickNode(page, 'Engineering', [modifier]);
+  await clickNode(page, 'Interaction design', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await page.keyboard.press(`${modifier}+Shift+ArrowUp`);
+  const moved = await markdownOf(page);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await expect(selectedNodes(page)).toContainText(['Interaction design', 'Engineering', 'Quality']);
+  const original = await copySelectedBlock(page);
+  expect(original).toContain('## Quality');
+  expect(original).not.toContain('## Interaction design');
+
+  await page.keyboard.press(`${modifier}+Shift+z`);
+  expect(await markdownOf(page)).toBe(moved);
+  await expect(selectedNodes(page)).toHaveCount(3);
+  await expect(selectedNodes(page)).toContainText(['Interaction design', 'Engineering', 'Quality']);
+  const redone = await copySelectedBlock(page);
+  expect(redone).toContain('## Interaction design');
+  expect(redone).not.toContain('## Quality');
+});
+
+test('[R-35] deletes selected siblings and their subtrees as one change', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+  const changes = await page.evaluate(() => window.devFileChangeSummary());
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await page.keyboard.press('Backspace');
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('## Engineering');
+  expect(after).not.toContain('## Quality');
+  expect(after).not.toContain('Source ranges');
+  expect(after).not.toContain('Pointer moves');
+  expect(after).toContain('## Product strategy');
+  expect(after).toContain('## Interaction design');
+  const summary = await page.evaluate(() => window.devFileChangeSummary());
+  expect(summary.count).toBe(changes.count + 1);
+  expect(summary.dirty).toBe(true);
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+});
+
+test('[R-35] restores the deleted group selection on undo', async ({ page }) => {
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await page.keyboard.press('Delete');
+  expect(await markdownOf(page)).not.toContain('## Engineering');
+
+  await page.keyboard.press(`${modifier}+z`);
+  expect(await markdownOf(page)).toBe(before);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await expect(selectedNodes(page)).toContainText(['Engineering', 'Quality']);
+});
+
+test('[R-35] cuts only the primary anchor subtree when siblings are selected', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/dev/?map=move');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const nodes = page.locator('.mm-markmap-svg g[data-key^="node:"]');
+  await expect(nodes.first()).toBeVisible();
+  const beforeCount = await nodes.count();
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await expect(selectedNodes(page)).toHaveCount(2);
+  await page.keyboard.press(`${modifier}+x`);
+
+  const cut = await page.evaluate(() => navigator.clipboard.readText());
+  expect(cut).toContain('## Engineering');
+  expect(cut).toContain('- Parser\n  - Source ranges');
+  expect(cut).toContain('- Layout\n  - Two-sided map\n  - Org chart');
+  expect(cut).not.toContain('Quality');
+  expect(cut).not.toContain('Acceptance tests');
+
+  const after = await markdownOf(page);
+  expect(after).not.toContain('## Engineering');
+  expect(after).not.toContain('- Parser');
+  expect(after).toContain('## Quality');
+  expect(after).toContain('- Acceptance tests\n  - Pointer moves');
+  await expect(nodes).toHaveCount(beforeCount - 7);
+
+  await clickNode(page, 'Product strategy');
+  await page.keyboard.press(`${modifier}+v`);
+  const pasted = await markdownOf(page);
+  expect(pasted).toContain('### Engineering');
+  expect(pasted).toContain('- Parser\n  - Source ranges');
+  expect(pasted).toContain('## Quality');
+  await expect(nodes).toHaveCount(beforeCount);
+});
+
+test('[R-35] exposes no group selection on a read-only map', async ({ page }) => {
+  await page.goto('/dev/?map=move&readonly=1');
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  const before = await markdownOf(page);
+
+  await clickNode(page, 'Engineering');
+  await clickNode(page, 'Quality', [modifier]);
+  await clickNode(page, 'Interaction design', ['Shift']);
+
+  await expect(selectedNodes(page)).toHaveCount(0);
+  await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+  await page.keyboard.press('Delete');
+  await page.keyboard.press(`${modifier}+Shift+ArrowUp`);
   expect(await markdownOf(page)).toBe(before);
 });
 
