@@ -19,6 +19,7 @@ type Harness = {
   notesEditing: { value: boolean };
   selected: { value: string | null };
   block: { value: string | null };
+  blockError: { value: boolean };
   sink: HTMLTextAreaElement;
   destroy: () => void;
 };
@@ -44,6 +45,7 @@ const setup = (source = SOURCE): Harness => {
   const notesEditing = { value: false };
   const selected = { value: map.root };
   const block: Harness['block'] = { value: null };
+  const blockError = { value: false };
   const editor: ClipboardEditor = {
     get isEditing() {
       return editing.value;
@@ -60,7 +62,10 @@ const setup = (source = SOURCE): Harness => {
     focus: () => {
       calls.focus += 1;
     },
-    selectedBlock: () => block.value,
+    selectedBlock: () => {
+      if (blockError.value) throw new Error('No node identity characters remain');
+      return block.value;
+    },
     insertBlock: (text) => {
       calls.blocks.push(text);
       return true;
@@ -91,6 +96,7 @@ const setup = (source = SOURCE): Harness => {
     notesEditing,
     selected,
     block,
+    blockError,
     sink,
     destroy: clipboard.destroy,
   };
@@ -200,6 +206,18 @@ describe('clipboard', () => {
 
     expect(copied.clipboardData?.getData('text/plain')).toBe('');
     expect(harness.notices).toEqual(['This node has nothing to copy.']);
+  });
+
+  test('[R-21] shows a notice when copy fails', () => {
+    harness = setup();
+    harness.blockError.value = true;
+    const copied = event('copy');
+
+    harness.container.dispatchEvent(copied);
+
+    expect(copied.clipboardData?.getData('text/plain')).toBe('');
+    expect(copied.defaultPrevented).toBe(false);
+    expect(harness.notices).toEqual(['This node could not be copied.']);
   });
 
   test('[R-21] shows a notice when no node is selected', () => {

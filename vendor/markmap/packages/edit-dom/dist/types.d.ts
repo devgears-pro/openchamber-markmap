@@ -1,5 +1,5 @@
 import type { MarkmapNode, Rect, ResolvedLabelStyle, Side, TextAlign } from '@markmap/core';
-import type { Document } from '@markmap/model';
+import type { Document, RandomSource } from '@markmap/model';
 export interface EditLabelStyle extends ResolvedLabelStyle {
     align: TextAlign;
 }
@@ -42,6 +42,7 @@ export interface MarkmapEditorOptions {
     view: EditView;
     container: HTMLElement;
     placeholder?: string;
+    random?: RandomSource;
     onChange?: (change: EditorChange) => void;
     onDraftChange?: (change: EditorChange) => void;
     onError?: (error: Error) => void;

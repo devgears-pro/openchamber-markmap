@@ -1,4 +1,5 @@
 import { parse } from "@markmap/parse";
+import { parse as parse$1 } from "yaml";
 // src/source.ts
 function lineStart(source, offset) {
 	const index = source.lastIndexOf("\n", offset - 1);
@@ -37,13 +38,453 @@ function noteText(doc, node, note) {
 function notesText(doc, node) {
 	return normalizeNoteText([...node.notes].toSorted((a, b) => a.range.start - b.range.start).map((note) => noteText(doc, node, note)).join("\n\n"));
 }
+// src/conventions.ts
+var IDENTITY_COMMENT = /<!--[ \t]*\^([\s\S]*?)-->/g;
+var GRAPH_ANY = /<!--[ \t]*markmap:[ \t]*graph\b/g;
+var GRAPH_START = /^<!--[ \t]*markmap:[ \t]*graph(?=[ \t\r\n]|-->)/;
+var ID = /^[A-Za-z0-9]{1,3}$/;
+var REF = /^(?:root|[A-Za-z0-9]{1,3})$/;
+var ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+var UNSAFE = /<!--|-->/;
+var GraphShapeError = class extends Error {};
+function emptyGraph(block) {
+	return {
+		edges: [],
+		groups: [],
+		block
+	};
+}
+function addIssue(issues, code, message, range, nodeId) {
+	const issue = {
+		code,
+		message
+	};
+	if (range !== void 0) issue.range = range;
+	if (nodeId !== void 0) issue.nodeId = nodeId;
+	issues.push(issue);
+}
+function readConventions(source, nodes, order, rootId, bodyStart, htmlBlocks) {
+	const issues = [];
+	const graphRead = readGraph(source, htmlBlocks, issues);
+	const identityRead = readIdentities(source, nodes, order, rootId, bodyStart, graphRead.graph.block, issues);
+	for (const node of nodes.values()) node.identity = identityRead.markers.get(node.id) ?? null;
+	validateGraph(graphRead.graph, graphRead.valid, identityRead.identities, nodes, rootId, issues);
+	return {
+		identities: identityRead.identities,
+		graph: graphRead.graph,
+		issues
+	};
+}
+function validateConventions(doc) {
+	return [...doc.conventionIssues];
+}
+function issueKey(issue) {
+	return `${issue.code}|${issue.message}|${issue.nodeId ?? ""}`;
+}
+function newConventionIssues(before, after) {
+	const counts = /* @__PURE__ */ new Map();
+	for (const issue of before.conventionIssues) {
+		const key = issueKey(issue);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return after.conventionIssues.filter((issue) => {
+		const key = issueKey(issue);
+		const count = counts.get(key) ?? 0;
+		if (count > 0) {
+			counts.set(key, count - 1);
+			return false;
+		}
+		return true;
+	});
+}
+function isGraphBlock(block) {
+	return GRAPH_START.test(block.value.trimStart());
+}
+function graphOccurrences(source) {
+	const starts = [];
+	GRAPH_ANY.lastIndex = 0;
+	let match = GRAPH_ANY.exec(source);
+	while (match !== null) {
+		starts.push(match.index);
+		match = GRAPH_ANY.exec(source);
+	}
+	return starts;
+}
+function readGraph(source, htmlBlocks, issues) {
+	const candidates = htmlBlocks.filter(isGraphBlock);
+	const occurrences = graphOccurrences(source);
+	if (candidates.length > 1) {
+		for (const extra of candidates.slice(1)) addIssue(issues, "E_GRAPH", "The document has more than one graph block", extra.range);
+		const known = new Set(candidates.map((candidate) => candidate.range.start));
+		for (const start of occurrences) if (!known.has(start)) addIssue(issues, "E_GRAPH", "The graph block must be a single root-level block", {
+			start,
+			end: start
+		});
+		return {
+			graph: emptyGraph(candidates[0].range),
+			valid: false
+		};
+	}
+	if (candidates.length === 0) {
+		for (const start of occurrences) addIssue(issues, "E_GRAPH", "The graph block must be a root-level HTML block", {
+			start,
+			end: start
+		});
+		return {
+			graph: emptyGraph(null),
+			valid: occurrences.length === 0
+		};
+	}
+	const candidate = candidates[0];
+	const known = /* @__PURE__ */ new Set([candidate.range.start]);
+	for (const start of occurrences) if (!known.has(start)) addIssue(issues, "E_GRAPH", "The document has more than one graph block", {
+		start,
+		end: start
+	});
+	const parsed = parseGraphBlock(candidate.value);
+	if (!parsed.ok) {
+		addIssue(issues, "E_GRAPH", parsed.message, candidate.range);
+		return {
+			graph: emptyGraph(candidate.range),
+			valid: false
+		};
+	}
+	return {
+		graph: {
+			edges: parsed.edges,
+			groups: parsed.groups,
+			block: candidate.range
+		},
+		valid: true
+	};
+}
+function parseGraphBlock(value) {
+	const text = value.trim();
+	if (!text.endsWith("-->")) return {
+		ok: false,
+		message: "The graph block is not a closed HTML comment"
+	};
+	const open = text.indexOf("graph") + 5;
+	const payload = text.slice(open, text.length - 3).trim();
+	if (UNSAFE.test(payload)) return {
+		ok: false,
+		message: "Graph metadata cannot contain an HTML comment delimiter"
+	};
+	if (!payload) return {
+		ok: true,
+		edges: [],
+		groups: []
+	};
+	let data;
+	try {
+		data = parse$1(payload);
+	} catch {
+		return {
+			ok: false,
+			message: "The graph metadata is not valid YAML"
+		};
+	}
+	try {
+		return {
+			ok: true,
+			...readGraphData(data)
+		};
+	} catch (error) {
+		if (error instanceof GraphShapeError) return {
+			ok: false,
+			message: error.message
+		};
+		throw error;
+	}
+}
+function isRecord(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function assertKeys(value, allowed, label) {
+	for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new GraphShapeError(`${label} has an unknown field "${key}"`);
+}
+function readGraphData(value) {
+	if (value === null || value === void 0) return {
+		edges: [],
+		groups: []
+	};
+	if (!isRecord(value)) throw new GraphShapeError("The graph metadata must be a mapping");
+	assertKeys(value, ["edges", "groups"], "The graph metadata");
+	return {
+		edges: readEdges(value["edges"]),
+		groups: readGroups(value["groups"])
+	};
+}
+function readEdges(value) {
+	if (value === void 0) return [];
+	if (!Array.isArray(value)) throw new GraphShapeError("The edges must be a sequence");
+	return value.map((entry, index) => readEdge(entry, index));
+}
+function readEdge(value, index) {
+	const label = `Edge ${index + 1}`;
+	if (!isRecord(value)) throw new GraphShapeError(`${label} must be a mapping`);
+	assertKeys(value, [
+		"from",
+		"to",
+		"label"
+	], label);
+	return {
+		from: readRef(value["from"], `${label} from`),
+		to: readRef(value["to"], `${label} to`),
+		label: readLabel(value["label"], label)
+	};
+}
+function readGroups(value) {
+	if (value === void 0) return [];
+	if (!Array.isArray(value)) throw new GraphShapeError("The groups must be a sequence");
+	return value.map((entry, index) => readGroup(entry, index));
+}
+function readGroup(value, index) {
+	const label = `Group ${index + 1}`;
+	if (!isRecord(value)) throw new GraphShapeError(`${label} must be a mapping`);
+	assertKeys(value, ["roots", "label"], label);
+	const roots = value["roots"];
+	if (!Array.isArray(roots) || roots.length === 0) throw new GraphShapeError(`${label} must have at least one root`);
+	return {
+		roots: roots.map((root, rootIndex) => readRef(root, `${label} root ${rootIndex + 1}`)),
+		label: readLabel(value["label"], label)
+	};
+}
+function readRef(value, label) {
+	if (typeof value !== "string" || !REF.test(value)) throw new GraphShapeError(`${label} must be root or a one-to-three character node id`);
+	return value;
+}
+function readLabel(value, label) {
+	if (value === void 0) return null;
+	if (typeof value !== "string") throw new GraphShapeError(`${label} label must be a string`);
+	return value;
+}
+function identityComments(source) {
+	const comments = [];
+	IDENTITY_COMMENT.lastIndex = 0;
+	let match = IDENTITY_COMMENT.exec(source);
+	while (match !== null) {
+		const payload = match[1];
+		if (payload !== void 0) comments.push({
+			start: match.index,
+			end: match.index + match[0].length,
+			payload: payload.trim(),
+			multiline: /[\r\n]/.test(match[0])
+		});
+		match = IDENTITY_COMMENT.exec(source);
+	}
+	return comments;
+}
+function readIdentities(source, nodes, order, rootId, bodyStart, graphBlock, issues) {
+	const identities = /* @__PURE__ */ new Map();
+	const markers = /* @__PURE__ */ new Map();
+	identities.set("root", rootId);
+	if (nodes.has(rootId)) markers.set(rootId, {
+		id: "root",
+		range: null
+	});
+	const lineNodes = /* @__PURE__ */ new Map();
+	for (const id of order) {
+		const node = nodes.get(id);
+		if (node?.block) lineNodes.set(node.block.start, node);
+	}
+	const comments = identityComments(source);
+	const lineCounts = /* @__PURE__ */ new Map();
+	for (const comment of comments) {
+		const line = lineStart(source, comment.start);
+		lineCounts.set(line, (lineCounts.get(line) ?? 0) + 1);
+	}
+	const reportedLines = /* @__PURE__ */ new Set();
+	for (const comment of comments) {
+		const range = {
+			start: comment.start,
+			end: comment.end
+		};
+		const line = lineStart(source, comment.start);
+		const node = lineNodes.get(line);
+		if (comment.multiline) {
+			addIssue(issues, "E_IDENTITY", "A node identity marker must stay on one line", range);
+			continue;
+		}
+		if (comment.start < bodyStart && node === void 0) {
+			addIssue(issues, "E_IDENTITY", "A node identity cannot live in frontmatter", range);
+			continue;
+		}
+		if (insideGraph(comment.start, graphBlock)) {
+			addIssue(issues, "E_GRAPH", "A node identity cannot live in the graph block", range);
+			continue;
+		}
+		const owner = insideNote(comment.start, nodes);
+		if (owner !== void 0) {
+			addIssue(issues, "E_IDENTITY", owner ? "A node identity cannot live in a note fence" : "A node identity cannot live in a note", range);
+			continue;
+		}
+		if (node !== void 0) {
+			if ((lineCounts.get(line) ?? 0) > 1) {
+				if (!reportedLines.has(line)) {
+					addIssue(issues, "E_IDENTITY", "A node line can carry only one marker", range, node.id);
+					reportedLines.add(line);
+				}
+				continue;
+			}
+			if (node.kind === "root" && node.block) {
+				addIssue(issues, "E_IDENTITY", "The root identity is reserved", range, node.id);
+				continue;
+			}
+			if (!ID.test(comment.payload)) {
+				addIssue(issues, "E_IDENTITY", "A node identity is one to three alphanumeric characters", range, node.id);
+				continue;
+			}
+			if (!isFinalToken(source, comment)) {
+				addIssue(issues, "E_IDENTITY", "A node identity marker must be the last token on the node line", range, node.id);
+				continue;
+			}
+			const identity = {
+				id: comment.payload,
+				range
+			};
+			markers.set(node.id, identity);
+			if (identities.has(comment.payload)) addIssue(issues, "E_IDENTITY", `The node identity "${comment.payload}" is declared more than once`, range, node.id);
+			else identities.set(comment.payload, node.id);
+			continue;
+		}
+		if (insideNode(comment.start, nodes)) {
+			addIssue(issues, "E_IDENTITY", "A node identity must be on its own node line", range);
+			continue;
+		}
+		addIssue(issues, "E_IDENTITY", "A node identity cannot stand alone", range);
+	}
+	return {
+		identities,
+		markers
+	};
+}
+function isFinalToken(source, comment) {
+	return source.slice(comment.end, lineEnd(source, comment.start)).trim() === "";
+}
+function insideGraph(offset, block) {
+	return block !== null && offset >= block.start && offset < block.end;
+}
+function insideNote(offset, nodes) {
+	for (const node of nodes.values()) for (const note of node.notes) if (offset >= note.range.start && offset < note.range.end) return note.fence;
+}
+function insideNode(offset, nodes) {
+	for (const node of nodes.values()) if (node.block && offset >= node.block.start && offset < node.block.end) return true;
+	return false;
+}
+function validateGraph(graph, valid, identities, nodes, rootId, issues) {
+	if (!valid) return;
+	const resolve = (ref) => ref === "root" ? rootId : identities.get(ref);
+	const seenEdges = /* @__PURE__ */ new Set();
+	for (const edge of graph.edges) {
+		if (edge.from === edge.to) addIssue(issues, "E_GRAPH", `An edge cannot connect "${edge.from}" to itself`);
+		const edgeKey = `${edge.from}->${edge.to}`;
+		if (seenEdges.has(edgeKey)) addIssue(issues, "E_GRAPH", `Duplicate edge from "${edge.from}" to "${edge.to}"`);
+		else seenEdges.add(edgeKey);
+		if (resolve(edge.from) === void 0) addIssue(issues, "E_GRAPH", `The edge endpoint "${edge.from}" has no node`);
+		if (resolve(edge.to) === void 0) addIssue(issues, "E_GRAPH", `The edge endpoint "${edge.to}" has no node`);
+	}
+	const seenRoots = /* @__PURE__ */ new Set();
+	const subtrees = [];
+	for (const group of graph.groups) {
+		if (new Set(group.roots).size !== group.roots.length) addIssue(issues, "E_GRAPH", "A group repeats one of its roots");
+		const subtree = /* @__PURE__ */ new Set();
+		for (const root of group.roots) {
+			if (seenRoots.has(root)) addIssue(issues, "E_GRAPH", `The group root "${root}" is repeated across groups`);
+			else seenRoots.add(root);
+			const id = resolve(root);
+			if (id === void 0) {
+				addIssue(issues, "E_GRAPH", `The group root "${root}" has no node`);
+				continue;
+			}
+			for (const descendant of descendants(nodes, id)) subtree.add(descendant);
+		}
+		subtrees.push(subtree);
+	}
+	for (let left = 0; left < subtrees.length; left += 1) for (let right = left + 1; right < subtrees.length; right += 1) {
+		const a = subtrees[left];
+		const b = subtrees[right];
+		if ([...a].some((id) => b.has(id))) addIssue(issues, "E_GRAPH", "Group subtrees overlap");
+	}
+	if (issues.some((issue) => issue.code === "E_GRAPH")) return;
+	const referenced = /* @__PURE__ */ new Set();
+	for (const edge of graph.edges) {
+		referenced.add(edge.from);
+		referenced.add(edge.to);
+	}
+	for (const group of graph.groups) for (const root of group.roots) referenced.add(root);
+	for (const id of nodes.keys()) {
+		const identity = nodes.get(id)?.identity;
+		if (!identity || identity.range === null) continue;
+		if (!referenced.has(identity.id)) addIssue(issues, "E_IDENTITY", `The node identity "${identity.id}" is not referenced by an edge or a group`, identity.range, id);
+	}
+}
+function descendants(nodes, id) {
+	const result = /* @__PURE__ */ new Set();
+	const stack = [id];
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (current === void 0) continue;
+		result.add(current);
+		const node = nodes.get(current);
+		if (node) for (const child of node.children) stack.push(child);
+	}
+	return result;
+}
+function mintIdentity(taken, random) {
+	for (const length of [
+		1,
+		2,
+		3
+	]) {
+		const total = 62 ** length;
+		const draw = Math.min(Math.max(random(), 0), .9999999999999999);
+		const start = Math.floor(draw * total);
+		for (let offset = 0; offset < total; offset += 1) {
+			const candidate = encodeIdentity((start + offset) % total, length);
+			if (!taken.has(candidate)) return candidate;
+		}
+	}
+	return null;
+}
+function encodeIdentity(index, length) {
+	let value = index;
+	let result = "";
+	for (let position = 0; position < length; position += 1) {
+		result = `${ALPHABET[value % 62]}${result}`;
+		value = Math.floor(value / 62);
+	}
+	return result;
+}
+function serializeGraphBlock(graph, ending) {
+	if (graph.edges.length === 0 && graph.groups.length === 0) return "";
+	const lines = ["<!-- markmap: graph"];
+	if (graph.edges.length > 0) {
+		lines.push("edges:");
+		for (const edge of graph.edges) {
+			lines.push(`  - from: ${JSON.stringify(edge.from)}`);
+			lines.push(`    to: ${JSON.stringify(edge.to)}`);
+			if (edge.label !== null) lines.push(`    label: ${JSON.stringify(edge.label)}`);
+		}
+	}
+	if (graph.groups.length > 0) {
+		lines.push("groups:");
+		for (const group of graph.groups) {
+			lines.push(`  - roots: [${group.roots.map((root) => JSON.stringify(root)).join(", ")}]`);
+			if (group.label !== null) lines.push(`    label: ${JSON.stringify(group.label)}`);
+		}
+	}
+	lines.push("-->");
+	return lines.join(ending);
+}
 // src/build.ts
 function parseDocument(source) {
-	const { root, frontmatter, hasTitle, bodyStart } = parse(source);
+	const { root, frontmatter, hasTitle, bodyStart, htmlBlocks } = parse(source);
 	return {
 		document: buildFromTree(source, root, {
 			hasTitle,
-			bodyStart
+			bodyStart,
+			htmlBlocks
 		}),
 		tree: root,
 		frontmatter
@@ -82,13 +523,17 @@ function buildFromTree(source, root, meta) {
 		hasHeadingChild: headingChild,
 		canCreateHeading: kind === "synthetic" ? !topH1 : kind === "title" ? !headingChild : false
 	};
+	const conventions = readConventions(source, nodes, order, root.id, bodyStart, meta.htmlBlocks ?? []);
 	return {
 		source,
 		root: root.id,
 		nodes,
 		order,
 		unit,
-		rootPolicy
+		rootPolicy,
+		identities: conventions.identities,
+		graph: conventions.graph,
+		conventionIssues: conventions.issues
 	};
 }
 function buildNode(source, tree, parent) {
@@ -161,6 +606,7 @@ function buildNode(source, tree, parent) {
 		block,
 		list,
 		notes: readNotes(tree, source.length),
+		identity: null,
 		opaque,
 		capabilities: emptyCapabilities()
 	};
@@ -435,4 +881,4 @@ function assertDocument(doc) {
 	const issues = validateDocument(doc);
 	if (issues.length) throw new ModelError(issues);
 }
-export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, contentIndent, contentNodeCount, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, noteText, notesText, parseDocument, validateDocument };
+export { HEADING_MARKER, LIST_MARKER, ModelError, assertDocument, buildDocument, buildFromTree, contentIndent, contentNodeCount, firstLine, indentColumns, indentWidth, labelText, lineEnd, lineStart, mintIdentity, newConventionIssues, nodeAtOffset, normalizeNoteText, noteText, notesText, parseDocument, readConventions, serializeGraphBlock, validateConventions, validateDocument };

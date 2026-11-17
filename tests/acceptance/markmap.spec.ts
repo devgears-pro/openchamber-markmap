@@ -1236,6 +1236,17 @@ test('[R-12] renders a read-only file without an editor field', async ({ page })
   await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
 });
 
+test('[R-34] renders a read-only graph file without a note dot', async ({ page }) => {
+  await page.goto('/dev/?map=graph&readonly=1');
+
+  await expect(page.locator('.mm-markmap-svg')).toBeVisible();
+  await expect(page.getByText('A', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('B', { exact: true }).first()).toBeVisible();
+  await expect(page.locator('[data-action="notes"]')).toHaveCount(0);
+  await expect(page.locator('textarea.mm-editor-field')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit notes' })).toHaveCount(0);
+});
+
 test('[R-30] drags a branch to a new parent', async ({ page }) => {
   await page.goto('/dev/?map=move');
   await page.getByRole('button', { name: 'Tree' }).click();

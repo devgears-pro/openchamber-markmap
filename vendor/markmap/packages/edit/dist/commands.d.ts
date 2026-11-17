@@ -1,5 +1,5 @@
 import type { MarkmapNode } from '@markmap/core';
-import { type Document } from '@markmap/model';
+import { type Document, type RandomSource } from '@markmap/model';
 import { EditError } from './errors';
 import { type Splice } from './splice';
 export type Command = {
@@ -26,6 +26,7 @@ export type Command = {
     type: 'insertBlock';
     node: string;
     text: string;
+    random?: RandomSource;
 } | {
     type: 'delete';
     node: string;

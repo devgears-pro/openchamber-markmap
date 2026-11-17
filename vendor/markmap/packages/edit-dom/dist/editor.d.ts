@@ -13,6 +13,7 @@ export declare class MarkmapEditor {
     private readonly onDraftChange?;
     private readonly onError?;
     private readonly placeholder;
+    private readonly random;
     private readonly restorePosition;
     private readonly restoreTabIndex;
     private readonly stops;
@@ -29,7 +30,7 @@ export declare class MarkmapEditor {
     private previewing;
     private renderedSource;
     private destroyed;
-    constructor({ source, view, container, placeholder, onChange, onDraftChange, onError, }: MarkmapEditorOptions);
+    constructor({ source, view, container, placeholder, random, onChange, onDraftChange, onError, }: MarkmapEditorOptions);
     get source(): string;
     get document(): MarkdownDocument;
     get selected(): string | null;

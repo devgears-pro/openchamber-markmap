@@ -21,6 +21,7 @@ type ClipboardMount = {
 const SINK_CLASS = 'mm-clipboard-sink';
 const EMPTY_NOTICE = 'The clipboard is empty.';
 const COPY_NOTICE = 'This node has nothing to copy.';
+const COPY_FAILED_NOTICE = 'This node could not be copied.';
 const ROOT_CUT_NOTICE = 'The root cannot be cut, so it stays in the map.';
 
 let copied = '';
@@ -55,7 +56,13 @@ export const createClipboard = ({
 
   const copy = (event: ClipboardEvent, cut: boolean): void => {
     if (editor.isEditing || editor.isEditingNotes || !focused()) return;
-    const text = editor.selectedBlock();
+    let text: string | null;
+    try {
+      text = editor.selectedBlock();
+    } catch {
+      onNotice(COPY_FAILED_NOTICE);
+      return;
+    }
     if (text === null) {
       onNotice(COPY_NOTICE);
       return;

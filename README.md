@@ -165,6 +165,31 @@ markmap:
 
 `markmap.layout` accepts `tree`, `two-sided`, or `org-chart`. A file without the key opens as a two-sided map. The toolbar layout buttons switch the live view; the switch is not written to the file, so add `markmap.layout` to keep it.
 
+### Node identity and graph metadata
+
+A node can keep a stable identity through rename and move with a trailing HTML comment on its own heading or list-item line:
+
+```markdown
+# Release
+
+- Design <!-- ^a -->
+- Build <!-- ^ab -->
+
+<!-- markmap: graph
+edges:
+  - from: a
+    to: ab
+    label: depends
+groups:
+  - roots: [a]
+    label: Delivery
+-->
+```
+
+The caret is reserved. The identity is one to three case-sensitive alphanumeric characters, it must be the last token on the node line, and the marker comment must stay on one line. The root identity is always `root`. A marked node must be referenced by an edge endpoint or a group root; an unreferenced or duplicate identity is a validation issue. At most one root-level hidden HTML comment carries the graph, and it is never a note. It holds directed edges plus non-overlapping groups; a graph with no edges or groups stores no block. A malformed or dangling graph leaves the map and every document byte unchanged and reports a validation issue through the model. Copying a subtree leaves the document graph block and its `root` references behind; copying the whole root as a standalone map keeps the original block exactly once. Delete keeps the remaining references consistent.
+
+Arrows and boundaries are not drawn yet; this release establishes the source contract and the model data that the drawing work consumes.
+
 ## How it works
 
 The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
