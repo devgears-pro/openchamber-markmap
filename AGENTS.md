@@ -42,8 +42,10 @@ bunx openchamber-guest-check
 - `src/main.ts`: `connectHost()` and mount.
 - `src/app.ts`: host wiring, save tracking, snapshot, theme updates, lifecycle.
 - `src/chat/block.ts`: host wiring for the read-only chat block: the `onBlock` call, theme updates, notice, and teardown.
-- `src/markmap/view.ts`: the only editor module that imports Markmap. It parses Markdown with `parseDocument`, creates the view, toolbar, and editor, and destroys them.
+- `src/markmap/view.ts`: the only editor module that creates the editable Markmap instance, toolbar, and editor. It parses Markdown with `parseDocument` and destroys them on file change and dispose.
 - `src/markmap/preview.ts`: the read-only Markmap for the chat block; shares the view options with the editor.
+- `src/markmap/`: the options, layouts, gestures, zoom, clipboard, markers, toolbar items, and errors used by the editor and preview.
+- `src/ui/`: the layout, marker, and notes menus, and the toolbar icons.
 - `src/ui/styles.ts`, `src/chat/styles.ts`: injected stylesheets, host tokens only.
 - `vendor/markmap/`: vendored `core`, `parse`, `model`, `edit`, `edit-dom`, and `render` packages from the editable fork. Their source branch is in `vendor/markmap/README.md`.
 - `editor/`: installable editor entry: `index.html` and the built `main.js`.
