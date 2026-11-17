@@ -182,12 +182,13 @@ bun install
 bun run dev
 bun run verify
 bun run test:acceptance
+bun run benchmark
 bun run screenshots
 ```
 
 `bun run dev` starts the Vite harness at `/dev/`. Append `?map=showcase&theme=light` to open the screenshot map in the light theme.
 
-`bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
+`bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run benchmark` prints p50 and p95 timings for open/render, selection, edit/type, commit, pan, and zoom on synthetic small and 1,000-node maps in headless Chromium with trusted input. Each interaction sample reloads the harness after one unmeasured warm-up. `p95` is the nearest-rank 19th of 20 samples. `open/render` includes Vite module loading and host mount. `edit/type` measures one typed character in an already open label field. `commit` measures the incremental Enter after that fully previewed draft plus a two-frame settle. The numbers are machine-local comparisons, not input-to-paint/INP or absolute user latency. It runs one local browser without external network access, real files, telemetry, or report output, and it is not a CI gate. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
 
 `editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green.
 

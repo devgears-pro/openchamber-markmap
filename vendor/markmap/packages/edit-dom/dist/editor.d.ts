@@ -23,7 +23,9 @@ export declare class MarkmapEditor {
     private notes;
     private drag;
     private suppressClick;
+    private previewFrame;
     private previewing;
+    private renderedSource;
     private destroyed;
     constructor({ source, view, container, placeholder, onChange, onDraftChange, onError, }: MarkmapEditorOptions);
     get source(): string;
@@ -101,10 +103,18 @@ export declare class MarkmapEditor {
     private runSelected;
     private run;
     private apply;
+    private applyDraft;
+    private applyResult;
     private commitEditing;
     private cancelEditing;
     private commitAndInsert;
     private previewEditing;
+    private snapshotDraft;
+    private labelCommand;
+    private render;
+    private schedulePreview;
+    private cancelPreview;
+    private renderPreview;
     private restorePreview;
     private setMode;
     private completeEditing;
