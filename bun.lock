@@ -6,6 +6,7 @@
       "name": "openchamber-markmap",
       "dependencies": {
         "@markmap/core": "workspace:*",
+        "@markmap/edit": "workspace:*",
         "@markmap/edit-dom": "workspace:*",
         "@markmap/model": "workspace:*",
         "@markmap/render": "workspace:*",
@@ -71,6 +72,7 @@
       "dependencies": {
         "@markmap/core": "workspace:*",
         "@markmap/parse": "workspace:*",
+        "yaml": "^2.9.1",
       },
     },
     "vendor/markmap/packages/parse": {

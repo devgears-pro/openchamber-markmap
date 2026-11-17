@@ -78,6 +78,7 @@
   },
   "dependencies": {
     "@markmap/core": "workspace:*",
+    "@markmap/edit": "workspace:*",
     "@markmap/edit-dom": "workspace:*",
     "@markmap/model": "workspace:*",
     "@markmap/render": "workspace:*",

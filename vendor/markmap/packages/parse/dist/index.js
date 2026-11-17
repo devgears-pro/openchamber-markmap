@@ -559,7 +559,8 @@ function parse(markdown, options = {}) {
 		frontmatter,
 		gfm,
 		hasTitle: Boolean(title),
-		bodyStart: readBodyStart(markdown, mdast)
+		bodyStart: readBodyStart(markdown, mdast),
+		htmlBlocks: readHtmlBlocks(mdast)
 	};
 }
 function readBodyStart(markdown, mdast) {
@@ -572,6 +573,23 @@ function readBodyStart(markdown, mdast) {
 	}
 	const offset = Math.max(0, Math.min(start, markdown.length));
 	return markdown.slice(offset).trim() ? offset : markdown.length;
+}
+function readHtmlBlocks(mdast) {
+	const blocks = [];
+	for (const child of mdast.children) {
+		if (child.type !== "html") continue;
+		const start = child.position?.start.offset;
+		const end = child.position?.end.offset;
+		if (start == null || end == null) continue;
+		blocks.push({
+			range: {
+				start,
+				end
+			},
+			value: child.value
+		});
+	}
+	return blocks;
 }
 function readFrontmatter(mdast) {
 	const node = mdast.children.find((child) => child.type === "yaml");

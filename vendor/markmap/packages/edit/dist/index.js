@@ -1,4 +1,4 @@
-import { HEADING_MARKER, LIST_MARKER, contentIndent, contentNodeCount, firstLine, labelText, lineEnd, lineStart, nodeAtOffset, normalizeNoteText, noteText, notesText, parseDocument, validateDocument } from "@markmap/model";
+import { HEADING_MARKER, LIST_MARKER, contentIndent, contentNodeCount, firstLine, labelText, lineEnd, lineStart, mintIdentity, newConventionIssues, nodeAtOffset, normalizeNoteText, noteText, notesText, parseDocument, serializeGraphBlock, validateDocument } from "@markmap/model";
 // src/errors.ts
 var EditError = class extends Error {
 	code;
@@ -10,6 +10,404 @@ var EditError = class extends Error {
 		if (nodeId) this.nodeId = nodeId;
 	}
 };
+// src/splice.ts
+function applySplices(source, splices) {
+	const indexed = splices.map((splice, index) => ({
+		...splice,
+		index
+	})).toSorted((a, b) => a.from - b.from || a.to - b.to);
+	const starts = Array.from({ length: splices.length }, () => 0);
+	let text = "";
+	let last = 0;
+	for (const splice of indexed) {
+		if (splice.from < last || splice.to < splice.from || splice.to > source.length) throw new EditError("E_SPLICE", "Splices overlap or fall outside the source");
+		text += source.slice(last, splice.from);
+		starts[splice.index] = text.length;
+		text += splice.insert;
+		last = splice.to;
+	}
+	text += source.slice(last);
+	return {
+		text,
+		starts
+	};
+}
+function mapOffset(splices, offset) {
+	let delta = 0;
+	for (const splice of splices.toSorted((a, b) => a.from - b.from || a.to - b.to)) if (offset >= splice.to) delta += splice.insert.length - (splice.to - splice.from);
+	else if (offset > splice.from) return splice.from + delta + splice.insert.length;
+	else break;
+	return offset + delta;
+}
+// src/graph.ts
+function copyBlock(doc, nodeId, options) {
+	const node = doc.nodes.get(nodeId);
+	if (!node) return null;
+	const ending = doc.source.includes("\r\n") ? "\r\n" : "\n";
+	const slice = copySlice(doc, node, options.title ?? "");
+	if (slice === null) return null;
+	if (nodeId === doc.root) return copyStandalone(doc, slice, ending);
+	const subtree = subtreeIds(doc, nodeId);
+	const plan = copyPlan(doc, subtree, options.random);
+	const text = slice.start === slice.end ? "" : doc.source.slice(slice.start, slice.end);
+	const splices = [];
+	const graph = doc.graph.block;
+	let graphRemoved = false;
+	if (graph !== null) {
+		const from = Math.max(graph.start, slice.start);
+		const to = Math.min(graph.end, slice.end);
+		if (from < to) {
+			splices.push({
+				from: from - slice.start,
+				to: to - slice.start,
+				insert: ""
+			});
+			graphRemoved = true;
+		}
+	}
+	for (const id of doc.order) {
+		if (!subtree.has(id)) continue;
+		const identity = doc.nodes.get(id)?.identity;
+		if (!identity || identity.range === null) continue;
+		const from = identity.range.start - slice.start;
+		const to = identity.range.end - slice.start;
+		const mapped = plan.mapping.get(identity.id);
+		if (mapped !== void 0) splices.push({
+			from,
+			to,
+			insert: `<!-- ^${mapped} -->`
+		});
+		else {
+			let start = from;
+			while (start > 0) {
+				const char = text[start - 1];
+				if (char !== " " && char !== "	") break;
+				start -= 1;
+			}
+			splices.push({
+				from: start,
+				to,
+				insert: ""
+			});
+		}
+	}
+	let body = applySplices(text, splices).text;
+	if (graphRemoved) body = body.replace(/(?:\r?\n[ \t]*)+$/u, "");
+	let result = slice.prefix ? body ? `${slice.prefix}${ending}${ending}${body}` : slice.prefix : body;
+	const graphText = serializeGraphBlock(plan, ending);
+	if (graphText) {
+		const separator = result.endsWith(ending) ? ending : ending + ending;
+		result = `${result}${separator}${graphText}`;
+	}
+	return result;
+}
+function copyStandalone(doc, slice, ending) {
+	const text = slice.start === slice.end ? "" : doc.source.slice(slice.start, slice.end);
+	let result = slice.prefix ? text ? `${slice.prefix}${ending}${ending}${text}` : slice.prefix : text;
+	const graph = doc.graph.block;
+	if (graph === null) return result;
+	if (graph.start >= slice.start && graph.end <= slice.end) return result;
+	const block = doc.source.slice(graph.start, graph.end);
+	const separator = result.endsWith(ending) ? ending : ending + ending;
+	result = `${result}${separator}${block}`;
+	return result;
+}
+function copySlice(doc, node, rawTitle) {
+	if (node.block) {
+		let start = node.block.start;
+		if (node.id === doc.root) {
+			const before = node.notes.filter((note) => note.range.end <= (node.block?.start ?? 0));
+			if (before.length > 0) start = Math.min(...before.map((note) => note.range.start));
+		}
+		return {
+			start,
+			end: node.block.end,
+			prefix: ""
+		};
+	}
+	if (node.id !== doc.root) return null;
+	const ranges = node.notes.map((note) => note.range);
+	for (const id of node.children) {
+		const child = doc.nodes.get(id);
+		if (child?.block) ranges.push(child.block);
+	}
+	const start = ranges.length ? Math.min(...ranges.map((range) => range.start)) : 0;
+	const end = ranges.length ? Math.max(...ranges.map((range) => range.end)) : 0;
+	const title = rawTitle.replace(/\s+/gu, " ").trim();
+	if (!title && start === end) return null;
+	return {
+		start,
+		end,
+		prefix: title ? `# ${title}` : ""
+	};
+}
+function subtreeIds(doc, nodeId) {
+	const result = /* @__PURE__ */ new Set();
+	const stack = [nodeId];
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (current === void 0) continue;
+		result.add(current);
+		const node = doc.nodes.get(current);
+		if (node) for (const child of node.children) stack.push(child);
+	}
+	return result;
+}
+function readPastedGraph(doc, raw, ending, random) {
+	const parsed = parseDocument(raw);
+	const block = parsed.document.graph.block;
+	if (block === null) {
+		if (parsed.document.conventionIssues.some((issue) => issue.code === "E_IDENTITY")) throw new EditError("E_SHAPE", "The pasted text has an identity without graph metadata");
+		return {
+			body: raw,
+			edges: [],
+			groups: []
+		};
+	}
+	if (parsed.document.conventionIssues.length > 0) throw new EditError("E_SHAPE", "The pasted graph metadata is invalid");
+	const refs = /* @__PURE__ */ new Set();
+	for (const edge of parsed.document.graph.edges) {
+		refs.add(edge.from);
+		refs.add(edge.to);
+	}
+	for (const group of parsed.document.graph.groups) for (const root of group.roots) refs.add(root);
+	const taken = new Set(doc.identities.keys());
+	const mapping = /* @__PURE__ */ new Map();
+	for (const ref of refs) {
+		if (ref === "root") continue;
+		if (!taken.has(ref)) continue;
+		const minted = mintIdentity(taken, random);
+		if (minted === null) throw new EditError("E_SHAPE", "No node identity characters remain");
+		mapping.set(ref, minted);
+		taken.add(minted);
+	}
+	const splices = [{
+		from: block.start,
+		to: block.end,
+		insert: ""
+	}];
+	for (const id of parsed.document.order) {
+		const identity = parsed.document.nodes.get(id)?.identity;
+		const mapped = identity ? mapping.get(identity.id) : void 0;
+		if (!identity || identity.range === null || mapped === void 0) continue;
+		splices.push({
+			from: identity.range.start,
+			to: identity.range.end,
+			insert: `<!-- ^${mapped} -->`
+		});
+	}
+	const body = applySplices(raw, splices).text;
+	const ref = (value) => mapping.get(value) ?? value;
+	return {
+		body,
+		edges: parsed.document.graph.edges.map((edge) => ({
+			...edge,
+			from: ref(edge.from),
+			to: ref(edge.to)
+		})),
+		groups: parsed.document.graph.groups.map((group) => ({
+			...group,
+			roots: group.roots.map(ref)
+		}))
+	};
+}
+function copyPlan(doc, subtree, random) {
+	const mapping = /* @__PURE__ */ new Map();
+	if (doc.conventionIssues.some((issue) => issue.code === "E_GRAPH")) return {
+		mapping,
+		edges: [],
+		groups: []
+	};
+	const copied = (ref) => {
+		if (ref === "root") return false;
+		const id = doc.identities.get(ref);
+		return id !== void 0 && subtree.has(id);
+	};
+	const edges = doc.graph.edges.filter((edge) => copied(edge.from) && copied(edge.to));
+	const groups = doc.graph.groups.filter((group) => group.roots.length > 0 && group.roots.every((root) => copied(root)));
+	const required = /* @__PURE__ */ new Set();
+	for (const edge of edges) {
+		required.add(edge.from);
+		required.add(edge.to);
+	}
+	for (const group of groups) for (const root of group.roots) required.add(root);
+	const taken = new Set(doc.identities.keys());
+	for (const id of doc.order) {
+		const identity = doc.nodes.get(id)?.identity;
+		if (identity && identity.range !== null) taken.add(identity.id);
+	}
+	for (const id of doc.order) {
+		if (!subtree.has(id)) continue;
+		const identity = doc.nodes.get(id)?.identity;
+		if (!identity || identity.range === null) continue;
+		if (!required.has(identity.id) || mapping.has(identity.id)) continue;
+		const minted = mintIdentity(taken, random);
+		if (minted === null) throw new EditError("E_SHAPE", "No node identity characters remain");
+		mapping.set(identity.id, minted);
+		taken.add(minted);
+	}
+	const mapEdge = (edge) => {
+		const from = mapping.get(edge.from);
+		const to = mapping.get(edge.to);
+		return from === void 0 || to === void 0 ? null : {
+			...edge,
+			from,
+			to
+		};
+	};
+	const mapGroup = (group) => {
+		const roots = group.roots.map((root) => mapping.get(root));
+		if (roots.some((root) => root === void 0)) return null;
+		return {
+			...group,
+			roots: roots.filter((root) => root !== void 0)
+		};
+	};
+	return {
+		mapping,
+		edges: edges.flatMap((edge) => {
+			const mapped = mapEdge(edge);
+			return mapped === null ? [] : [mapped];
+		}),
+		groups: groups.flatMap((group) => {
+			const mapped = mapGroup(group);
+			return mapped === null ? [] : [mapped];
+		})
+	};
+}
+function removeGraphNodes(doc, removed) {
+	if (doc.conventionIssues.some((issue) => issue.code === "E_GRAPH")) return {
+		graph: doc.graph,
+		drop: [],
+		changed: false
+	};
+	const removedIds = /* @__PURE__ */ new Set();
+	for (const id of removed) {
+		const identity = doc.nodes.get(id)?.identity;
+		if (identity && identity.range !== null) removedIds.add(identity.id);
+	}
+	const edges = doc.graph.edges.filter((edge) => !removedIds.has(edge.from) && !removedIds.has(edge.to));
+	const groups = doc.graph.groups.flatMap((group) => {
+		const roots = group.roots.filter((root) => !removedIds.has(root));
+		return roots.length === 0 ? [] : [{
+			...group,
+			roots
+		}];
+	});
+	const referenced = /* @__PURE__ */ new Set();
+	for (const edge of edges) {
+		referenced.add(edge.from);
+		referenced.add(edge.to);
+	}
+	for (const group of groups) for (const root of group.roots) referenced.add(root);
+	const drop = [];
+	for (const id of doc.order) {
+		if (removed.has(id)) continue;
+		const identity = doc.nodes.get(id)?.identity;
+		if (!identity || identity.range === null) continue;
+		if (!referenced.has(identity.id)) drop.push({
+			nodeId: id,
+			range: identity.range
+		});
+	}
+	const changed = JSON.stringify(edges) !== JSON.stringify(doc.graph.edges) || JSON.stringify(groups) !== JSON.stringify(doc.graph.groups);
+	return {
+		graph: {
+			edges,
+			groups,
+			block: doc.graph.block
+		},
+		drop,
+		changed
+	};
+}
+function graphBlockSplices(source, doc, removal, cut) {
+	if (!removal.changed) return [];
+	const block = doc.graph.block;
+	const empty = removal.graph.edges.length === 0 && removal.graph.groups.length === 0;
+	const ending = source.includes("\r\n") ? "\r\n" : "\n";
+	if (block === null) {
+		const append = appendGraphSplice(source, removal.graph, ending);
+		return append === null ? [] : [append];
+	}
+	if (block.start < cut.end && block.end > cut.start) {
+		const append = appendGraphSplice(source, removal.graph, ending);
+		return append === null ? [] : [append];
+	}
+	if (empty) return [removeGraphSplice(source, block)];
+	if (!source.slice(block.start, block.end).endsWith("\n")) return [{
+		from: block.start,
+		to: block.end,
+		insert: serializeGraphBlock(removal.graph, ending)
+	}];
+	const trailing = source.slice(block.start, block.end).endsWith("\r\n") ? "\r\n" : "\n";
+	return [{
+		from: block.start,
+		to: block.end,
+		insert: `${serializeGraphBlock(removal.graph, ending)}${trailing}`
+	}];
+}
+function markerRemovalSplices(source, removal) {
+	return removal.drop.flatMap((entry) => {
+		let from = entry.range.start;
+		while (from > 0) {
+			const char = source[from - 1];
+			if (char !== " " && char !== "	") break;
+			from -= 1;
+		}
+		return [{
+			from,
+			to: entry.range.end,
+			insert: ""
+		}];
+	});
+}
+function mergeGraphSplice(source, doc, edges, groups, ending) {
+	const merged = {
+		edges: [...doc.graph.edges, ...edges],
+		groups: [...doc.graph.groups, ...groups],
+		block: doc.graph.block
+	};
+	if (doc.conventionIssues.some((issue) => issue.code === "E_GRAPH")) throw new EditError("E_SHAPE", "The document graph metadata is invalid");
+	if (doc.graph.block === null) {
+		const append = appendGraphSplice(source, merged, ending);
+		if (append === null) throw new EditError("E_SHAPE", "The graph metadata is empty");
+		return append;
+	}
+	const original = source.slice(doc.graph.block.start, doc.graph.block.end);
+	const trailing = original.endsWith("\r\n") ? "\r\n" : original.endsWith("\n") ? "\n" : "";
+	return {
+		from: doc.graph.block.start,
+		to: doc.graph.block.end,
+		insert: `${serializeGraphBlock(merged, ending)}${trailing}`
+	};
+}
+function appendGraphSplice(source, graph, ending) {
+	const block = serializeGraphBlock(graph, ending);
+	if (!block) return null;
+	const insert = `${source.length === 0 ? "" : source.endsWith(ending) ? ending : ending + ending}${block}${ending}`;
+	return {
+		from: source.length,
+		to: source.length,
+		insert
+	};
+}
+function removeGraphSplice(source, block) {
+	let start = block.start;
+	let end = block.end;
+	if (source.startsWith("\r\n", end)) end += 2;
+	else if (source[end] === "\n") end += 1;
+	if (start > 0) {
+		const previous = source.lastIndexOf("\n", start - 2);
+		const previousStart = previous === -1 ? 0 : previous + 1;
+		if (source.slice(previousStart, start).trim() === "") start = previousStart;
+	}
+	return {
+		from: start,
+		to: end,
+		insert: ""
+	};
+}
 // src/format.ts
 function lineEnding(source) {
 	return source.includes("\r\n") ? "\r\n" : "\n";
@@ -280,35 +678,6 @@ function reindentList(text, delta, ending) {
 		return line;
 	}).join(ending);
 }
-// src/splice.ts
-function applySplices(source, splices) {
-	const indexed = splices.map((splice, index) => ({
-		...splice,
-		index
-	})).toSorted((a, b) => a.from - b.from || a.to - b.to);
-	const starts = Array.from({ length: splices.length }, () => 0);
-	let text = "";
-	let last = 0;
-	for (const splice of indexed) {
-		if (splice.from < last || splice.to < splice.from || splice.to > source.length) throw new EditError("E_SPLICE", "Splices overlap or fall outside the source");
-		text += source.slice(last, splice.from);
-		starts[splice.index] = text.length;
-		text += splice.insert;
-		last = splice.to;
-	}
-	text += source.slice(last);
-	return {
-		text,
-		starts
-	};
-}
-function mapOffset(splices, offset) {
-	let delta = 0;
-	for (const splice of splices.toSorted((a, b) => a.from - b.from || a.to - b.to)) if (offset >= splice.to) delta += splice.insert.length - (splice.to - splice.from);
-	else if (offset > splice.from) return splice.from + delta + splice.insert.length;
-	else break;
-	return offset + delta;
-}
 // src/commands.ts
 function applyCommand(doc, command) {
 	const plan = planCommand(doc, command);
@@ -335,7 +704,7 @@ function planCommand(doc, command) {
 		case "createRootHeading": return planCreateRootHeading(doc, node, command.text);
 		case "insertChild": return planInsert(doc, node, command.text ?? "", "child");
 		case "insertSibling": return planInsert(doc, node, command.text ?? "", "sibling");
-		case "insertBlock": return planInsertBlock(doc, node, command.text);
+		case "insertBlock": return planInsertBlock(doc, node, command.text, command.random);
 		case "delete": return planDelete(doc, node);
 		case "outdent": return planOutdent(doc, node);
 		case "move": return planMove(doc, node, command.parent, command.index);
@@ -703,10 +1072,11 @@ function attachLeadingNotes(moved, notes, indent, ending) {
 	const joined = notes.join(ending + ending);
 	return `${head}${ending}${ending}${indent === null ? joined : reindentList(joined, indent.length, ending)}${rest ? ending + ending + rest : ""}`;
 }
-function planInsertBlock(doc, node, raw) {
+function planInsertBlock(doc, node, raw, random) {
 	requireCapability(node, "addChild");
 	const ending = lineEnding(doc.source);
-	const block = normalizeBlockText(raw, ending);
+	const graphRead = readPastedGraph(doc, normalizeBlockText(raw, ending), ending, random ?? Math.random);
+	const block = normalizeBlockText(graphRead.body, ending);
 	if (!block.trim()) throw new EditError("E_LABEL", "The pasted text is empty", node.id);
 	const fragment = parseDocument(block).document;
 	const fragmentRoot = fragment.nodes.get(fragment.root);
@@ -754,12 +1124,14 @@ function planInsertBlock(doc, node, raw) {
 	const marker = firstLineMarker(moved);
 	const expected = firstLine(fragment.source, top.label.start).replace(/\r$/u, "");
 	const emptyRoot = node.kind === "root" && !node.block && node.children.length === 0;
+	const edits = [{
+		from: position,
+		to: position,
+		insert: placed.insert
+	}];
+	if (graphRead.edges.length > 0 || graphRead.groups.length > 0) edits.push(mergeGraphSplice(doc.source, doc, graphRead.edges, graphRead.groups, ending));
 	return {
-		edits: [{
-			from: position,
-			to: position,
-			insert: placed.insert
-		}],
+		edits,
 		selection: {
 			kind: "insert",
 			edit: 0,
@@ -797,6 +1169,8 @@ function planInsertBlock(doc, node, raw) {
 				if (index >= targetNotes.length && (note.range.start < insertedStart || note.range.end > insertedStart + moved.length)) throw shape("The pasted note is outside the inserted block");
 			}
 			if (!created.label || firstLine(next.source, created.label.start).replace(/\r$/u, "") !== expected) throw shape("The pasted label did not survive parsing");
+			const fresh = newConventionIssues(doc, next);
+			if ((graphRead.edges.length > 0 || graphRead.groups.length > 0) && fresh.length > 0) throw shape(`The paste produced invalid graph metadata: ${fresh[0]?.message ?? ""}`);
 		}
 	};
 }
@@ -856,12 +1230,16 @@ function planDelete(doc, node) {
 	const index = parent.children.indexOf(node.id);
 	const target = (index > 0 ? doc.nodes.get(parent.children[index - 1]) : void 0)?.label?.start ?? parent.label?.start ?? parent.block?.start ?? 0;
 	const removed = countSubtree(doc, node);
+	const removal = removeGraphNodes(doc, subtreeIds(doc, node.id));
+	const edits = [{
+		from: cut.start,
+		to: cut.end,
+		insert: ""
+	}];
+	edits.push(...graphBlockSplices(doc.source, doc, removal, cut));
+	edits.push(...markerRemovalSplices(doc.source, removal));
 	return {
-		edits: [{
-			from: cut.start,
-			to: cut.end,
-			insert: ""
-		}],
+		edits,
 		selection: {
 			kind: "source",
 			offset: target
@@ -869,6 +1247,8 @@ function planDelete(doc, node) {
 		verify(next) {
 			if (contentNodeCount(next) !== contentNodeCount(doc) - removed) throw shape("The node count did not shrink");
 			if (next.nodes.has(node.id)) throw shape("The removed node is still present");
+			const fresh = newConventionIssues(doc, next);
+			if (removal.changed && fresh.length > 0) throw shape(`The delete produced invalid graph metadata: ${fresh[0]?.message ?? ""}`);
 		}
 	};
 }
@@ -1304,4 +1684,4 @@ function countSubtree(doc, node) {
 function shape(message) {
 	return new EditError("E_SHAPE", message);
 }
-export { EditError, applyCommand, applySplices, lineEnding, mapOffset, rootHeadingRefusal };
+export { EditError, appendGraphSplice, applyCommand, applySplices, copyBlock, graphBlockSplices, lineEnding, mapOffset, markerRemovalSplices, mergeGraphSplice, readPastedGraph, removeGraphNodes, rootHeadingRefusal, subtreeIds };

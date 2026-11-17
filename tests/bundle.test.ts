@@ -5,6 +5,7 @@ import { Script } from 'node:vm';
 import { describe, expect, test } from 'vitest';
 
 const root = resolve(import.meta.dirname, '..');
+const bundleBudget = 720_000;
 
 describe('built editor', () => {
   test('[R-08] loads one classic script', () => {
@@ -18,7 +19,7 @@ describe('built editor', () => {
   test('[R-08] builds an IIFE without module syntax', () => {
     const source = readFileSync(resolve(root, 'editor/main.js'), 'utf8');
     expect(source.length).toBeGreaterThan(1000);
-    expect(source.length).toBeLessThan(700_000);
+    expect(source.length).toBeLessThan(bundleBudget);
     expect(() => new Script(source)).not.toThrow();
     expect(source).not.toMatch(/^\s*(?:import|export)\s/mu);
   });
@@ -34,7 +35,7 @@ describe('built editor', () => {
   test('[R-25] builds the chat bundle as an IIFE without module syntax', () => {
     const source = readFileSync(resolve(root, 'chat/main.js'), 'utf8');
     expect(source.length).toBeGreaterThan(1000);
-    expect(source.length).toBeLessThan(700_000);
+    expect(source.length).toBeLessThan(bundleBudget);
     expect(() => new Script(source)).not.toThrow();
     expect(source).not.toMatch(/^\s*(?:import|export)\s/mu);
   });
