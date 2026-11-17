@@ -79,11 +79,23 @@ function validateConventions(doc) {
 	return [...doc.conventionIssues];
 }
 function issueKey(issue) {
-	return `${issue.code}|${issue.message}|${issue.nodeId ?? ""}|${issue.range?.start ?? ""}|${issue.range?.end ?? ""}`;
+	return `${issue.code}|${issue.message}|${issue.nodeId ?? ""}`;
 }
 function newConventionIssues(before, after) {
-	const known = new Set(before.conventionIssues.map(issueKey));
-	return after.conventionIssues.filter((issue) => !known.has(issueKey(issue)));
+	const counts = /* @__PURE__ */ new Map();
+	for (const issue of before.conventionIssues) {
+		const key = issueKey(issue);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return after.conventionIssues.filter((issue) => {
+		const key = issueKey(issue);
+		const count = counts.get(key) ?? 0;
+		if (count > 0) {
+			counts.set(key, count - 1);
+			return false;
+		}
+		return true;
+	});
 }
 function isGraphBlock(block) {
 	return GRAPH_START.test(block.value.trimStart());
@@ -363,7 +375,12 @@ function insideNode(offset, nodes) {
 function validateGraph(graph, valid, identities, nodes, rootId, issues) {
 	if (!valid) return;
 	const resolve = (ref) => ref === "root" ? rootId : identities.get(ref);
+	const seenEdges = /* @__PURE__ */ new Set();
 	for (const edge of graph.edges) {
+		if (edge.from === edge.to) addIssue(issues, "E_GRAPH", `An edge cannot connect "${edge.from}" to itself`);
+		const edgeKey = `${edge.from}->${edge.to}`;
+		if (seenEdges.has(edgeKey)) addIssue(issues, "E_GRAPH", `Duplicate edge from "${edge.from}" to "${edge.to}"`);
+		else seenEdges.add(edgeKey);
 		if (resolve(edge.from) === void 0) addIssue(issues, "E_GRAPH", `The edge endpoint "${edge.from}" has no node`);
 		if (resolve(edge.to) === void 0) addIssue(issues, "E_GRAPH", `The edge endpoint "${edge.to}" has no node`);
 	}

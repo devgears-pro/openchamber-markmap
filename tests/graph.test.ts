@@ -209,6 +209,32 @@ describe('R-34 graph metadata', () => {
     expect(codes(across)).toContain('E_GRAPH');
   });
 
+  test('[R-34] rejects self-loop edges', () => {
+    const doc = model.parseDocument(
+      `# Root\n\n- A <!-- ^a -->\n\n<!-- markmap: graph\nedges:\n  - from: a\n    to: a\n-->\n`,
+    ).document;
+    expect(codes(doc)).toContain('E_GRAPH');
+    expect(
+      model
+        .validateConventions(doc)
+        .map((issue) => issue.message)
+        .join(' '),
+    ).toMatch(/itself/i);
+  });
+
+  test('[R-34] rejects duplicate edges', () => {
+    const doc = model.parseDocument(
+      `# Root\n\n- A <!-- ^a -->\n- B <!-- ^b -->\n\n<!-- markmap: graph\nedges:\n  - from: a\n    to: b\n  - from: a\n    to: b\n-->\n`,
+    ).document;
+    expect(codes(doc)).toContain('E_GRAPH');
+    expect(
+      model
+        .validateConventions(doc)
+        .map((issue) => issue.message)
+        .join(' '),
+    ).toMatch(/duplicate/i);
+  });
+
   test('[R-34] rejects overlapping group subtrees', () => {
     const doc = model.parseDocument(
       `# Root\n\n- A <!-- ^a -->\n  - B <!-- ^b -->\n\n<!-- markmap: graph\nedges:\n  - from: a\n    to: root\ngroups:\n  - roots: [a]\n  - roots: [b]\n-->\n`,
@@ -306,6 +332,26 @@ describe('R-34 edits keep graph references', () => {
       }),
     ).toThrow(edit.EditError);
     expect(doc.source).toBe(before);
+  });
+
+  test('[R-34] preserves existing convention issues through offset-shifting edits', () => {
+    const doc = model.parseDocument(
+      `# Root\n\n- DeleteMe <!-- ^d -->\n- Target <!-- ^t -->\n- Bad <!-- ^x --> <!-- ^y -->\n\n<!-- markmap: graph\nedges:\n  - from: d\n    to: t\n-->\n`,
+    ).document;
+    const deleted = edit.applyCommand(doc, { type: 'delete', node: find(doc, 'DeleteMe').id });
+    expect(deleted.document.source).not.toContain('DeleteMe');
+    expect(codes(deleted.document)).toContain('E_IDENTITY');
+
+    const pasteTarget = model.parseDocument(
+      `# Root\n\n- Target\n- Bad <!-- ^x --> <!-- ^y -->\n`,
+    ).document;
+    const pasted = edit.applyCommand(pasteTarget, {
+      type: 'insertBlock',
+      node: find(pasteTarget, 'Target').id,
+      text: '- P <!-- ^p -->\n\n<!-- markmap: graph\nedges:\n  - from: p\n    to: root\n-->',
+    });
+    expect(pasted.document.graph.edges).toHaveLength(1);
+    expect(codes(pasted.document)).toContain('E_IDENTITY');
   });
 
   test('[R-34] copy mints only referenced identities and merges the graph on paste', () => {
