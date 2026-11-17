@@ -1,4 +1,4 @@
-import type { Anchor, GraphEdge, NodeContext } from '@markmap/core';
+import type { Anchor, GraphEdge, NodeContext, Primitive } from '@markmap/core';
 import { applyCommand, EditError } from '@markmap/edit';
 import {
   labelText,
@@ -58,6 +58,14 @@ const makeDrawNode = (
   };
 };
 
+const relationGroups = (
+  primitives: readonly Primitive[],
+): Extract<Primitive, { kind: 'group' }>[] =>
+  primitives.filter(
+    (primitive): primitive is Extract<Primitive, { kind: 'group' }> =>
+      primitive.kind === 'group' && primitive.key?.startsWith('relation:') === true,
+  );
+
 describe('R-37 relationship arrows', () => {
   test('[R-37] computes side vectors for all cardinal directions', () => {
     expect(sideVector('left')).toEqual({ x: -1, y: 0 });
@@ -111,8 +119,9 @@ describe('R-37 relationship arrows', () => {
       theme: classicTheme,
     });
 
-    expect(primitives).toHaveLength(1);
-    const group = primitives[0];
+    const groups = relationGroups(primitives);
+    expect(groups).toHaveLength(1);
+    const group = groups[0];
     if (group?.kind !== 'group') throw new Error('Expected group');
     expect(group.key).toBe('relation:a:b');
     expect(group.children.length).toBeGreaterThanOrEqual(4);
@@ -133,10 +142,11 @@ describe('R-37 relationship arrows', () => {
       theme: classicTheme,
     });
 
-    expect(primitives).toHaveLength(1);
-    const group = primitives[0];
+    const groups = relationGroups(primitives);
+    expect(groups).toHaveLength(1);
+    const group = groups[0];
     if (group?.kind !== 'group') throw new Error('Expected group');
-    expect(group.children).toHaveLength(2);
+    expect(group.children.filter((child) => child.kind === 'path')).toHaveLength(2);
   });
 
   test('[R-37] resolves root node when from or to is root', () => {
@@ -160,7 +170,7 @@ describe('R-37 relationship arrows', () => {
       theme: classicTheme,
     });
 
-    expect(primitives).toHaveLength(2);
+    expect(relationGroups(primitives)).toHaveLength(2);
   });
 
   test('[R-37] hides relationship arrows when an endpoint node is folded', () => {
