@@ -1,13 +1,13 @@
 # Markmap for OpenChamber
 
-[![CI](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml/badge.svg)](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml)
+[![CI](https://github.com/devgears-pro/openchamber-markmap/actions/workflows/ci.yml/badge.svg)](https://github.com/devgears-pro/openchamber-markmap/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 An OpenChamber file editor for Markmap Markdown. Open a `.markmap.md` file in Files and the outline becomes a mind map you can edit in place. Click a node, press Enter or Tab, type. The Markdown file stays the source of truth for Git, agents, and every other editor.
 
 This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, and toolbar. The editable fork adds the model, commands, overlay editor, and the soft theme that make the diagram editable in OpenChamber.
 
-Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
+Roadmap: [what each release adds](https://github.com/devgears-pro/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/devgears-pro/openchamber-markmap/releases).
 
 ![The Markmap editor in the dark theme](https://github.com/user-attachments/assets/c7a2fe0d-6e82-44c1-81c7-a9cba9f24e79)
 
@@ -73,11 +73,11 @@ Requirements: an OpenChamber release with file editors, on desktop or web. File 
 2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
 3. There are no capabilities to approve; the host hands the editor one file at a time.
 
-Stable: [https://github.com/mmospanenko/openchamber-markmap](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap)
+Stable: [https://github.com/devgears-pro/openchamber-markmap](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fdevgears-pro%2Fopenchamber-markmap)
 
-Preview: [https://github.com/mmospanenko/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23dev)
+Preview: [https://github.com/devgears-pro/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fdevgears-pro%2Fopenchamber-markmap%23dev)
 
-Pinned release: [https://github.com/mmospanenko/openchamber-markmap#vX.Y.Z](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23vX.Y.Z)
+Pinned release: [https://github.com/devgears-pro/openchamber-markmap#vX.Y.Z](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fdevgears-pro%2Fopenchamber-markmap%23vX.Y.Z)
 
 Replace `X.Y.Z` with a tag from the Releases page.
 

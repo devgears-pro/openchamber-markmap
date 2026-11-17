@@ -7,11 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mmospanenko/openchamber-markmap.git"
+    "url": "git+https://github.com/devgears-pro/openchamber-markmap.git"
   },
-  "homepage": "https://github.com/mmospanenko/openchamber-markmap",
+  "homepage": "https://github.com/devgears-pro/openchamber-markmap",
   "bugs": {
-    "url": "https://github.com/mmospanenko/openchamber-markmap/issues"
+    "url": "https://github.com/devgears-pro/openchamber-markmap/issues"
   },
   "packageManager": "bun@1.3.14",
   "workspaces": [
@@ -27,7 +27,7 @@
     "format": "prettier --write .",
     "lint": "bun run lint:code && bun run lint:format && bun run lint:docs && bun run check:dead-code",
     "lint:code": "eslint --max-warnings 0 .",
-    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\"",
+    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\" \"!.agents/**\"",
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",
     "screenshots": "playwright test -c playwright.screenshots.config.ts",

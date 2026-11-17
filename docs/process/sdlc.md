@@ -14,7 +14,7 @@ This repository uses a small, deterministic loop: requirement, failing test, min
 
 A feature or task is a GitHub issue from the feature template: a story (`As a ROLE, I want OUTCOME, so that REASON`), acceptance criteria, the `R-xx` it adds or changes, and scope. Acceptance criteria are testable statements, one per line.
 
-A story joins one version milestone when it is planned, grouped by theme rather than date. A new feature joins the milestone whose theme fits; do not renumber or shift versions. Release mechanics are in [`releases.md`](releases.md). The roadmap is [issue #3](https://github.com/mmospanenko/openchamber-markmap/issues/3): one row per release, the release themes, and the 1.0 criteria. Do not mirror milestones or criteria in the repository.
+A story joins one version milestone when it is planned, grouped by theme rather than date. A new feature joins the milestone whose theme fits; do not renumber or shift versions. Release mechanics are in [`releases.md`](releases.md). The roadmap is [issue #3](https://github.com/devgears-pro/openchamber-markmap/issues/3): one row per release, the release themes, and the 1.0 criteria. Do not mirror milestones or criteria in the repository.
 
 The issue owns the outcome; [`requirements.md`](../requirements.md) owns the behavior; tests own the proof. Do not restate the requirement in the issue.
 
@@ -34,7 +34,7 @@ Keep it to the decision in the title, why, the options, and the trade-offs:
 ## Trade-offs
 ```
 
-Do not restate the requirement or walk through the code. Do not rewrite an accepted ADR; add a new one and link both. The decision map in [issue #2](https://github.com/mmospanenko/openchamber-markmap/issues/2) links the records.
+Do not restate the requirement or walk through the code. Do not rewrite an accepted ADR; add a new one and link both. The decision map in [issue #2](https://github.com/devgears-pro/openchamber-markmap/issues/2) links the records.
 
 ## Change types
 
@@ -65,7 +65,7 @@ After a task or bug fix, the chat reply links the work and its proof:
 - The issue, when there is one, and the pull request.
 - The cause for a bug, or the reason for a task.
 - The test command, the red output, and the green output. For a visual change, the issue comment with a screenshot or GIF that `docs/process/releases.md` requires.
-- The OpenChamber install address as a Markdown link whose visible text is the complete HTTPS URL and whose target is the percent-encoded desktop install deep link: [https://github.com/mmospanenko/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap%23dev). For a feature branch, use the exact branch name after `#` in the same link shape; the plain-text template is `https://github.com/mmospanenko/openchamber-markmap#<branch>`, and the deep link encodes `/` as `%2F`. Clicking the link opens the desktop Add-extension dialog with the URL filled in, but the user still must confirm the install, and browsers or mobile have no direct install flow. Keep the visible HTTPS URL so it can be copied. Always include the address, even when the worktree folder is also available.
+- The OpenChamber install address as a Markdown link whose visible text is the complete HTTPS URL and whose target is the percent-encoded desktop install deep link: [https://github.com/devgears-pro/openchamber-markmap#dev](openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fdevgears-pro%2Fopenchamber-markmap%23dev). For a feature branch, use the exact branch name after `#` in the same link shape; the plain-text template is `https://github.com/devgears-pro/openchamber-markmap#<branch>`, and the deep link encodes `/` as `%2F`. Clicking the link opens the desktop Add-extension dialog with the URL filled in, but the user still must confirm the install, and browsers or mobile have no direct install flow. Keep the visible HTTPS URL so it can be copied. Always include the address, even when the worktree folder is also available.
 
 ## Worktrees and sync
 
