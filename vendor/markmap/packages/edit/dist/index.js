@@ -326,6 +326,8 @@ function applyCommand(doc, command) {
 	};
 }
 function planCommand(doc, command) {
+	if (command.type === "deleteNodes") return planDeleteNodes(doc, command.nodes);
+	if (command.type === "moveNodes") return planMoveNodes(doc, command.nodes, command.parent, command.index);
 	const node = nodeOf(doc, command.node);
 	switch (command.type) {
 		case "setLabel": return planSetLabel(doc, node, command.text);
@@ -798,6 +800,54 @@ function planInsertBlock(doc, node, raw) {
 		}
 	};
 }
+function selectedSiblings(doc, ids, emptyMessage) {
+	if (!ids.length) throw new EditError("E_SHAPE", emptyMessage);
+	const seen = /* @__PURE__ */ new Set();
+	for (const id of ids) {
+		if (seen.has(id)) throw new EditError("E_SHAPE", "The node set repeats a node", id);
+		seen.add(id);
+	}
+	const nodes = ids.map((id) => nodeOf(doc, id));
+	const parentId = nodes[0].parent;
+	if (parentId === null) throw new EditError("E_CAPABILITY", "The root cannot be selected", doc.root);
+	if (nodes.some((node) => node.parent !== parentId)) {
+		if (nodes.some((node) => node.parent === null)) throw new EditError("E_CAPABILITY", "The root cannot be selected", doc.root);
+		throw new EditError("E_SHAPE", "The selected nodes have different parents", nodes[0].id);
+	}
+	return {
+		nodes,
+		parent: nodeOf(doc, parentId)
+	};
+}
+function requireDeletable(node) {
+	if (node.opaque) throw new EditError("E_CAPABILITY", "The node cannot be deleted in a batch", node.id);
+}
+function requireMovable(node) {
+	if (node.opaque) throw new EditError("E_CAPABILITY", "The node cannot be moved in a batch", node.id);
+}
+function mergeCuts(cuts) {
+	const merged = [];
+	for (const cut of cuts.toSorted((a, b) => a.start - b.start)) {
+		const last = merged.at(-1);
+		if (last && cut.start <= last.end) last.end = Math.max(last.end, cut.end);
+		else merged.push({
+			start: cut.start,
+			end: cut.end
+		});
+	}
+	return merged;
+}
+function deleteSelectionOffset(doc, selection, firstIndex, lastIndex) {
+	const parent = selection.parent;
+	const previousId = firstIndex > 0 ? parent.children[firstIndex - 1] : void 0;
+	const previousLabel = (previousId ? doc.nodes.get(previousId) : void 0)?.label;
+	if (previousLabel) return previousLabel.start;
+	if (parent.label) return parent.label.start;
+	const nextId = parent.children[lastIndex + 1];
+	const nextLabel = (nextId ? doc.nodes.get(nextId) : void 0)?.label;
+	if (nextLabel) return nextLabel.start;
+	return doc.source.length;
+}
 function planDelete(doc, node) {
 	requireCapability(node, "delete");
 	if (!node.block || !node.parent) throw shape("The node cannot be removed");
@@ -819,6 +869,29 @@ function planDelete(doc, node) {
 		verify(next) {
 			if (contentNodeCount(next) !== contentNodeCount(doc) - removed) throw shape("The node count did not shrink");
 			if (next.nodes.has(node.id)) throw shape("The removed node is still present");
+		}
+	};
+}
+function planDeleteNodes(doc, ids) {
+	const selection = selectedSiblings(doc, ids, "The delete set is empty");
+	for (const node of selection.nodes) requireDeletable(node);
+	const indices = selection.nodes.map((node) => selection.parent.children.indexOf(node.id)).toSorted((left, right) => left - right);
+	const target = deleteSelectionOffset(doc, selection, indices[0], indices[indices.length - 1]);
+	const cuts = mergeCuts(selection.nodes.map((node) => node.block).filter((block) => Boolean(block)).map((block) => cutRange(doc.source, block)));
+	const removed = selection.nodes.reduce((total, node) => total + countSubtree(doc, node), 0);
+	return {
+		edits: cuts.map((cut) => ({
+			from: cut.start,
+			to: cut.end,
+			insert: ""
+		})),
+		selection: {
+			kind: "source",
+			offset: target
+		},
+		verify(next) {
+			const vanished = selection.nodes.every((node) => !next.nodes.has(node.id));
+			if (contentNodeCount(next) !== contentNodeCount(doc) - removed || !vanished) throw shape("The batch delete did not survive parsing");
 		}
 	};
 }
@@ -874,12 +947,23 @@ function childHeadingLevel(parent) {
 	return parent.level + 1;
 }
 function childListIndent(doc, parent) {
-	if (parent.kind === "listItem") return childIndent(doc, parent);
 	for (const id of parent.children) {
 		const child = doc.nodes.get(id);
 		if (child?.kind === "listItem" && child.list) return child.list.indent;
 	}
-	return "";
+	if (parent.kind !== "listItem" || !parent.list) return "";
+	const unit = doc.unit;
+	const indent = parent.list.indent;
+	if (unit === "	" || unit.length >= parent.list.marker.length + 1) return indent + unit;
+	return indent + " ".repeat(parent.list.marker.length + 1);
+}
+function reindentListTo(text, fromIndent, toIndent, ending) {
+	if (fromIndent === toIndent) return text;
+	return text.split(ending).map((line) => {
+		if (!line.trim()) return line;
+		if (!line.startsWith(fromIndent)) return line;
+		return toIndent + line.slice(fromIndent.length);
+	}).join(ending);
 }
 function trimBlockEdges(block, ending) {
 	const lines = block.split(ending);
@@ -950,11 +1034,11 @@ function planMove(doc, node, parentId, index) {
 		if (parent.kind === "listItem") moved = headingsToList(block, childIndent(doc, parent), doc.unit, ending);
 		else moved = shiftHeadings(block, childHeadingLevel(parent) - node.level, ending);
 	} else if (node.kind === "listItem" && list) {
-		if (parent.kind === "listItem") moved = reindentList(block, childListIndent(doc, parent).length - list.indent.length, ending);
+		if (parent.kind === "listItem") moved = reindentListTo(block, list.indent, childListIndent(doc, parent), ending);
 		else if (previous?.kind === "heading") {
 			if (labelText(doc, node).includes("\n")) throw new EditError("E_LABEL", "A heading label cannot contain a line break", node.id);
 			moved = listToHeadings(block, childHeadingLevel(parent), ending);
-		} else moved = reindentList(block, childListIndent(doc, parent).length - list.indent.length, ending);
+		} else moved = reindentListTo(block, list.indent, childListIndent(doc, parent), ending);
 	} else throw new EditError("E_CAPABILITY", "The node cannot be moved", node.id);
 	let position;
 	if (next?.block) position = next.block.start;
@@ -1012,6 +1096,155 @@ function planMove(doc, node, parentId, index) {
 			if (!found || found.parent !== target.id) throw shape("The moved node has the wrong parent");
 			if (target.children.indexOf(found.id) !== index) throw shape("The moved node has the wrong order");
 			if (!found.label || labelText(doc, node) !== nextDoc.source.slice(found.label.start, found.label.end)) throw shape("The moved label changed");
+		}
+	};
+}
+function moveNodeBlock(doc, node, range, parent, afterHeading, ending) {
+	const block = doc.source.slice(range.start, range.end);
+	if (node.kind === "heading") return {
+		text: trimBlockEdges(parent.kind === "listItem" ? headingsToList(block, childIndent(doc, parent), doc.unit, ending) : shiftHeadings(block, childHeadingLevel(parent) - node.level, ending), ending),
+		heading: parent.kind !== "listItem"
+	};
+	const indent = node.list?.indent ?? /^[ \t]*/u.exec(block)?.[0] ?? "";
+	if (parent.kind === "listItem") return {
+		text: trimBlockEdges(reindentListTo(block, indent, childListIndent(doc, parent), ending), ending),
+		heading: false
+	};
+	if (afterHeading) {
+		if (labelText(doc, node).includes("\n")) throw new EditError("E_LABEL", "A heading label cannot contain a line break", node.id);
+		return {
+			text: trimBlockEdges(listToHeadings(block, childHeadingLevel(parent), ending), ending),
+			heading: true
+		};
+	}
+	return {
+		text: trimBlockEdges(reindentListTo(block, indent, childListIndent(doc, parent), ending), ending),
+		heading: false
+	};
+}
+function joinMovedBlocks(blocks, ending) {
+	let text = blocks[0].text;
+	for (let index = 1; index < blocks.length; index += 1) {
+		const block = blocks[index];
+		const before = blocks[index - 1];
+		text += before.heading || block.heading ? ending + ending : ending;
+		text += block.text;
+	}
+	return text;
+}
+function comparableLabel(doc, node) {
+	return labelText(doc, node).split(/\r?\n/u).map((line) => line.trimStart()).join("\n");
+}
+function planMoveNodes(doc, ids, parentId, index) {
+	const selection = selectedSiblings(doc, ids, "The move set is empty");
+	const parent = nodeOf(doc, parentId);
+	if (parent.opaque) throw new EditError("E_CAPABILITY", "The target cannot hold a child", parent.id);
+	for (const node of selection.nodes) {
+		requireMovable(node);
+		if (isInSubtree(doc, node.id, parent.id)) throw new EditError("E_CYCLE", "A node cannot move under its own subtree", node.id);
+	}
+	if (!Number.isInteger(index) || index < 0) throw new EditError("E_SHAPE", "The move index is invalid", parent.id);
+	const selected = new Set(selection.nodes.map((node) => node.id));
+	const siblings = parent.children.filter((id) => !selected.has(id));
+	if (index > siblings.length) throw new EditError("E_SHAPE", "The move index is outside the target", parent.id);
+	const sourceParent = selection.parent;
+	const orderedIds = sourceParent.children.filter((id) => selected.has(id));
+	const items = orderedIds.map((id) => nodeOf(doc, id)).map((node) => ({
+		node,
+		block: node.block
+	})).filter((item) => Boolean(item.block));
+	const first = items[0];
+	const firstBlock = doc.source.slice(first.block.start, first.block.end);
+	const labelOffset = first.block.start + firstLineMarker(firstBlock);
+	const destinationPrevious = index > 0 ? doc.nodes.get(siblings[index - 1]) : void 0;
+	const destinationNext = index < siblings.length ? doc.nodes.get(siblings[index]) : void 0;
+	let position = doc.source.length;
+	if (destinationNext?.block) position = destinationNext.block.start;
+	else if (destinationPrevious?.block) position = destinationPrevious.block.end + newlineLengthAt(doc.source, destinationPrevious.block.end);
+	else if (parent.block) position = parent.block.end + newlineLengthAt(doc.source, parent.block.end);
+	const after = [
+		...siblings.slice(0, index),
+		...orderedIds,
+		...siblings.slice(index)
+	];
+	if (sourceParent.id === parent.id && after.join("\0") === parent.children.join("\0")) return {
+		edits: [],
+		selection: {
+			kind: "source",
+			offset: labelOffset
+		},
+		verify() {}
+	};
+	const ending = lineEnding(doc.source);
+	let afterHeading = destinationPrevious?.kind === "heading";
+	const blocks = [];
+	for (const item of items) {
+		const block = moveNodeBlock(doc, item.node, item.block, parent, afterHeading, ending);
+		blocks.push(block);
+		afterHeading = block.heading;
+	}
+	const moved = joinMovedBlocks(blocks, ending);
+	const cuts = mergeCuts(items.map((item) => cutForMove(doc.source, item.node, item.block)));
+	for (const cut of cuts) if (position > cut.start && position < cut.end) position = cut.start;
+	let gapEnd = position;
+	while (gapEnd < doc.source.length) {
+		const end = lineEnd(doc.source, gapEnd);
+		if (doc.source.slice(gapEnd, end).trim()) break;
+		gapEnd = end + newlineLengthAt(doc.source, end);
+	}
+	for (const cut of cuts) if (gapEnd > cut.start && gapEnd <= cut.end && cut.start >= position) gapEnd = cut.start;
+	const gap = gapEnd - position;
+	let afterCut = gapEnd;
+	for (const cut of cuts) if (gapEnd >= cut.start && gapEnd <= cut.end) afterCut = Math.max(afterCut, cut.end);
+	let text = moved;
+	const startsHeading = /^#{1,6}(?:[ \t]|$)/u.test(text);
+	const cutAtEnd = cuts.find((cut) => cut.end === position);
+	const anchor = cutAtEnd ? cutAtEnd.start : position;
+	const blankBefore = gap === 0 && hasBlankBefore(doc.source, anchor);
+	let leading = 0;
+	if (startsHeading && parent.kind !== "listItem" && !blankBefore) {
+		text = ending + text;
+		leading = ending.length;
+	}
+	if (afterCut < doc.source.length && nextTextStartsWithHeading(doc.source, afterCut)) text += ending + ending;
+	const before = cutAtEnd ? cutAtEnd.start - 1 : position - 1;
+	const atLineStart = before < 0 || doc.source[before] === "\n";
+	const following = gapEnd < doc.source.length || gapEnd === doc.source.length && doc.source.endsWith(ending);
+	const placed = placeBlock(text, ending, atLineStart, following);
+	const edits = cuts.map((cut) => ({
+		from: cut.start,
+		to: cut.end,
+		insert: ""
+	}));
+	edits.push(gap > 0 ? {
+		from: position,
+		to: gapEnd,
+		insert: placed.insert
+	} : {
+		from: position,
+		to: position,
+		insert: placed.insert
+	});
+	return {
+		edits,
+		selection: {
+			kind: "insert",
+			edit: cuts.length,
+			offset: placed.leading + leading + firstLineMarker(blocks[0].text)
+		},
+		verify(next) {
+			if (contentNodeCount(next) !== contentNodeCount(doc)) throw shape("The batch move changed the node count");
+			if (items.length !== ids.length) throw shape("The batch move lost a selected block");
+			const target = parent.block ? nodeByBlockStart(next, mapOffset(edits, parent.block.start)) : next.nodes.get(next.root);
+			if (!target) throw shape("The batch move lost the target");
+			const children = target.children.slice(index, index + ids.length);
+			if (children.length !== ids.length) throw shape("The batch move did not place every moved node");
+			for (let offset = 0; offset < items.length; offset += 1) {
+				const child = next.nodes.get(children[offset]);
+				if (!child || child.parent !== target.id) throw shape("The moved node has the wrong parent");
+				if (comparableLabel(next, child) !== comparableLabel(doc, items[offset].node)) throw shape("The moved label changed");
+				if (countSubtree(next, child) !== countSubtree(doc, items[offset].node)) throw shape("The moved subtree changed");
+			}
 		}
 	};
 }

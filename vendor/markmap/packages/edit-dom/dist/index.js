@@ -155,6 +155,7 @@ var MarkmapEditor = class {
 	container;
 	field;
 	selectionBox;
+	extraSelectionBoxes = [];
 	indicator;
 	layer;
 	history = new History();
@@ -168,6 +169,7 @@ var MarkmapEditor = class {
 	doc;
 	title = "";
 	selectedId = null;
+	selectedIds = [];
 	selectionOffset = 0;
 	editing = null;
 	notes = null;
@@ -218,6 +220,7 @@ var MarkmapEditor = class {
 		this.stops.push(this.view.on("render", this.handleViewChange));
 		this.stops.push(this.view.on("zoom", this.handleViewChange));
 		this.selectedId = this.doc.root;
+		this.selectedIds = [this.doc.root];
 		this.selectionOffset = this.doc.nodes.get(this.doc.root)?.label?.start ?? 0;
 		this.setMode(false);
 		this.paintSelection();
@@ -435,6 +438,7 @@ var MarkmapEditor = class {
 		this.container.classList.remove(MODE_SELECT, MODE_EDIT);
 		this.editing = null;
 		this.selectedId = null;
+		this.selectedIds = [];
 	}
 	handleInput = () => {
 		if (!this.editing) return;
@@ -476,7 +480,7 @@ var MarkmapEditor = class {
 			return;
 		}
 		if ((hit.kind === "node" || hit.kind === "toggle") && hit.nodeId) {
-			this.select(hit.nodeId, { reveal: false });
+			this.selectFromClick(hit.nodeId, event);
 			this.container.focus({ preventScroll: true });
 		}
 	};
@@ -518,11 +522,13 @@ var MarkmapEditor = class {
 		const nodeId = this.dragNodeAt(event);
 		if (!nodeId) return;
 		if (!this.doc.nodes.get(nodeId)?.capabilities.move) return;
+		const nodeIds = this.selectedIds.length > 1 && this.selectedIds.includes(nodeId) ? this.selectedIdsInOrder(this.selectedIds) : [nodeId];
 		if (this.editing && this.commitEditing() === "error") return;
 		const win = this.container.ownerDocument.defaultView;
 		if (!win) return;
 		this.drag = {
 			nodeId,
+			nodeIds,
 			pointerId: event.pointerId,
 			startX: event.clientX,
 			startY: event.clientY,
@@ -530,7 +536,7 @@ var MarkmapEditor = class {
 			clientY: event.clientY,
 			active: false,
 			ghost: null,
-			sourceIds: this.subtreeIds(nodeId),
+			sourceIds: nodeIds.flatMap((id) => this.subtreeIds(id)),
 			folds: [...this.view.foldedIds],
 			target: null,
 			hover: null,
@@ -586,10 +592,10 @@ var MarkmapEditor = class {
 	}
 	startDrag(drag) {
 		drag.active = true;
-		this.select(drag.nodeId, { reveal: false });
+		if (!this.selectedIds.includes(drag.nodeId)) this.select(drag.nodeId, { reveal: false });
 		this.container.classList.add("mm-editor-dragging");
 		if (typeof this.container.setPointerCapture === "function") this.container.setPointerCapture(drag.pointerId);
-		const ghost = this.buildGhost(drag.nodeId, drag.sourceIds);
+		const ghost = this.buildGhost(drag.nodeIds, drag.sourceIds);
 		drag.ghost = ghost;
 		this.view.element.append(ghost);
 		this.paintDragSource(drag);
@@ -605,17 +611,18 @@ var MarkmapEditor = class {
 		}
 		this.updateAutoPan(drag);
 	}
-	buildGhost(nodeId, ids) {
+	buildGhost(rootIds, ids) {
 		const svg = this.view.element;
 		const ghost = svg.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "g");
 		ghost.classList.add("mm-editor-drag-ghost");
 		const content = svg.ownerDocument.createElementNS("http://www.w3.org/2000/svg", "g");
 		const { k, x, y } = this.view.transform;
 		content.setAttribute("transform", `matrix(${k} 0 0 ${k} ${x} ${y})`);
+		const roots = new Set(rootIds);
 		const keys = /* @__PURE__ */ new Set();
 		for (const id of ids) {
 			keys.add(`node:${id}`);
-			if (id !== nodeId) keys.add(`edge:${id}`);
+			if (!roots.has(id)) keys.add(`edge:${id}`);
 		}
 		for (const element of svg.querySelectorAll("[data-key]")) {
 			const key = element.getAttribute("data-key");
@@ -668,9 +675,9 @@ var MarkmapEditor = class {
 		style.display = "block";
 	}
 	dropTargetAt(drag, x, y) {
-		const dragged = this.doc.nodes.get(drag.nodeId);
-		if (!dragged) return null;
+		if (!this.doc.nodes.get(drag.nodeId)) return null;
 		const excluded = new Set(drag.sourceIds);
+		const draggedIds = new Set(drag.nodeIds);
 		const boxes = [];
 		for (const id of this.doc.order) {
 			const node = this.doc.nodes.get(id);
@@ -681,11 +688,11 @@ var MarkmapEditor = class {
 				rect
 			});
 		}
-		for (const box of boxes) if (x >= box.rect.x - 4 && x <= box.rect.x + box.rect.width + 4 && y >= box.rect.y - 4 && y <= box.rect.y + box.rect.height + 4) return this.zoneTarget(dragged, box.node, box.rect, x, y, false);
+		for (const box of boxes) if (x >= box.rect.x - 4 && x <= box.rect.x + box.rect.width + 4 && y >= box.rect.y - 4 && y <= box.rect.y + box.rect.height + 4) return this.zoneTarget(draggedIds, box.node, box.rect, x, y, false);
 		const root = this.doc.nodes.get(this.doc.root);
 		if (root) {
 			const rootRect = this.view.screenRect(root.id);
-			if (rootRect && x >= rootRect.x - 48 && x <= rootRect.x + rootRect.width + 48 && y >= rootRect.y - 48 && y <= rootRect.y + rootRect.height + 48) return this.rootTarget(root, dragged, rootRect, x, y);
+			if (rootRect && x >= rootRect.x - 48 && x <= rootRect.x + rootRect.width + 48 && y >= rootRect.y - 48 && y <= rootRect.y + rootRect.height + 48) return this.rootTarget(root, draggedIds, rootRect, x, y);
 		}
 		let nearest = null;
 		let distance = 24;
@@ -698,9 +705,9 @@ var MarkmapEditor = class {
 				nearest = box;
 			}
 		}
-		return nearest ? this.zoneTarget(dragged, nearest.node, nearest.rect, x, y, true) : null;
+		return nearest ? this.zoneTarget(draggedIds, nearest.node, nearest.rect, x, y, true) : null;
 	}
-	zoneTarget(dragged, node, rect, x, y, gap) {
+	zoneTarget(draggedIds, node, rect, x, y, gap) {
 		const vertical = this.isVertical(node.id);
 		let kind;
 		if (gap) kind = (vertical ? x < rect.x + rect.width / 2 : y < rect.y + rect.height / 2) ? "before" : "after";
@@ -719,7 +726,7 @@ var MarkmapEditor = class {
 			if (!node.capabilities.addChild) kind = vertical ? x < rect.x + rect.width / 2 ? "before" : "after" : y < rect.y + rect.height / 2 ? "before" : "after";
 			else return {
 				parentId: node.id,
-				index: node.children.filter((id) => id !== dragged.id).length,
+				index: node.children.filter((id) => !draggedIds.has(id)).length,
 				kind,
 				targetId: node.id
 			};
@@ -728,7 +735,7 @@ var MarkmapEditor = class {
 		if (!parentId) return null;
 		const parent = this.doc.nodes.get(parentId);
 		if (!parent) return null;
-		const base = parent.children.filter((id) => id !== dragged.id).indexOf(node.id);
+		const base = parent.children.filter((id) => !draggedIds.has(id)).indexOf(node.id);
 		return {
 			parentId,
 			index: kind === "before" ? base : base + 1,
@@ -736,8 +743,8 @@ var MarkmapEditor = class {
 			targetId: node.id
 		};
 	}
-	rootTarget(root, dragged, rootRect, x, y) {
-		const siblings = root.children.filter((id) => id !== dragged.id);
+	rootTarget(root, draggedIds, rootRect, x, y) {
+		const siblings = root.children.filter((id) => !draggedIds.has(id));
 		if (!siblings.length) return null;
 		const wanted = x < rootRect.x + rootRect.width / 2 ? "left" : "right";
 		const sided = siblings.filter((id) => this.view.direction(id) === wanted);
@@ -854,7 +861,10 @@ var MarkmapEditor = class {
 			if (typeof this.container.releasePointerCapture === "function") this.container.releasePointerCapture(drag.pointerId);
 			this.suppressClick = true;
 			this.applyFoldState(drag.folds);
-			if (drop && drag.target) this.moveTo(drag.target.parentId, drag.target.index, drag.nodeId);
+			if (drop && drag.target) {
+				if (drag.nodeIds.length > 1) this.moveGroupTo(drag.target.parentId, drag.target.index, drag.nodeIds);
+				else this.moveTo(drag.target.parentId, drag.target.index, drag.nodeId);
+			}
 		}
 		const ghost = drag.ghost;
 		if (ghost) {
@@ -927,6 +937,37 @@ var MarkmapEditor = class {
 			if (grand) this.moveTo(grand.id, grand.children.indexOf(parent.id) + 1, node.id);
 		}
 	}
+	moveGroupByKey(key) {
+		const ids = this.selectedIdsInOrder(this.selectedIds);
+		const first = this.doc.nodes.get(ids[0]);
+		const parent = first?.parent ? this.doc.nodes.get(first.parent) : void 0;
+		if (parent) {
+			const selected = new Set(ids);
+			const siblings = parent.children.filter((id) => !selected.has(id));
+			const firstIndex = parent.children.indexOf(ids[0]);
+			const lastIndex = parent.children.indexOf(ids[ids.length - 1]);
+			if (key === "ArrowUp") {
+				if (firstIndex <= 0) return;
+				const previous = parent.children[firstIndex - 1];
+				this.moveGroupTo(parent.id, siblings.indexOf(previous), ids);
+				return;
+			}
+			if (lastIndex >= parent.children.length - 1) return;
+			const next = parent.children[lastIndex + 1];
+			this.moveGroupTo(parent.id, siblings.indexOf(next) + 1, ids);
+		}
+	}
+	moveGroupTo(parentId, index, ids) {
+		const nodes = ids.filter((id) => this.doc.nodes.has(id));
+		if (!this.run({
+			type: "moveNodes",
+			nodes,
+			parent: parentId,
+			index
+		})) return false;
+		this.ensureVisible(this.selectedIds[0]);
+		return true;
+	}
 	moveTo(parentId, index, nodeId) {
 		const node = this.doc.nodes.get(nodeId);
 		if (!node) return false;
@@ -969,7 +1010,8 @@ var MarkmapEditor = class {
 		if (!this.selectedId) return;
 		if (mod && event.shiftKey && event.key.startsWith("Arrow")) {
 			event.preventDefault();
-			this.moveByKey(event.key);
+			if (this.selectedIds.length > 1 && (event.key === "ArrowUp" || event.key === "ArrowDown")) this.moveGroupByKey(event.key);
+			else this.moveByKey(event.key);
 			return;
 		}
 		switch (event.key) {
@@ -985,6 +1027,13 @@ var MarkmapEditor = class {
 			case "Delete":
 			case "Backspace":
 				event.preventDefault();
+				if (this.selectedIds.length > 1) {
+					this.run({
+						type: "deleteNodes",
+						nodes: this.selectedIdsInOrder(this.selectedIds)
+					});
+					return;
+				}
 				if (this.selectedNode()?.kind === "root") return;
 				this.runSelected({ type: "delete" });
 				return;
@@ -995,6 +1044,11 @@ var MarkmapEditor = class {
 				return;
 			case "Escape":
 				event.preventDefault();
+				if (this.selectedIds.length > 1) {
+					const anchor = this.selectedId ?? this.selectedIds[0];
+					this.selectionOffset = this.offsetOf(anchor);
+					this.select(anchor, { reveal: false });
+				}
 				return;
 			case "ArrowUp":
 			case "ArrowDown":
@@ -1353,7 +1407,12 @@ var MarkmapEditor = class {
 			this.render(this.doc.source, result.tree);
 		}
 		this.restoreFolds(folds, result);
-		this.selectAt(result.selection, { reveal: false });
+		if (command.type === "moveNodes") {
+			const moved = (result.document.nodes.get(command.parent)?.children ?? []).slice(command.index, command.index + command.nodes.length);
+			const anchor = moved[0];
+			this.selectionOffset = this.offsetOf(anchor);
+			this.selectGroup(moved, anchor, { reveal: false });
+		} else this.selectAt(result.selection, { reveal: false });
 		if (command.type === "setNotes") this.select(command.node, { reveal: false });
 		this.emitChange();
 		return result;
@@ -1504,6 +1563,7 @@ var MarkmapEditor = class {
 			editing.preview = false;
 			editing.previewId = editing.nodeId;
 			this.selectedId = editing.nodeId;
+			this.selectedIds = [editing.nodeId];
 		}
 		editing.draft = null;
 		editing.draftText = null;
@@ -1608,6 +1668,45 @@ var MarkmapEditor = class {
 		const child = node.children[0];
 		if (child) this.select(child);
 	}
+	selectFromClick(id, event) {
+		const node = this.doc.nodes.get(id);
+		if (!node) return;
+		const anchor = this.selectedNode();
+		const parentId = node.parent;
+		if (anchor !== void 0 && parentId !== null && anchor.parent === parentId && anchor) {
+			const parent = this.doc.nodes.get(node.parent ?? this.doc.root);
+			if (parent) {
+				if (event.shiftKey) {
+					const from = parent.children.indexOf(anchor.id);
+					const to = parent.children.indexOf(node.id);
+					const start = Math.min(from, to);
+					const end = Math.max(from, to);
+					this.selectionOffset = this.offsetOf(anchor.id);
+					this.selectGroup(parent.children.slice(start, end + 1), anchor.id, { reveal: false });
+					return;
+				} else if (event.metaKey || event.ctrlKey) {
+					if (node.id === anchor.id) {
+						this.selectionOffset = this.offsetOf(anchor.id);
+						return;
+					}
+					const ids = this.selectedIds.includes(node.id) ? this.selectedIds.filter((selected) => selected !== node.id) : [...this.selectedIds, node.id];
+					this.selectionOffset = this.offsetOf(anchor.id);
+					this.selectGroup(ids, anchor.id, { reveal: false });
+					return;
+				}
+			}
+		}
+		this.selectionOffset = this.offsetOf(node.id);
+		this.select(node.id, { reveal: false });
+	}
+	offsetOf(id) {
+		const node = this.doc.nodes.get(id);
+		return node?.label?.start ?? node?.block?.start ?? this.selectionOffset;
+	}
+	selectedIdsInOrder(ids) {
+		const selected = new Set(ids.filter((id) => this.doc.nodes.has(id)));
+		return this.doc.order.filter((id) => selected.has(id));
+	}
 	selectAt(offset, options = {}) {
 		this.selectionOffset = offset;
 		const node = nodeAtOffset(this.doc, offset);
@@ -1615,9 +1714,14 @@ var MarkmapEditor = class {
 		this.select(node?.id ?? fallback, options);
 	}
 	select(id, options = {}) {
-		this.selectedId = id;
+		this.selectGroup(id ? [id] : [], id, options);
+	}
+	selectGroup(ids, anchor, options = {}) {
+		const ordered = this.selectedIdsInOrder(ids);
+		this.selectedIds = ordered;
+		this.selectedId = anchor && ordered.includes(anchor) ? anchor : ordered[0] ?? null;
 		this.paintSelection();
-		if (id && options.reveal !== false) this.ensureVisible(id);
+		if (this.selectedId && options.reveal !== false) this.ensureVisible(this.selectedId);
 	}
 	ensureVisible(id) {
 		const rect = this.view.screenRect(id);
@@ -1644,11 +1748,14 @@ var MarkmapEditor = class {
 		return (label === EMPTY_LABEL || label.trim() === "") && (node.kind === "root" || node.capabilities.editLabel);
 	}
 	historyEntry() {
-		return {
+		const group = this.selectedIdsInOrder(this.selectedIds);
+		const entry = {
 			source: this.doc.source,
-			selection: this.selectionOffset,
+			selection: this.selectedId ? this.offsetOf(this.selectedId) : this.selectionOffset,
 			folded: [...this.view.foldedIds]
 		};
+		if (group.length > 1) entry.group = group.map((id) => this.offsetOf(id));
+		return entry;
 	}
 	restore(entry) {
 		const parsed = parseDocument(entry.source);
@@ -1658,8 +1765,24 @@ var MarkmapEditor = class {
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
 		this.render(this.doc.source, parsed.tree);
 		this.view.setFoldedIds(entry.folded, { animate: false });
-		this.selectAt(entry.selection, { reveal: false });
+		this.restoreSelection(entry);
 		this.emitChange();
+	}
+	restoreSelection(entry) {
+		const group = entry.group;
+		if (group?.length) {
+			const ids = [];
+			for (const offset of group) {
+				const node = nodeAtOffset(this.doc, offset);
+				if (node && !ids.includes(node.id)) ids.push(node.id);
+			}
+			const anchor = nodeAtOffset(this.doc, entry.selection);
+			const anchorId = anchor && ids.includes(anchor.id) ? anchor.id : ids[0];
+			this.selectionOffset = this.offsetOf(anchorId);
+			this.selectGroup(ids, anchorId, { reveal: false });
+			return;
+		}
+		this.selectAt(entry.selection, { reveal: false });
 	}
 	captureFolds(doc) {
 		const anchors = [];
@@ -1684,6 +1807,10 @@ var MarkmapEditor = class {
 		this.view.element.querySelectorAll(".mm-editor-selected").forEach((element) => {
 			element.classList.remove("mm-editor-selected");
 		});
+		for (const box of this.extraSelectionBoxes) box.remove();
+		this.extraSelectionBoxes.length = 0;
+		const painted = this.editing ? [this.editing.previewId] : this.selectedIds;
+		for (const id of painted) this.nodeGroup(id)?.classList.add("mm-editor-selected");
 		const id = this.editing?.previewId ?? this.selectedId;
 		if (!id) {
 			this.selectionBox.style.display = "none";
@@ -1694,22 +1821,33 @@ var MarkmapEditor = class {
 			this.selectionBox.style.display = "none";
 			return;
 		}
-		this.nodeGroup(id)?.classList.add("mm-editor-selected");
 		if (this.drag?.active) {
 			this.selectionBox.style.display = "none";
 			return;
 		}
-		const rect = this.view.screenRect(id);
-		const box = this.container.getBoundingClientRect();
-		if (!rect) {
-			this.selectionBox.style.display = "none";
-			return;
+		const boxes = [this.selectionBox];
+		while (boxes.length < painted.length) {
+			const box = this.container.ownerDocument.createElement("div");
+			box.className = "mm-editor-selection";
+			this.layer.insertBefore(box, this.indicator);
+			this.extraSelectionBoxes.push(box);
+			boxes.push(box);
 		}
-		this.selectionBox.style.display = "block";
-		this.selectionBox.style.left = `${rect.x - box.x - 2}px`;
-		this.selectionBox.style.top = `${rect.y - box.y - 2}px`;
-		this.selectionBox.style.width = `${rect.width + 4}px`;
-		this.selectionBox.style.height = `${rect.height + 4}px`;
+		const box = this.container.getBoundingClientRect();
+		for (const [index, nodeId] of painted.entries()) {
+			const frame = boxes[index];
+			if (!frame) continue;
+			const rect = this.view.screenRect(nodeId);
+			if (!rect) {
+				frame.style.display = "none";
+				continue;
+			}
+			frame.style.display = "block";
+			frame.style.left = `${rect.x - box.x - 2}px`;
+			frame.style.top = `${rect.y - box.y - 2}px`;
+			frame.style.width = `${rect.width + 4}px`;
+			frame.style.height = `${rect.height + 4}px`;
+		}
 	}
 	paintEditing() {
 		this.view.element.querySelectorAll(".mm-editor-editing").forEach((element) => {

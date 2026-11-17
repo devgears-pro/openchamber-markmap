@@ -25,6 +25,10 @@ A matching text file opens as an interactive Markmap. The renderer receives the 
 
 A matching file opens with the root selected. A left click selects a node, draws a frame around it, highlights its SVG group, and focuses the editor surface so Enter and Tab act on that node. A left click on the empty canvas clears the selection, its SVG highlight, and its frame, and moves DOM focus out of the editor surface; a later click on a node selects it again and restores focus to the surface. The frame follows the node's screen rectangle, not the edit field, including for an empty first-level topic. The focused surface draws no browser focus ring; the selection frame is the only focus mark.
 
+### R-35 Sibling multi-selection
+
+An editable map lets a user select sibling nodes and move or delete them as a group. The first plain-clicked node is the anchor and primary; Cmd/Ctrl-click toggles a sibling without changing it, and Shift-click selects the inclusive sibling range from the anchor. A plain click selects one node and makes it the new anchor and primary, so a plain click on a node with another parent starts a new single-node selection. Selection does not change Markdown or dirty state. Dragging a selected node or using Cmd/Ctrl+Shift+Up/Down moves the selected subtrees as one contiguous block, preserving their relative order; the moved siblings stay selected with the first moved node as the anchor. After a group move or delete, undo and redo restore the selection of the restored state, and undo of a group delete selects the deleted siblings again. Delete/Backspace removes the selected siblings and their subtrees, then selects the previous sibling, the parent when it has a source label or block, otherwise the next surviving sibling or the document end. Group move and delete are atomic, each producing one dirty change and one undo step. Read-only maps expose no multi-selection. Copy, cut, paste, markers, notes, and toolbar actions remain primary-node only; group clipboard actions are out of scope.
+
 ### R-04 Theme
 
 The map uses the host theme mode (`light` or `dark`), not a color scheme from file frontmatter. A host theme change redraws the existing view without recreating it.
@@ -184,3 +188,4 @@ Naming an editable synthetic root with no top-level H1, or a title root with no 
 | R-31        | `tests/acceptance/markmap.spec.ts`                                                                                        |
 | R-32        | `tests/options.test.ts`, `tests/acceptance/theme.spec.ts`                                                                 |
 | R-33        | `tests/zoom.test.ts`, `tests/markmap-view.test.ts`, acceptance                                                            |
+| R-35        | `tests/acceptance/markmap.spec.ts`                                                                                        |

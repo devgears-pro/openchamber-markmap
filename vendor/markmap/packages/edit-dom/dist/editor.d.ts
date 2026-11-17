@@ -5,6 +5,7 @@ export declare class MarkmapEditor {
     private readonly container;
     private readonly field;
     private readonly selectionBox;
+    private readonly extraSelectionBoxes;
     private readonly indicator;
     private readonly layer;
     private readonly history;
@@ -18,6 +19,7 @@ export declare class MarkmapEditor {
     private doc;
     private title;
     private selectedId;
+    private selectedIds;
     private selectionOffset;
     private editing;
     private notes;
@@ -87,6 +89,8 @@ export declare class MarkmapEditor {
     private applyFoldState;
     private subtreeIds;
     private moveByKey;
+    private moveGroupByKey;
+    private moveGroupTo;
     private moveTo;
     private handleKeyDown;
     private handleEditingKey;
@@ -122,8 +126,12 @@ export declare class MarkmapEditor {
     private stopEditingUi;
     private positionEditing;
     private navigate;
+    private selectFromClick;
+    private offsetOf;
+    private selectedIdsInOrder;
     private selectAt;
     private select;
+    private selectGroup;
     private ensureVisible;
     private selectedNode;
     private canCreateRoot;
@@ -131,6 +139,7 @@ export declare class MarkmapEditor {
     private isEmptyLabel;
     private historyEntry;
     private restore;
+    private restoreSelection;
     private captureFolds;
     private restoreFolds;
     private paintSelection;

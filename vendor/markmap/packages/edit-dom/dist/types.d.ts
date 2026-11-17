@@ -50,4 +50,5 @@ export interface HistoryEntry {
     source: string;
     selection: number;
     folded: string[];
+    group?: number[];
 }
