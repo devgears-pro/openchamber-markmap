@@ -1,5 +1,11 @@
 import { MarkmapEditor, createEditView } from '@markmap/edit-dom';
-import { labelText, parseDocument } from '@markmap/model';
+import {
+  labelText,
+  newConventionIssues,
+  parseDocument,
+  validateConventions,
+  type Issue,
+} from '@markmap/model';
 import type { DrawGroup } from '@markmap/render';
 import { createToolbar } from '@markmap/toolbar';
 import { Markmap } from '@markmap/view';
@@ -44,6 +50,7 @@ export type MarkmapMount = {
   onSource: (change: MarkmapSourceChange) => void;
   onDraft: (change: MarkmapSourceChange) => void;
   onError: (message: string) => void;
+  onDiagnostics?: (issues: Issue[]) => void;
   onOpenUrl: (url: string) => void;
 };
 
@@ -80,6 +87,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     const parsed = parseDocument(source);
     const resolved = optionsFor(mount.colorScheme, parsed.frontmatter);
     for (const warning of resolved.warnings) mount.onError(warning);
+    const initialIssues = validateConventions(parsed.document);
+    if (initialIssues.length > 0) mount.onDiagnostics?.(initialIssues);
     markmap = Markmap.create(mount.svg, parsed.tree, {
       ...resolved.options,
       graph: parsed.document.graph,
@@ -181,6 +190,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     };
     toolbar = createToolbar(instance, { items: createToolbarItems(resetView) });
 
+    let currentDoc = parsed.document;
+
     if (mount.editable) {
       const created = new MarkmapEditor({
         source,
@@ -188,6 +199,9 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         container: mount.surface,
         placeholder: '\u200B',
         onChange: (change) => {
+          const nextIssues = newConventionIssues(currentDoc, change.document);
+          if (nextIssues.length > 0) mount.onDiagnostics?.(nextIssues);
+          currentDoc = change.document;
           mount.onSource({
             source: change.source,
             selection: change.selection,

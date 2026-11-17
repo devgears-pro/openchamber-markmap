@@ -4,8 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@markmap/core": ["./vendor/markmap/packages/core/dist/index.d.ts"],
-      "@markmap/render": ["./vendor/markmap/packages/render/dist/index.d.ts"]
+      "@markmap/core": ["./vendor/markmap/packages/core"],
+      "@markmap/render": ["./vendor/markmap/packages/render"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,

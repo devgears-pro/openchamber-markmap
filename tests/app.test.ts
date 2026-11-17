@@ -16,6 +16,7 @@ import {
   type FileEditorDocument,
   type FileEditorSnapshot,
   type HostReadyContext,
+  type ToastRequest,
 } from '@openchamber/sdk';
 
 const SOURCE = `---
@@ -39,6 +40,7 @@ type HostHarness = {
   host: MarkmapHost;
   changes: FileEditorChange[];
   urls: string[];
+  toasts: () => ToastRequest[];
   unsupported: () => number;
   emitReady: (context: HostReadyContext) => void;
   emitFile: (file: FileEditorDocument) => void;
@@ -54,6 +56,7 @@ const createHost = (): HostHarness => {
   let unsupported = 0;
   const changes: FileEditorChange[] = [];
   const urls: string[] = [];
+  const toasts: ToastRequest[] = [];
 
   const host: MarkmapHost = {
     onReady: (listener) => {
@@ -92,12 +95,19 @@ const createHost = (): HostHarness => {
         ? Promise.reject(new Error('blocked'))
         : Promise.resolve();
     },
+    toast: (request) => {
+      toasts.push(request);
+      return request.message.startsWith('reject:')
+        ? Promise.reject(new Error('toast failed'))
+        : Promise.resolve();
+    },
   };
 
   return {
     host,
     changes,
     urls,
+    toasts: () => toasts,
     unsupported: () => unsupported,
     emitReady: (context: HostReadyContext) => ready?.(context),
     emitFile: (file: FileEditorDocument) => open?.(file),
@@ -943,5 +953,66 @@ describe('Markmap file editor', () => {
     expect(markmaps.mounts).toHaveLength(0);
     expect(root.querySelector('.mm-error')).toBeNull();
     expect(root.querySelector('.mm-editor-surface')).not.toBeNull();
+  });
+
+  test('[R-38] shows host toast when convention issues are reported', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile('# Root\n'));
+
+    expect(markmaps.mounts).toHaveLength(1);
+    const lastMount = markmaps.mounts[0];
+    if (lastMount === undefined) throw new Error('No mount');
+
+    expect(host.toasts()).toHaveLength(0);
+
+    lastMount.onDiagnostics?.([{ code: 'E_IDENTITY', message: 'Duplicate identity' }]);
+    expect(host.toasts()).toEqual([
+      { kind: 'error', message: 'Duplicate identity', dismiss: true },
+    ]);
+
+    lastMount.onDiagnostics?.([
+      { code: 'E_IDENTITY', message: 'Issue 1' },
+      { code: 'E_GRAPH', message: 'Issue 2' },
+    ]);
+    expect(host.toasts().at(-1)).toEqual({
+      kind: 'error',
+      message: '2 convention issues: Issue 1, Issue 2',
+      dismiss: true,
+    });
+  });
+
+  test('[R-38] ignores empty diagnostics lists', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile('# Root\n'));
+
+    const lastMount = markmaps.mounts[0];
+    if (lastMount === undefined) throw new Error('No mount');
+
+    lastMount.onDiagnostics?.([]);
+    expect(host.toasts()).toHaveLength(0);
+  });
+
+  test('[R-38] ignores a rejected toast promise', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile('# Root\n'));
+
+    const lastMount = markmaps.mounts[0];
+    if (lastMount === undefined) throw new Error('No mount');
+
+    lastMount.onDiagnostics?.([{ code: 'E_IDENTITY', message: 'reject: fail' }]);
+    expect(host.toasts()).toHaveLength(1);
+  });
+
+  test('[R-38] preserves document bytes and keeps notice hidden in fail-safe mode', async () => {
+    const invalidSource = '# Root\n\n- Node A <!-- ^a -->\n- Node B <!-- ^a -->\n';
+    const { host } = mount();
+    host.emitFile(textFile(invalidSource));
+
+    const notice = root.querySelector<HTMLElement>('.mm-notice');
+    if (notice === null) throw new Error('No notice');
+    expect(notice.hidden).toBe(true);
+
+    const snap = await host.snapshot();
+    expect(contentOf(snap)).toBe(invalidSource);
   });
 });

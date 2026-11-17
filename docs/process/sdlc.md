@@ -97,6 +97,7 @@ After the PR merges, post the closing proof on the issue and close it. A merged 
 | Docs             | `bun run lint:docs`          | yes          |
 | Dead code        | `bun run check:dead-code`    | yes          |
 | Requirements     | `bun run check:requirements` | yes          |
+| Conventions      | `bun run check:conventions`  | yes          |
 | Bundle freshness | `bun run check:bundle-fresh` | yes          |
 | Reproducibility  | `bun run check:reproducible` | yes          |
 | Coverage         | `bun run test:coverage`      | yes          |
