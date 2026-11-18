@@ -7,13 +7,34 @@ import { builtinLayouts, builtinThemes, softTheme } from '@markmap/render';
 import type { ToolbarOptions } from '@markmap/toolbar';
 import type { ViewOptions } from '@markmap/view';
 
-import { layoutFor } from '../src/markmap/layouts';
+import { layoutFor, type MarkmapLayout } from '../src/markmap/layouts';
 import type { MarkmapSourceChange } from '../src/markmap/view';
 
 const mocks = vi.hoisted(() => {
   const editorSelected: { value: string | null } = { value: 'root' };
+  const editorFailLayout: { value: boolean } = { value: false };
   const editorOptions: MarkmapEditorOptions[] = [];
+  const sampleDocument: MarkmapModel.Document = {
+    conventionIssues: [],
+    nodes: new Map(),
+    order: [],
+    root: 'root',
+    rootPolicy: {
+      kind: 'source-heading',
+      hasTitle: false,
+      bodyStart: 0,
+      hasHeadingChild: true,
+      canCreateHeading: false,
+    },
+    source: '# Root',
+    unit: 'root',
+    identities: new Map(),
+    graph: { edges: [], groups: [], block: null },
+    frontmatterRange: null,
+  };
   return {
+    editorFailLayout,
+    sampleDocument,
     parseDocument: vi.fn(),
     labelText: vi.fn(),
     validateConventions: vi.fn<(doc?: unknown) => MarkmapModel.Issue[]>(() => []),
@@ -48,6 +69,7 @@ const mocks = vi.hoisted(() => {
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
     editorCommit: vi.fn(),
+    editorSetLayout: vi.fn<(layout: string) => void>(),
     editorSnapshotForSave: vi.fn<() => string>(),
     editorInsertBlock: vi.fn<(text: string) => boolean>(() => true),
     editorInsertLabel: vi.fn<(text: string) => boolean>(() => true),
@@ -130,6 +152,25 @@ vi.mock('@markmap/edit-dom', () => ({
 
     commit(): void {
       mocks.editorCommit();
+    }
+
+    setLayout(layout: string): void {
+      mocks.editorSetLayout(layout);
+      if (mocks.editorFailLayout.value) return;
+      const chosen: MarkmapLayout =
+        layout === 'tree' || layout === 'org-chart' ? layout : 'two-sided';
+      mocks.resolveViewOptions.mockReturnValue({
+        options: { colorScheme: 'light', layout: layoutFor(chosen) },
+        warnings: [],
+      });
+      const options = mocks.editorOptions[mocks.editorOptions.length - 1];
+      if (options?.onChange) {
+        options.onChange({
+          source: `---\nmarkmap:\n  layout: ${chosen}\n---\n\n# Root`,
+          selection: 0,
+          document: mocks.sampleDocument,
+        });
+      }
     }
 
     snapshot(): string {
@@ -499,12 +540,36 @@ describe('Markmap adapter', () => {
     result.view.setLayout('tree');
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+    expect(mocks.editorSetLayout).toHaveBeenCalledWith('tree');
+    expect(mocks.editorFocus).toHaveBeenCalledTimes(2);
     expect(markmap.setOptions).toHaveBeenCalledWith(
       expect.objectContaining({ layout: layoutFor('tree') }),
     );
     expect(markmap.fit).toHaveBeenCalledOnce();
     expect(result.view.layout).toBe('tree');
     expect(mocks.create).toHaveBeenCalledOnce();
+  });
+
+  test('[R-22] clicking the currently active layout is a no-op that does not commit an editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.setLayout('two-sided');
+
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
+    expect(mocks.editorSetLayout).not.toHaveBeenCalled();
+  });
+
+  test('[R-22] keeps the layout unchanged when the editor fails to update frontmatter', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    mocks.editorFailLayout.value = true;
+    result.view.setLayout('tree');
+    mocks.editorFailLayout.value = false;
+
+    expect(result.view.layout).toBe('two-sided');
+    expect(markmap.fit).not.toHaveBeenCalled();
   });
 
   test('[R-22] switches a read-only map without committing an editor', () => {
@@ -519,6 +584,21 @@ describe('Markmap adapter', () => {
     );
     expect(markmap.fit).toHaveBeenCalledOnce();
     expect(result.view.layout).toBe('org-chart');
+  });
+
+  test('[R-22] notifies layout change listeners and allows unsubscription', () => {
+    const { result } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    const listener = vi.fn();
+    const unsubscribe = result.view.onLayoutChange?.(listener);
+
+    result.view.setLayout('org-chart');
+    expect(listener).toHaveBeenCalledWith('org-chart');
+
+    unsubscribe?.();
+    result.view.setLayout('tree');
+    expect(listener).toHaveBeenCalledOnce();
   });
 
   test('[R-17] opens an http link through the host callback', () => {

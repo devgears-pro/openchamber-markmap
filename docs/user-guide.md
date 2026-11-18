@@ -29,7 +29,7 @@ Other Markdown files, including a plain `*.md`, stay in OpenChamber's source edi
 
 Headings and list items become map branches. Paragraphs become notes on a node.
 
-The toolbar can switch between `tree`, `two-sided`, and `org-chart` layouts. A file without `markmap.layout` opens as a two-sided map. Set that frontmatter value to keep a layout in the file. The default theme is `soft`. Set `markmap.theme` to `classic`, `cards`, `minimal`, or `soft` to choose a theme. Other Markmap frontmatter options, including `foldLevel` and `colorDepth`, remain available.
+The toolbar can switch between `tree`, `two-sided`, and `org-chart` layouts. A file without `markmap.layout` opens as a two-sided map. In an editable map, choosing a layout saves `markmap.layout` in frontmatter. The default theme is `soft`. Set `markmap.theme` to `classic`, `cards`, `minimal`, or `soft` to choose a theme. Other Markmap frontmatter options, including `foldLevel` and `colorDepth`, remain available.
 
 ### Node identities, relationships, and groups
 
@@ -101,7 +101,7 @@ A saved group boundary and a temporary sibling selection are separate controls. 
 
 After committing a label, the node stays selected. Press **Enter** again to add a sibling. Shift+Enter inserts a line break in a list item. The editor keeps the file as Markdown and preserves untouched source.
 
-The toolbar switches layouts, sets markers, opens notes, and fits or resets the view. Changing the layout does not change the file.
+The toolbar switches layouts, sets markers, opens notes, and fits or resets the view. In an editable map, changing the layout saves `markmap.layout` in frontmatter; in a read-only map, it updates the view only.
 
 ## Notes and markers
 

@@ -63,7 +63,7 @@ The host owns the file. The editor receives text through `onFileOpen`, returns t
 
 - Keep extensions in the fork; `src/` is host wiring and UI.
 - Clipboard behavior is DOM `copy`, `cut`, and `paste` events plus a hidden textarea sink; the fork's `insertBlock` carries a block of Markdown. Do not add `navigator.clipboard` or a host clipboard read.
-- Files stay readable Markdown; any convention is documented, validator-checked, and rendered by the fork.
+- Files stay readable Markdown. Use standard Markdown wherever it can express the content. Keep files minimal and readable by people and LLMs. Add only the metadata needed for behavior Markdown cannot express. Any convention is documented, validator-checked, and rendered by the fork.
 - Keep `contributes.fileEditors.match` narrow. The six suffixes in `package.json` are the product decision; never claim `*.md`.
 - An open label reports each valid draft as the saveable text before the first snapshot, so a clean file becomes dirty while the field keeps focus; the committed document still arrives through `onSource`. Notes keep the snapshot-driven path: they do not report drafts, and a note is committed when the host requests a snapshot. `onFileSnapshot` returns the current Markdown or the original bytes and a content-derived version without exiting edit mode or moving focus. An unchanged text file round-trips byte-for-byte.
 - Report edits with `createFileSaveTracker`: `observe` on source change, `markSaved` on `onFileSaved`.

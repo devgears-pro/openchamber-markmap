@@ -76,6 +76,10 @@ export type Command = {
     from: string;
     to: string;
     label: string | null;
+} | {
+    type: 'setLayout';
+    layout: string;
+    node?: string | null;
 };
 export interface EditResult {
     document: Document;

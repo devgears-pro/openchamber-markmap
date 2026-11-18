@@ -16,6 +16,7 @@ export interface ParseResult {
     bodyStart: number;
     /** Top-level raw HTML blocks with their source ranges. */
     htmlBlocks: HtmlBlock[];
+    frontmatterRange?: SourceRange | null;
 }
 export interface HtmlBlock {
     range: SourceRange;

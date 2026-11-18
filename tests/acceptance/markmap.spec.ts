@@ -400,6 +400,396 @@ test('[R-22] switches the live map between the native layouts', async ({ page })
     .toBe(true);
 });
 
+test('[R-22] saves selected layout and restores it when reopening the file', async ({ page }) => {
+  await page.goto('/dev/');
+  await expect(page.getByRole('button', { name: 'Two-sided' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const positions = async (): Promise<{
+    rootY: number;
+    featuresY: number;
+    controlsY: number;
+  }> =>
+    page.evaluate(() => {
+      const labels = [...document.querySelectorAll('.mm-markmap-svg text')];
+      const find = (label: string): DOMRect | undefined =>
+        labels.find((element) => element.textContent.trim() === label)?.getBoundingClientRect();
+      const root = find('Markmap');
+      const features = find('Features');
+      const controls = find('Controls');
+      if (!root || !features || !controls) throw new Error('Missing labels');
+      return {
+        rootY: root.y,
+        featuresY: features.y,
+        controlsY: controls.y,
+      };
+    });
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const saved = await page.evaluate(async () => {
+    const result = await window.devAutosave();
+    if (!result) throw new Error('Autosave failed');
+    window.devReopenFile(result.content);
+    return result.content;
+  });
+
+  expect(saved).toContain('layout: org-chart');
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('button', { name: 'Two-sided' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresY > next.rootY && next.controlsY > next.rootY;
+    })
+    .toBe(true);
+});
+
+test('[R-22] undo and redo restore layout frontmatter, view, and active toolbar button', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  const initial = await snapshotOf(page);
+  const twoSided = page.getByRole('button', { name: 'Two-sided' });
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+
+  const positions = async (): Promise<{
+    rootX: number;
+    rootY: number;
+    featuresX: number;
+    featuresY: number;
+    controlsX: number;
+    controlsY: number;
+  }> =>
+    page.evaluate(() => {
+      const labels = [...document.querySelectorAll('.mm-markmap-svg text')];
+      const find = (label: string): DOMRect | undefined =>
+        labels.find((element) => element.textContent.trim() === label)?.getBoundingClientRect();
+      const root = find('Markmap');
+      const features = find('Features');
+      const controls = find('Controls');
+      if (!root || !features || !controls) throw new Error('Missing labels');
+      return {
+        rootX: root.x,
+        rootY: root.y,
+        featuresX: features.x,
+        featuresY: features.y,
+        controlsX: controls.x,
+        controlsY: controls.y,
+      };
+    });
+
+  await expect(twoSided).toHaveAttribute('aria-pressed', 'true');
+  await orgChart.click();
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'true');
+  await expect(twoSided).toHaveAttribute('aria-pressed', 'false');
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresY > next.rootY && next.controlsY > next.rootY;
+    })
+    .toBe(true);
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+z`);
+
+  await expect(twoSided).toHaveAttribute('aria-pressed', 'true');
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'false');
+  expect(await snapshotOf(page)).toBe(initial);
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresX > next.rootX && next.controlsX < next.rootX;
+    })
+    .toBe(true);
+
+  await page.keyboard.press(`${modifier}+Shift+z`);
+
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'true');
+  await expect(twoSided).toHaveAttribute('aria-pressed', 'false');
+  expect(await snapshotOf(page)).toContain('layout: org-chart');
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresY > next.rootY && next.controlsY > next.rootY;
+    })
+    .toBe(true);
+});
+
+test('[R-22] switching layout in read-only file updates map view without modifying file', async ({
+  page,
+}) => {
+  await page.goto('/dev/?readonly=1');
+  const initial = await snapshotOf(page);
+
+  const positions = async (): Promise<{
+    rootY: number;
+    featuresY: number;
+    controlsY: number;
+  }> =>
+    page.evaluate(() => {
+      const labels = [...document.querySelectorAll('.mm-markmap-svg text')];
+      const find = (label: string): DOMRect | undefined =>
+        labels.find((element) => element.textContent.trim() === label)?.getBoundingClientRect();
+      const root = find('Markmap');
+      const features = find('Features');
+      const controls = find('Controls');
+      if (!root || !features || !controls) throw new Error('Missing labels');
+      return {
+        rootY: root.y,
+        featuresY: features.y,
+        controlsY: controls.y,
+      };
+    });
+
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+  await orgChart.click();
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'true');
+
+  await expect
+    .poll(async () => {
+      const next = await positions();
+      return next.featuresY > next.rootY && next.controlsY > next.rootY;
+    })
+    .toBe(true);
+
+  expect(await snapshotOf(page)).toBe(initial);
+});
+
+test('[R-22] clicking active layout leaves draft open while switching layout commits it', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  await page.getByText('Links', { exact: true }).first().click();
+  await page.keyboard.press('Space');
+
+  const field = page.locator('textarea.mm-editor-field');
+  await expect(field).toBeVisible();
+  await field.fill('Links updated');
+
+  const twoSided = page.getByRole('button', { name: 'Two-sided' });
+  await twoSided.click();
+
+  await expect(field).toBeVisible();
+  await expect(field).toHaveValue('Links updated');
+
+  const tree = page.getByRole('button', { name: 'Tree' });
+  await tree.click();
+
+  await expect(field).toBeHidden();
+  await expect(tree).toHaveAttribute('aria-pressed', 'true');
+  const snapshot = await snapshotOf(page);
+  expect(snapshot).toContain('Links updated');
+  expect(snapshot).toContain('layout: tree');
+});
+
+test('[R-22] preserves sibling group selection across layout switch', async ({ page }) => {
+  await page.goto('/dev/');
+  const features = page.getByText('Features', { exact: true }).first();
+  const controls = page.getByText('Controls', { exact: true }).first();
+
+  await features.click();
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await controls.click({ modifiers: [modifier] });
+
+  const selected = page.locator('.mm-editor-selected');
+  await expect(selected).toHaveCount(2);
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('.mm-editor-selected')).toHaveCount(2);
+});
+
+test('[R-22] preserves flow mapping style when inserting layout', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.evaluate(() => {
+    window.devReopenFile('---\nmarkmap: {theme: soft}\n---\n# Root\n\n- Node 1\n');
+  });
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const snapshot = await snapshotOf(page);
+  expect(snapshot).toBe(
+    '---\nmarkmap: {layout: org-chart, theme: soft}\n---\n# Root\n\n- Node 1\n',
+  );
+});
+
+test('[R-22] refuses layout switch on anchored frontmatter and keeps active button', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  const initial =
+    '---\nmarkmap:\n  layout: &chosen tree\ntheme: *chosen\n---\n# Root\n\n- Node 1\n';
+  await page.evaluate((content) => {
+    window.devReopenFile(content);
+  }, initial);
+
+  const tree = page.getByRole('button', { name: 'Tree' });
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+  await expect(tree).toHaveAttribute('aria-pressed', 'true');
+
+  await orgChart.click();
+  await expect(tree).toHaveAttribute('aria-pressed', 'true');
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'false');
+
+  expect(await snapshotOf(page)).toBe(initial);
+  await expect(page.locator('.mm-notice')).toBeVisible();
+  await expect(page.locator('.mm-notice')).toContainText('anchor');
+});
+
+test('[R-22] commits an open note before switching layout', async ({ page }) => {
+  await page.goto('/dev/?map=notes');
+  await page.getByText('Deploy', { exact: true }).first().click();
+  await page.getByRole('button', { name: 'Edit notes' }).click();
+
+  const field = page.locator('.mm-editor-notes-field');
+  await expect(field).toBeVisible();
+  await field.fill('Updated note before layout switch');
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('dialog', { name: 'Notes' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+
+  const snapshot = await snapshotOf(page);
+  expect(snapshot).toContain('Updated note before layout switch');
+  expect(snapshot).toContain('layout: org-chart');
+});
+
+test('[R-22] keeps node selection and fold state across layout switch', async ({ page }) => {
+  await page.goto('/dev/');
+  await page.getByText('Features', { exact: true }).first().click();
+
+  const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+  await page.keyboard.press(`${modifier}+/`);
+  await expect(page.getByText('Folding', { exact: true })).toBeHidden();
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+
+  await expect(page.locator('.mm-editor-selected')).toContainText('Features');
+  await expect(page.locator('.mm-editor-selection')).toBeVisible();
+  await expect(page.getByText('Folding', { exact: true })).toBeHidden();
+});
+
+test('[R-22] preserves empty layout comments and spacing when switching layout', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  await page.evaluate(() => {
+    window.devReopenFile('---\nmarkmap:\n  layout: # keep this comment\n---\n# Root\n\n- Node 1\n');
+  });
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(await snapshotOf(page)).toBe(
+    '---\nmarkmap:\n  layout: org-chart # keep this comment\n---\n# Root\n\n- Node 1\n',
+  );
+
+  await page.evaluate(() => {
+    window.devReopenFile('---\nmarkmap:\n  layout:\n---\n# Root\n\n- Node 1\n');
+  });
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(await snapshotOf(page)).toBe(
+    '---\nmarkmap:\n  layout: org-chart\n---\n# Root\n\n- Node 1\n',
+  );
+});
+
+test('[R-22] refuses layout switch on block scalar layout and shows notice', async ({ page }) => {
+  await page.goto('/dev/');
+  const initial =
+    '---\nmarkmap:\n  layout: |- # block comment\n    tree\n  theme: soft\n---\n# Root\n\n- Node 1\n';
+  await page.evaluate((content) => {
+    window.devReopenFile(content);
+  }, initial);
+
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+  await orgChart.click();
+
+  expect(await snapshotOf(page)).toBe(initial);
+  await expect(page.locator('.mm-notice')).toBeVisible();
+  await expect(page.locator('.mm-notice')).toContainText('block scalar');
+});
+
+test('[R-22] refuses layout switch on tagged layout and shows notice', async ({ page }) => {
+  await page.goto('/dev/');
+  const initial = '---\nmarkmap:\n  layout: !!null # keep\n---\n# Root\n\n- Node 1\n';
+  await page.evaluate((content) => {
+    window.devReopenFile(content);
+  }, initial);
+
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+  await orgChart.click();
+
+  expect(await snapshotOf(page)).toBe(initial);
+  await expect(page.locator('.mm-notice')).toBeVisible();
+  await expect(page.locator('.mm-notice')).toContainText('tagged');
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('[R-22] updates untagged null layout value preserving comment', async ({ page }) => {
+  await page.goto('/dev/');
+  const initial = '---\nmarkmap:\n  layout: null # keep\n---\n# Root\n\n- Node 1\n';
+  await page.evaluate((content) => {
+    window.devReopenFile(content);
+  }, initial);
+
+  const orgChart = page.getByRole('button', { name: 'Org chart' });
+  await orgChart.click();
+
+  await expect(orgChart).toHaveAttribute('aria-pressed', 'true');
+  expect(await snapshotOf(page)).toBe(
+    '---\nmarkmap:\n  layout: org-chart # keep\n---\n# Root\n\n- Node 1\n',
+  );
+});
+
+test('[R-22] inserts layout into top-level flow mapping preserving existing keys', async ({
+  page,
+}) => {
+  await page.goto('/dev/');
+  await page.evaluate(() => {
+    window.devReopenFile('---\n{title: Root, theme: soft}\n---\n# Root\n\n- Node 1\n');
+  });
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  expect(await snapshotOf(page)).toBe(
+    '---\n{markmap: {layout: org-chart}, title: Root, theme: soft}\n---\n# Root\n\n- Node 1\n',
+  );
+});
+
 test('[R-18] adds a marker from the toolbar', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();

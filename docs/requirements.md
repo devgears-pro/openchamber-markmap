@@ -114,7 +114,11 @@ An editable map copies the selected node with its whole subtree, notes, and mark
 
 ### R-22 Layout switcher
 
-An editable or read-only map shows labelled layout buttons for `tree`, `two-sided`, and `org-chart`. The active button reflects the current layout. Choosing a layout re-lays out the existing map, keeps the selection and folded nodes, fits the view, and writes no layout value, so the switch itself leaves the file, its snapshot, and its dirty state unchanged. The group is keyboard operable.
+An editable or read-only map shows labelled layout buttons for `tree`, `two-sided`, and `org-chart`. The active button reflects the current layout. The group is keyboard operable.
+
+In an editable map, choosing a different layout updates or adds `markmap.layout` in frontmatter, preserving existing frontmatter fields, comments, blank lines, BOM, line endings, and Markdown body. The switch reports a dirty change, becomes an undo step, keeps node selection and folded state, and fits the view. Clicking the currently active layout is a no-op. If frontmatter cannot be safely updated, the document and layout remain unchanged and a notice is shown. Any active label or note edit is committed before applying the layout change. Undo and redo restore source text, active layout, and toolbar button state together.
+
+In a read-only map, choosing a layout updates only the visible view, leaving the file, snapshot, and dirty state unchanged. An untouched file without a layout key remains unchanged.
 
 ### R-26 Notes editing
 

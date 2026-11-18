@@ -49,6 +49,7 @@
         "@markmap/core": "workspace:*",
         "@markmap/model": "workspace:*",
         "@markmap/parse": "workspace:*",
+        "yaml": "^2.9.1",
       },
     },
     "vendor/markmap/packages/edit-dom": {

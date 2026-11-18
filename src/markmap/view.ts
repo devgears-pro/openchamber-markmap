@@ -31,6 +31,7 @@ export type MarkmapView = {
   readonly layout: MarkmapLayout;
   readonly toolbar: HTMLDivElement;
   setLayout: (layout: MarkmapLayout) => void;
+  onLayoutChange?: (listener: (layout: MarkmapLayout) => void) => () => void;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
   addMarker: (glyph: string) => void;
   editNotes: () => void;
@@ -96,6 +97,14 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     });
     const instance = markmap;
     let layoutName = resolved.layout;
+    const layoutListeners = new Set<(layout: MarkmapLayout) => void>();
+    const applyLayout = (nextLayout: MarkmapLayout): void => {
+      if (layoutName === nextLayout) return;
+      layoutName = nextLayout;
+      instance.setOptions({ ...instance.options, layout: layoutFor(layoutName) });
+      instance.fit();
+      for (const listener of layoutListeners) listener(layoutName);
+    };
 
     const syncGroupElements = (): void => {
       const groups = groupsOf(instance);
@@ -202,6 +211,9 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
           const nextIssues = newConventionIssues(currentDoc, change.document);
           if (nextIssues.length > 0) mount.onDiagnostics?.(nextIssues);
           currentDoc = change.document;
+          const parsedDoc = parseDocument(change.source);
+          const nextResolved = optionsFor(mount.colorScheme, parsedDoc.frontmatter);
+          applyLayout(nextResolved.layout);
           mount.onSource({
             source: change.source,
             selection: change.selection,
@@ -241,10 +253,20 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       },
       toolbar: toolbar.element,
       setLayout: (layout) => {
-        editor?.commit();
-        instance.setOptions({ ...instance.options, layout: layoutFor(layout) });
-        instance.fit();
-        layoutName = layout;
+        if (layout === layoutName) return;
+        if (editor !== null) {
+          editor.commit();
+          editor.setLayout(layout);
+          editor.focus();
+          return;
+        }
+        applyLayout(layout);
+      },
+      onLayoutChange: (listener) => {
+        layoutListeners.add(listener);
+        return () => {
+          layoutListeners.delete(listener);
+        };
       },
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
@@ -274,6 +296,7 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       },
       snapshotForSave: () => editor?.snapshot() ?? null,
       destroy: () => {
+        layoutListeners.clear();
         placement?.();
         placement = null;
         mount.svg.removeEventListener('click', handleLink, true);
