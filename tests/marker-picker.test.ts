@@ -139,4 +139,37 @@ describe('marker picker', () => {
 
     picker.destroy();
   });
+
+  test('[R-18] ignores pointer down on trigger element', () => {
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    const anchor = { left: 50, top: 50, width: 16, height: 16, right: 66, bottom: 66 };
+    const trigger = document.createElement('button');
+    document.body.append(trigger);
+    const picker = createMarkerPicker({ anchor, trigger, onSelect, onClose });
+    document.body.append(picker.element);
+
+    trigger.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(onClose).not.toHaveBeenCalled();
+
+    const outside = document.createElement('div');
+    document.body.append(outside);
+    outside.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }));
+    expect(onClose).toHaveBeenCalled();
+
+    picker.destroy();
+  });
+
+  test('[R-18] clamps right and bottom position when near viewport edge', () => {
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+    const anchor = { left: 950, top: 700, width: 20, height: 20, right: 970, bottom: 720 };
+    const picker = createMarkerPicker({ anchor, onSelect, onClose });
+    document.body.append(picker.element);
+
+    expect(Number.parseInt(picker.element.style.left, 10)).toBeLessThanOrEqual(970 - 224);
+    expect(Number.parseInt(picker.element.style.top, 10)).toBeLessThanOrEqual(700);
+
+    picker.destroy();
+  });
 });

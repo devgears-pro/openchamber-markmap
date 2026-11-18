@@ -202,14 +202,17 @@ const MARKMAP_CSS = `
     stroke-linejoin: round;
   }
   .mm-marker-popover {
-    position: absolute;
-    z-index: 20;
+    position: fixed;
+    z-index: 100;
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 8px;
-    max-height: 380px;
+    width: 224px;
+    box-sizing: border-box;
+    max-height: min(440px, calc(100vh - 16px));
     overflow-y: auto;
+    overflow-x: hidden;
     background: var(--oc-elevated, #25252c);
     border: 1px solid var(--oc-border, #34343c);
     border-radius: calc(var(--oc-radius, 9px) - 1px);

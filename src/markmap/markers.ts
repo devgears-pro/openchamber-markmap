@@ -147,8 +147,32 @@ export const MARKER_GROUPS: readonly MarkerGroup[] = [
     label: 'Star',
     markers: [
       {
+        glyph: '⭐🔴',
+        label: 'Red',
+      },
+      {
+        glyph: '⭐🟠',
+        label: 'Orange',
+      },
+      {
         glyph: '⭐',
-        label: 'Star',
+        label: 'Yellow',
+      },
+      {
+        glyph: '⭐🟢',
+        label: 'Green',
+      },
+      {
+        glyph: '⭐🔵',
+        label: 'Blue',
+      },
+      {
+        glyph: '⭐🟣',
+        label: 'Purple',
+      },
+      {
+        glyph: '⭐⚪',
+        label: 'Gray',
       },
     ],
   },
@@ -156,8 +180,32 @@ export const MARKER_GROUPS: readonly MarkerGroup[] = [
     label: 'People',
     markers: [
       {
+        glyph: '👤🔴',
+        label: 'Red',
+      },
+      {
+        glyph: '👤🟠',
+        label: 'Orange',
+      },
+      {
+        glyph: '👤🟡',
+        label: 'Yellow',
+      },
+      {
+        glyph: '👤🟢',
+        label: 'Green',
+      },
+      {
         glyph: '👤',
-        label: 'Person',
+        label: 'Blue',
+      },
+      {
+        glyph: '👤🟣',
+        label: 'Purple',
+      },
+      {
+        glyph: '👤⚪',
+        label: 'Gray',
       },
     ],
   },
@@ -234,6 +282,8 @@ export const MARKER_GROUPS: readonly MarkerGroup[] = [
 
 const MARKERS: readonly NodeMarker[] = [
   ...MARKER_GROUPS.flatMap((group) => group.markers),
+  { glyph: '⭐🟡', label: 'Yellow' },
+  { glyph: '👤🔵', label: 'Blue' },
   { glyph: '●', label: 'Done' },
   { glyph: '⚠️', label: 'Warning' },
   { glyph: '🚫', label: 'Dislike' },
@@ -288,7 +338,8 @@ const PEOPLE_PATH =
 const P1 = '<path d="M14 5V19H10.4165V7.83271H9V5H14Z" fill="#ffffff"/>';
 const P2 =
   '<path d="M11.1701 12.3792C12.6792 11 13.4 9.9 13.4 9.05149C13.435 8.7 13.3 8.3 13.2 7.98814C12.9887 7.7 12.8 7.4 12.5 7.25162C12.18 7.1 11.9 7 11.6 6.98634C10.9722 7 10.4 7.2 9.9 7.56391C9.33081 7.9 8.9 8.4 8.5 9.05149L6.5 6.98634C6.91295 6.3 7.4 5.7 7.8 5.29393C8.30132 4.9 8.8 4.6 9.4 4.34811C10.0175 4.1 10.7 4 11.5 4C13.305 4 14.7 4.4 15.6 5.28386C16.5763 6.1 17 7.4 17 9.05149C17.056 10.1 16.5 11.3 15.5 12.5225C14.4322 13.8 13.2 15 11.8 16.0954L17.5 16.0137V19H6.59432V16.0954C8.13568 15 9.7 13.7 11.2 12.4" fill="#ffffff"/>';
-const P3 = '<path d="clip0_219_1993" fill="#ffffff"/>';
+const P3 =
+  '<path fill-rule="evenodd" clip-rule="evenodd" d="M9.6944 19.1373C8.9962 18.9 8.4 18.5 7.8 18.0996C7.2781 17.6 6.8 17.1 6.5 16.5146L8.5655 14.4795C8.9546 15.1 9.4 15.6 10 15.9772C10.5197 16.3 11.1 16.5 11.7 16.5246C12.3885 16.5 13 16.3 13.4 15.9828C13.7659 15.6 14 15.1 14 14.428C13.957 13.7 13.6 13.2 13 12.8026C12.2952 12.4 11.4 12.2 10.3 12.169L9.2840 12.159V10.5638L12.6325 7.4855H7.3017L7.3422 4.5H17.0593L17.0278 7.6601L13.8952 10.3388C14.6216 10.4 15.3 10.5 15.8 10.8806C16.3273 11.2 16.7 11.7 17 12.384C17.3325 13 17.5 13.8 17.5 14.7347C17.5 15.7 17.3 16.6 16.8 17.3015C16.379 18 15.7 18.6 14.9 18.9381C14.0492 19.3 13 19.5 11.9 19.5C11.1224 19.5 10.4 19.4 9.7 19.1" fill="#ffffff"/>';
 const P4 =
   '<path d="M11.8841 9.59045C11.4245 10.1 11 10.7 10.7 11.1989L10.4155 11.6657C10.2515 11.9 10.1 12.1 10 12.3143C9.92241 12.5 9.8 12.7 9.7 12.9936H11.8841V9.59045ZM6 16.0242V12.9209C6.22984 12.6 6.5 12.1 6.9 11.5101C7.28409 10.9 7.6 10.3 7.9 9.87556C8.20885 9.4 8.6 8.9 9 8.25237C9.81126 7.1 10.5 6.2 11.1 5.45012C11.6295 4.7 11.9 4.4 11.9 4.52664H15.2659V12.9936H17V16.0242H15.2659V19.4886L11.8841 19.5V16.0242H6Z" fill="#ffffff"/>';
 const P5 =
@@ -365,8 +416,23 @@ const GLYPH_SNIPPETS: Record<string, string> = {
   '🟪': `${circle(C.purple)} ${FLAG_PATH}`,
   '⬜': `${circle(C.gray)} ${FLAG_PATH}`,
 
+  '⭐🔴': `${circle(C.red)} ${STAR_PATH}`,
+  '⭐🟠': `${circle(C.orange)} ${STAR_PATH}`,
   '⭐': `${circle(C.yellow)} ${STAR_PATH}`,
+  '⭐🟡': `${circle(C.yellow)} ${STAR_PATH}`,
+  '⭐🟢': `${circle(C.green)} ${STAR_PATH}`,
+  '⭐🔵': `${circle(C.blue)} ${STAR_PATH}`,
+  '⭐🟣': `${circle(C.purple)} ${STAR_PATH}`,
+  '⭐⚪': `${circle(C.gray)} ${STAR_PATH}`,
+
+  '👤🔴': `${circle(C.red)} ${PEOPLE_PATH}`,
+  '👤🟠': `${circle(C.orange)} ${PEOPLE_PATH}`,
+  '👤🟡': `${circle(C.yellow)} ${PEOPLE_PATH}`,
+  '👤🟢': `${circle(C.green)} ${PEOPLE_PATH}`,
   '👤': `${circle(C.blue)} ${PEOPLE_PATH}`,
+  '👤🔵': `${circle(C.blue)} ${PEOPLE_PATH}`,
+  '👤🟣': `${circle(C.purple)} ${PEOPLE_PATH}`,
+  '👤⚪': `${circle(C.gray)} ${PEOPLE_PATH}`,
 
   '❤️': `${circle(C.red)} ${S_HEART}`,
   '👍': `${circle(C.red)} ${S_LIKE}`,

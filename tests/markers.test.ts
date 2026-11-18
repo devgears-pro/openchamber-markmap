@@ -119,12 +119,24 @@ describe('node markers', () => {
 
   test('[R-18] renders priority markers as rounded badges with number paths', () => {
     const p1 = markerSvg('1️⃣', 16);
+    const p3 = markerSvg('3️⃣', 16);
     const p7 = markerSvg('7️⃣', 16);
 
     expect(p1).toContain('<circle');
     expect(p1).toContain('<path');
+    expect(p3).toContain('<circle');
+    expect(p3).toContain('<path');
+    expect(p3).not.toContain('clip0');
     expect(p7).toContain('<circle');
     expect(p7).toContain('<path');
+  });
+
+  test('[R-18] includes 7 markers for Star and 7 markers for People', () => {
+    const star = MARKER_GROUPS.find((group) => group.label === 'Star');
+    expect(star?.markers).toHaveLength(7);
+
+    const people = MARKER_GROUPS.find((group) => group.label === 'People');
+    expect(people?.markers).toHaveLength(7);
   });
 
   test('[R-18] transforms leading marker text into html atom inline', () => {

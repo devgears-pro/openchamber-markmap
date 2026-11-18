@@ -237,10 +237,12 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     mount.svg.addEventListener('click', handleLink, true);
 
     let activePicker: MarkerPickerInstance | null = null;
+    let activePickerNodeId: string | null = null;
 
     const closePicker = (): void => {
       activePicker?.destroy();
       activePicker = null;
+      activePickerNodeId = null;
     };
 
     const toggleCheckbox = (activeEditor: MarkmapEditor, nodeId: string): void => {
@@ -287,11 +289,17 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       if (action === 'marker') {
         event.preventDefault();
         event.stopPropagation();
+        if (activePicker !== null && activePickerNodeId === nodeId) {
+          closePicker();
+          return;
+        }
         closePicker();
+        activePickerNodeId = nodeId;
         editor.commit();
         const rect = actionRect.getBoundingClientRect();
         activePicker = createMarkerPicker({
           anchor: rect,
+          trigger: actionRect,
           onSelect: (glyph) => {
             view.addMarker(glyph, nodeId);
           },

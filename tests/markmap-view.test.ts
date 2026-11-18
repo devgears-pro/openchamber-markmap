@@ -638,6 +638,26 @@ describe('Markmap adapter', () => {
     expect(surface.querySelector('.mm-marker-popover')).toBeNull();
   });
 
+  test('[R-18] toggles marker picker closed when clicking the same marker hit area again', () => {
+    const { svg, surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-key', 'node:root');
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('data-action', 'marker');
+    group.append(hitRect);
+    svg.append(group);
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(surface.querySelector('.mm-marker-popover')).toBeTruthy();
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(surface.querySelector('.mm-marker-popover')).toBeNull();
+
+    result.view.destroy();
+  });
+
   test('[R-18] toggles task list checkbox on click in svg', () => {
     mocks.editorSource.value = '- [ ] Task item';
     mocks.editorNodes.set('root', {

@@ -11,6 +11,7 @@ type MarkerAnchorRect = {
 
 type MarkerPickerOptions = {
   readonly anchor: MarkerAnchorRect;
+  readonly trigger?: Element;
   readonly onSelect: (glyph: string) => void;
   readonly onClose: () => void;
 };
@@ -73,14 +74,28 @@ export const createMarkerPicker = (options: MarkerPickerOptions): MarkerPickerIn
   });
   container.append(removeButton);
 
-  const left = Math.max(8, options.anchor.left);
-  const top = Math.max(8, options.anchor.bottom + 4);
+  const popoverWidth = 224;
+  let left = options.anchor.left;
+  if (left + popoverWidth > window.innerWidth - 8) {
+    left = Math.max(8, options.anchor.right - popoverWidth);
+  }
+
+  let top = options.anchor.bottom + 4;
+  if (top + 400 > window.innerHeight) {
+    top = Math.max(8, options.anchor.top - 400 - 4);
+  }
+
+  container.style.position = 'fixed';
   container.style.left = `${left}px`;
   container.style.top = `${top}px`;
 
   const handlePointerDown = (event: Event): void => {
     const target = event.target;
-    if (target instanceof Node && !container.contains(target)) {
+    if (
+      target instanceof Node &&
+      !container.contains(target) &&
+      !options.trigger?.contains(target)
+    ) {
       options.onClose();
     }
   };

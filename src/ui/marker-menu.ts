@@ -24,6 +24,7 @@ export const createMarkerMenu = (onMarker: (glyph: string) => void): HTMLElement
     const rect = button.getBoundingClientRect();
     activePicker = createMarkerPicker({
       anchor: rect,
+      trigger: button,
       onSelect: (glyph) => {
         onMarker(glyph);
       },
