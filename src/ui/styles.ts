@@ -208,6 +208,8 @@ const MARKMAP_CSS = `
     flex-direction: column;
     gap: 8px;
     padding: 8px;
+    max-height: 380px;
+    overflow-y: auto;
     background: var(--oc-elevated, #25252c);
     border: 1px solid var(--oc-border, #34343c);
     border-radius: calc(var(--oc-radius, 9px) - 1px);
@@ -233,10 +235,9 @@ const MARKMAP_CSS = `
     padding: 0 2px;
   }
   .mm-marker-grid {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(7, 26px);
     gap: 2px;
-    max-width: 160px;
   }
   .mm-marker-button {
     display: grid;

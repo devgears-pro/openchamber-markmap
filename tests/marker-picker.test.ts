@@ -15,7 +15,7 @@ describe('marker picker', () => {
     document.body.append(picker.element);
 
     const categories = picker.element.querySelectorAll('.mm-marker-category');
-    expect(categories.length).toBe(4);
+    expect(categories.length).toBe(7);
 
     const buttons = picker.element.querySelectorAll<HTMLButtonElement>('.mm-marker-button');
     expect(buttons.length).toBeGreaterThanOrEqual(18);

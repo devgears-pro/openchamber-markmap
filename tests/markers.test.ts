@@ -54,12 +54,15 @@ describe('node markers', () => {
     expect(applyMarker('🔥 Root', '✅')).toBe('✅ 🔥 Root');
   });
 
-  test('[R-18] groups status, priority, progress and flags', () => {
+  test('[R-18] groups markers into XMind-aligned categories', () => {
     expect(MARKER_GROUPS.map((group) => group.label)).toEqual([
-      'Status',
+      'Tag',
       'Priority',
-      'Progress',
-      'Flags',
+      'Task',
+      'Flag',
+      'Star',
+      'People',
+      'Symbol',
     ]);
     expect(MARKER_GROUPS.every((group) => group.markers.length > 0)).toBe(true);
   });
@@ -79,7 +82,7 @@ describe('node markers', () => {
 
   test('[R-18] extracts the leading marker from a label', () => {
     expect(leadingMarker('✅ Root')?.glyph).toBe('✅');
-    expect(leadingMarker('7️⃣ Late task')?.label).toBe('P7');
+    expect(leadingMarker('7️⃣ Late task')?.label).toBe('7');
     expect(leadingMarker('  ○ Empty')?.glyph).toBe('○');
     expect(leadingMarker('Plain title')).toBeUndefined();
     expect(leadingMarker('')).toBeUndefined();
@@ -97,7 +100,7 @@ describe('node markers', () => {
     for (const marker of allMarkers) {
       const svg = markerSvg(marker.glyph, 16);
       expect(svg).toContain('<svg');
-      expect(svg).toContain('viewBox="0 0 16 16"');
+      expect(svg).toContain('viewBox="0 0 24 24"');
       expect(svg).toContain('</svg>');
     }
   });
@@ -114,14 +117,14 @@ describe('node markers', () => {
     expect(full).toContain('<circle');
   });
 
-  test('[R-18] renders priority markers as rounded badges with number text', () => {
+  test('[R-18] renders priority markers as rounded badges with number paths', () => {
     const p1 = markerSvg('1️⃣', 16);
     const p7 = markerSvg('7️⃣', 16);
 
-    expect(p1).toContain('<rect');
-    expect(p1).toContain('rx=');
-    expect(p1).toContain('>1<');
-    expect(p7).toContain('>7<');
+    expect(p1).toContain('<circle');
+    expect(p1).toContain('<path');
+    expect(p7).toContain('<circle');
+    expect(p7).toContain('<path');
   });
 
   test('[R-18] transforms leading marker text into html atom inline', () => {
@@ -182,7 +185,7 @@ describe('node markers', () => {
 
   test('[R-18] handles unknown marker glyph gracefully', () => {
     expect(markerSvg('unknown')).toBe(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16"></svg>',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"></svg>',
     );
   });
 });
