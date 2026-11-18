@@ -381,7 +381,7 @@ describe('Markmap file editor', () => {
     chart.click();
 
     expect(markmaps.layouts).toEqual(['org-chart']);
-    expect(root.querySelector('.mm-marker-select')).toBeNull();
+    expect(root.querySelector('.mm-marker-menu')).toBeNull();
     expect(root.querySelector('.mm-notes-menu')).toBeNull();
     expect(root.querySelector('.mm-group-menu')).toBeNull();
   });
@@ -400,11 +400,15 @@ describe('Markmap file editor', () => {
   test('[R-18] adds the chosen marker from the toolbar', () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
-    const select = root.querySelector<HTMLSelectElement>('.mm-marker-select');
-    if (select === null) throw new Error('No marker menu');
+    const button = root.querySelector<HTMLButtonElement>('.mm-marker-toolbar-button');
+    if (button === null) throw new Error('No marker menu');
 
-    select.value = '✅';
-    select.dispatchEvent(new Event('change'));
+    button.click();
+
+    const popover = document.body.querySelector('.mm-marker-popover');
+    if (popover === null) throw new Error('No marker popover');
+    const doneButton = popover.querySelector<HTMLButtonElement>('button[data-glyph="✅"]');
+    doneButton?.click();
 
     expect(markmaps.markers).toEqual(['✅']);
   });
@@ -413,7 +417,7 @@ describe('Markmap file editor', () => {
     const { host } = mount();
     host.emitFile(textFile(SOURCE, true));
 
-    expect(root.querySelector('.mm-marker-select')).toBeNull();
+    expect(root.querySelector('.mm-marker-menu')).toBeNull();
   });
 
   test('[R-26] opens the notes editor from the toolbar', () => {
