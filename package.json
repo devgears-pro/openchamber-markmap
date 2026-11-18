@@ -7,11 +7,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mmospanenko/openchamber-markmap.git"
+    "url": "git+https://github.com/devgears-pro/openchamber-markmap.git"
   },
-  "homepage": "https://github.com/mmospanenko/openchamber-markmap",
+  "homepage": "https://github.com/devgears-pro/openchamber-markmap",
   "bugs": {
-    "url": "https://github.com/mmospanenko/openchamber-markmap/issues"
+    "url": "https://github.com/devgears-pro/openchamber-markmap/issues"
   },
   "packageManager": "bun@1.3.14",
   "workspaces": [
@@ -20,22 +20,24 @@
   "scripts": {
     "dev": "vite --open /dev/",
     "dev-version": "bun scripts/dev-version.ts",
-    "build": "vite build",
-    "check:bundle-fresh": "git diff --exit-code -- editor/main.js",
+    "build": "vite build && vite build --config vite.config.chat.ts && bun scripts/minify.ts",
+    "check:bundle-fresh": "git diff --exit-code -- editor/main.js chat/main.js",
+    "check:conventions": "bun scripts/check-conventions.ts",
     "check:requirements": "bun scripts/check-requirements.ts",
     "check:reproducible": "bun scripts/check-reproducible.ts",
     "format": "prettier --write .",
     "lint": "bun run lint:code && bun run lint:format && bun run lint:docs && bun run check:dead-code",
-    "lint:code": "eslint .",
-    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\"",
+    "lint:code": "eslint --max-warnings 0 .",
+    "lint:docs": "markdownlint-cli2 \"**/*.md\" \"!.openchamber/**\" \"!.worktrees/**\" \"!node_modules/**\" \"!tmp/**\" \"!vendor/markmap/packages/**\" \"!.agents/**\"",
     "lint:format": "prettier --check .",
     "check:dead-code": "knip",
     "screenshots": "playwright test -c playwright.screenshots.config.ts",
+    "benchmark": "playwright test -c playwright.benchmark.config.ts",
     "test": "vitest run",
     "test:acceptance": "playwright test",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "verify": "bun run typecheck && bun run lint && bun run check:requirements && bun run build && bun run check:bundle-fresh && bun run check:reproducible && bun run test:coverage"
+    "verify": "bun run typecheck && bun run lint && bun run check:requirements && bun run check:conventions && bun run build && bun run check:bundle-fresh && bun run check:reproducible && bun run test:coverage"
   },
   "openchamber": {
     "apiVersion": 1,
@@ -61,15 +63,28 @@
           "entry": "editor/index.html",
           "content": "text"
         }
+      ],
+      "blocks": [
+        {
+          "name": "Mindmap",
+          "description": "Draws a Markmap mind map from a Markmap Markdown argument; read-only.",
+          "args": [
+            "markdown"
+          ],
+          "entry": "chat/index.html",
+          "height": 480
+        }
       ]
     }
   },
   "dependencies": {
     "@markmap/core": "workspace:*",
+    "@markmap/edit": "workspace:*",
     "@markmap/edit-dom": "workspace:*",
     "@markmap/model": "workspace:*",
+    "@markmap/render": "workspace:*",
     "@markmap/toolbar": "1.1.1",
-    "@markmap/view": "1.1.1",
+    "@markmap/view": "workspace:*",
     "@openchamber/sdk": "^2.7.1",
     "d3-selection": "^3.0.1"
   },
@@ -85,6 +100,7 @@
     "knip": "^5.70.2",
     "markdownlint-cli2": "^0.19.0",
     "prettier": "^3.7.3",
+    "terser": "^5.51.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^8.3.8",

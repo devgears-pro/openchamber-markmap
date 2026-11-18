@@ -30,6 +30,7 @@ export interface GroupPrimitive extends PrimitiveBase {
     /** Identity for patching and animation, unique among all groups. */
     key?: string;
     nodeId?: string;
+    groupId?: string;
     transform?: Matrix;
     opacity?: number;
     /** Hide what falls outside this rectangle, in the group's own coordinates. */
@@ -51,6 +52,7 @@ export interface RectPrimitive extends PrimitiveBase {
     fill?: Paint;
     stroke?: Paint;
     strokeWidth?: number;
+    strokeDashArray?: number[];
 }
 export interface PathPrimitive extends PrimitiveBase {
     kind: 'path';
@@ -58,6 +60,7 @@ export interface PathPrimitive extends PrimitiveBase {
     fill?: Paint;
     stroke?: Paint;
     strokeWidth?: number;
+    strokeDashArray?: number[];
 }
 /** Pre-wrapped, pre-measured text. */
 export interface TextPrimitive extends PrimitiveBase {

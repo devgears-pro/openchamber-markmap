@@ -1,3 +1,12 @@
+// src/theme.ts
+function resolveLabelStyle(theme, node, ctx) {
+	const label = theme.label?.(node, ctx);
+	return {
+		font: label?.font ?? theme.font,
+		fill: label?.fill ?? theme.textFill,
+		padding: label?.padding ?? theme.node.padding
+	};
+}
 // src/geometry.ts
 function translate(x, y) {
 	return [
@@ -233,4 +242,4 @@ function readJSONOptions(input) {
 function unknownOptionWarnings(rest) {
 	return Object.keys(rest).map((key) => `Unknown option \`${key}\``);
 }
-export { ROOT_ID, assignIds, expandRect, findNode, findPath, hashString, isSafeCSSValue, multiply, oppositeSide, readJSONOptions, scaleAround, toPlainText, translate, unionRects, unknownOptionWarnings, validateOptions, validators, walkTree };
+export { ROOT_ID, assignIds, expandRect, findNode, findPath, hashString, isSafeCSSValue, multiply, oppositeSide, readJSONOptions, resolveLabelStyle, scaleAround, toPlainText, translate, unionRects, unknownOptionWarnings, validateOptions, validators, walkTree };

@@ -1,20 +1,29 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
+const vendor = (path: string): string =>
+  fileURLToPath(new URL(`./vendor/markmap/packages/${path}/dist/index.js`, import.meta.url));
+
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@markmap/core': vendor('core'),
+      '@markmap/render': vendor('render'),
+    },
+  },
   test: {
     environment: 'happy-dom',
     include: ['tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/main.ts'],
       reporter: ['text', 'json-summary'],
       reportOnFailure: true,
       thresholds: {
-        statements: 100,
-        branches: 100,
-        functions: 100,
-        lines: 100,
+        100: true,
+        perFile: {
+          100: true,
+        },
       },
     },
   },

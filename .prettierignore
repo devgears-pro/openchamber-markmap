@@ -1,5 +1,6 @@
 coverage/
 editor/main.js
+chat/main.js
 node_modules/
 playwright-report/
 test-results/

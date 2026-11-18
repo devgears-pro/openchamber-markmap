@@ -3,15 +3,26 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "paths": {
+      "@markmap/core": ["./vendor/markmap/packages/core"],
+      "@markmap/render": ["./vendor/markmap/packages/render"]
+    },
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noPropertyAccessFromIndexSignature": true,
     "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "moduleDetection": "force",
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
     "skipLibCheck": true,
     "noEmit": true,
     "types": ["vite/client", "node"]
@@ -19,11 +30,14 @@
   "include": [
     "src",
     "tests",
+    "benchmarks",
     "dev",
     "scripts",
     "vite.config.ts",
+    "vite.config.chat.ts",
     "vitest.config.ts",
     "playwright.config.ts",
-    "playwright.screenshots.config.ts"
+    "playwright.screenshots.config.ts",
+    "playwright.benchmark.config.ts"
   ]
 }

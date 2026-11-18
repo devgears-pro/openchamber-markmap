@@ -11,6 +11,18 @@ const select = async (page: Page, label: string): Promise<void> => {
   await expect(page.locator('.mm-editor-selection')).toBeVisible();
 };
 
+test('[R-24] captures the chat block', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 560 });
+
+  await page.goto('/dev/block.html?theme=dark');
+  await expect(page.locator('.mm-chat-svg g').first()).toBeVisible();
+  await page.screenshot({ path: 'tmp/chat-block-dark.png' });
+
+  await page.goto('/dev/block.html?theme=light');
+  await expect(page.locator('.mm-chat-svg g').first()).toBeVisible();
+  await page.screenshot({ path: 'tmp/chat-block-light.png' });
+});
+
 test('[R-02] [R-03] captures the README screenshots', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 800 });
 

@@ -1,195 +1,41 @@
 # Markmap for OpenChamber
 
-[![CI](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml/badge.svg)](https://github.com/mmospanenko/openchamber-markmap/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+**Work on the map. Keep the plan in Markdown.**
 
-An OpenChamber file editor for Markmap Markdown. Open a `.markmap.md` file in Files and the outline becomes a mind map you can edit in place. Click a node, press Enter or Tab, type. The Markdown file stays the source of truth for Git, agents, and every other editor.
+A mind map editor for OpenChamber. Move branches, group related work, and draw dependencies right on the map. Edits go back to the same Markdown file, so you can review changes in Git or hand the plan to an agent.
 
-This is an adaptation of the open-source Markmap library, not an official Markmap project. Markmap renders the diagram, layout, view, toolbar, and themes. The editable fork adds the model, commands, and overlay editor that make the diagram editable in OpenChamber.
+[**Get started**](#quick-start) · [See releases](https://github.com/devgears-pro/openchamber-markmap/releases)
 
-Roadmap: [what each release adds](https://github.com/mmospanenko/openchamber-markmap/issues/3). Releases: [all versions](https://github.com/mmospanenko/openchamber-markmap/releases).
+![A project map with a dashed group boundary and a relationship arrow curving around a node](https://github.com/user-attachments/assets/7ae36c13-57ae-4ec5-a9c5-471f2b944f71)
 
-![The Markmap editor in the dark theme](https://github.com/user-attachments/assets/c7a2fe0d-6e82-44c1-81c7-a9cba9f24e79)
+## Quick start
 
-## What you get
-
-- **Edit on the map.** The map is the editing surface. There is no second Markdown pane and no separate model to keep in sync.
-- **Keyboard first.** In selection mode, Enter adds a sibling and Tab a child. While editing, Enter commits and exits; the next Enter adds a sibling. Tab commits and adds a child. Space or a double click opens editing. Arrow keys move the selection without folding; typing on a non-empty selected node does nothing, while typing on an empty node starts editing.
-- **Real Markmap.** Rendering, layout, folding, notes, the toolbar, and the viewport come from Markmap. The extension owns only the editing layer and the host contract.
-- **Canvas navigation.** The map opens at 100% by default; a larger map is fitted to the window, and `fitMaxScale` in frontmatter can change the cap. Scroll or a trackpad surface pans the map; Cmd/Ctrl + scroll zooms around the pointer. Pan speed stays constant at every zoom level, and a wheel burst is applied once per frame.
-- **Markdown fidelity.** An edit changes only the Markdown range it touches. Frontmatter, inline Markdown, untouched branches, and line endings survive. New nodes start with an empty label and stay in the tree through a zero-width marker.
-- **New files.** An empty matching file opens in an editable state. Type the first label and save; it becomes a heading, and existing frontmatter is preserved.
-- **Markers.** A toolbar menu adds status, priority, progress, and flag markers to a node label. GFM checkboxes still render, and every marker stays readable in the Markdown source.
-- **Theme aware.** The map follows the OpenChamber light or dark theme. Markmap options in frontmatter, such as `theme`, `layout`, `foldLevel`, and `colorDepth`, still apply.
-- **Safe fallback.** Read-only files render without the editor. Binary input and Markmap failures send the file to OpenChamber's source view, and the original content stays intact.
-- **Links stay safe.** Clicking an http(s) link in a node asks OpenChamber to open it in the browser. The editor frame never navigates away.
-
-## Use cases
-
-**Plans that live with the code.** Keep a release, architecture, or migration map next to the repository as `plan.markmap.md`. Humans edit it visually; agents read and write the same Markdown with their normal file tools.
-
-**Working sessions.** Edit branches while a discussion is live: rename a workstream, add a child, delete a rejected branch. The map keeps the context visible.
-
-**Agent handoff.** Ask an agent to produce a Markmap file for a plan or investigation, then open it in Files to review, restructure, and correct it without leaving OpenChamber.
-
-**Existing Markmap notes.** Markmap files from other tools open without conversion. Frontmatter and inline formatting are preserved, so the file remains usable outside OpenChamber.
-
-**Outline review.** Fit the map, fold finished branches, and navigate with the keyboard when a document grows past a screen. The source view is one toggle away for exact text edits.
-
-**Read-only maps.** OpenChamber opens a read-only file as a map without editing.
-
-## Screenshots
-
-| Light theme                                                                                                                                                     | Editing a label in place                                                                                                                                  |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| <img src="https://github.com/user-attachments/assets/42a29687-19a5-431a-aa3b-a4d735547ed4" alt="Markmap editor in the light theme with a selected Design node"> | <img src="https://github.com/user-attachments/assets/5556c59f-088a-46d3-96b0-d3746d47cee0" alt="Editing the Private beta node label in an overlay field"> |
-
-## Install
-
-Requirements: an OpenChamber release with file editors, on desktop or web. File editors are not loaded in VS Code or the mobile app.
-
-1. Open **Settings → Extensions**.
-2. Paste the Git URL or the install link into the folder, ZIP, or URL field and choose **Add**.
-3. There are no capabilities to approve; the host hands the editor one file at a time.
-
-Stable:
-
-```text
-https://github.com/mmospanenko/openchamber-markmap
-```
-
-Preview:
-
-```text
-https://github.com/mmospanenko/openchamber-markmap#dev
-```
-
-Pinned release:
-
-```text
-https://github.com/mmospanenko/openchamber-markmap#vX.Y.Z
-```
-
-Replace `X.Y.Z` with a tag from the Releases page.
-
-```text
-openchamber://extensions/install?url=https%3A%2F%2Fgithub.com%2Fmmospanenko%2Fopenchamber-markmap
-```
-
-The preview follows the `dev` branch. CI bumps its `version` on every push, so **Check for updates** sees it, and it may break. It replaces the stable install because both use the same extension id; remove it and add the plain URL to return to stable. A pinned tag stays on that tag.
-
-A folder install runs from the folder you added and does not update itself.
-
-A Git install updates when `version` in `package.json` changes. Open **Settings → Extensions** and choose **Update** on the card.
-
-Remove or disable an older mind-map extension that claims the same file names before installing this one.
-
-## File names
-
-OpenChamber matches editors by file name. This package claims only these suffixes:
-
-- `*.markmap.md`
-- `*-markmap.md`
-- `*.mm.md`
-- `*-mm.md`
-- `*.mindmap.md`
-- `*-mindmap.md`
-
-A normal `*.md` file stays in OpenChamber's source editor.
-
-## Keyboard and gestures
-
-| Action                   | Input                              |
-| ------------------------ | ---------------------------------- |
-| Select a node            | Click it                           |
-| Edit the label           | Space or a double click            |
-| Edit an empty node       | Type a printable key               |
-| Add a sibling            | Enter in selection mode            |
-| Commit and exit editing  | Enter while editing                |
-| Add a child              | Tab in selection mode              |
-| Commit and add a child   | Tab while editing                  |
-| Outdent                  | Shift+Tab                          |
-| Delete a subtree         | Delete or Backspace                |
-| Move the selection       | Arrow keys                         |
-| Fold or unfold a subtree | Cmd/Ctrl + /                       |
-| Undo or redo             | Cmd/Ctrl + Z, Shift + Cmd/Ctrl + Z |
-| Cancel editing           | Escape                             |
-| Pan                      | Scroll or a trackpad surface       |
-| Zoom around the pointer  | Cmd/Ctrl + scroll                  |
-| Fit, zoom in, zoom out   | Markmap toolbar                    |
-
-After Enter commits a label, the node stays selected; press Enter again to insert a sibling. Autosave snapshots include the current label without closing its field, so typing can continue afterward. Shift+Enter inserts a line break in a list item. Backspace or Delete in the empty field of a newly inserted node removes that node and selects the node before it; undo restores it. A heading label cannot contain a line break; the editor keeps the document unchanged and shows a notice.
-
-## Markdown format
-
-The file is ordinary Markmap Markdown. Headings and list items become branches, and paragraphs become notes on a node.
+1. In OpenChamber, open **Settings → Extensions**. Paste `https://github.com/devgears-pro/openchamber-markmap` into the URL field and choose **Add**.
+2. Save this as `launch.markmap.md` and open it in **Files**.
 
 ```markdown
----
-markmap:
-  colorDepth: 2
----
+# Launch plan
 
-# Release
+## Build
 
-## Product
+- Design the flow
+- Test the editor
 
-- Editor
-- **Command palette**
+## Ship
 
-## Launch
-
-- Private beta
-- Docs
+- Write the release notes
 ```
 
-## How it works
+Double-click a topic to edit it, or select it and press **Space**. With a topic selected, **Enter** adds a sibling and **Tab** adds a child.
 
-The package declares one `contributes.fileEditors` entry. OpenChamber keeps the file, sends the text to the editor, and asks for a snapshot when it saves.
+Requires OpenChamber 2.7.1 or newer. For pinned versions and development previews, see the [installation guide](docs/user-guide.md#installation).
 
-The editor is a single classic IIFE built from `src/` and committed as `editor/main.js`. It uses the published `@markmap/view` and `@markmap/toolbar` plus the public editable fork of `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` in [`vendor/markmap`](vendor/markmap/README.md). `src/` contains no custom Markdown parser, layout engine, or serializer. Extensions to parsing, layout, and rendering live in the vendored fork.
+## From outline to project map
 
-## Privacy
+- **Shape the plan.** Drag a branch, move several siblings together, or switch to a tree, two-sided map, or org chart. Keep details in notes instead of stretching topic labels.
+- **Show what depends on what.** Draw a named frame around related work and connect topics with dashed arrows that find a route around other nodes when there is room.
+- **See the plan in chat.** Ask an assistant to show a `Mindmap` in a reply. Pan and zoom the read-only map there, or open a Markdown file in Files when it is time to edit.
 
-- The extension makes no network requests and loads no external assets.
-- It does not read other files, sessions, or project data. OpenChamber passes it the open file.
-- It stores no file contents and has no settings or telemetry.
-- The file changes only through the host's save path: `reportFileChange`, `onFileSnapshot`, and `onFileSaved`.
+[User guide](docs/user-guide.md) · [Roadmap](https://github.com/devgears-pro/openchamber-markmap/issues/3) · [Contributing](docs/process/sdlc.md) · [MIT license](LICENSE)
 
-## Development
-
-```bash
-bun install
-bun run dev
-bun run verify
-bun run test:acceptance
-bun run screenshots
-```
-
-`bun run dev` starts the Vite harness at `/dev/`. Append `?map=showcase&theme=light` to open the screenshot map in the light theme.
-
-`bun run verify` runs typecheck, lint, requirement traceability, build, stale-bundle check, reproducible build check, and the 100% coverage gate. Acceptance tests use Playwright against the real Markmap renderer. `bun run screenshots` writes the images to `tmp/` from the same harness and synthetic data.
-
-`editor/main.js` is committed. Run `bun run build` after changing `src/` and keep `bun run check:bundle-fresh` green.
-
-## Quality workflow
-
-The process is documented in:
-
-- [`docs/process/sdlc.md`](docs/process/sdlc.md) (change lifecycle and gates).
-- [`docs/process/testing.md`](docs/process/testing.md) (test levels and coverage).
-- [`docs/process/bugs.md`](docs/process/bugs.md) (failing test first).
-- [`docs/process/releases.md`](docs/process/releases.md) (branches, versions, tags, and release notes).
-- [`docs/requirements.md`](docs/requirements.md) (requirement tree and traceability).
-
-Every behavior change starts with a requirement and a test. Every bug starts with a failing regression test. `bun run verify` is the local merge gate; CI runs the same commands.
-
-## Credits
-
-Markmap is created by Gerald and contributors and is available under the MIT license at <https://github.com/markmap/markmap> and <https://markmap.js.org/>.
-
-The editable fork is public at <https://github.com/mmospanenko/markmap/tree/feat/editable-model>. It adds `@markmap/model`, `@markmap/edit`, and `@markmap/edit-dom` for source-preserving editing. The renderer, layout, view, toolbar, and themes start from upstream Markmap; the fork carries the extensions this editor adds.
-
-## License
-
-MIT. See [`LICENSE`](LICENSE). Third-party notices are in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+An independent extension built on [Markmap](https://markmap.js.org/). See the [third-party notices](THIRD_PARTY_NOTICES.md).

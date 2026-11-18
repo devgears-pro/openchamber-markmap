@@ -1,37 +1,74 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from 'vitest';
 
 import type { MarkmapNode } from '@markmap/core';
 import type { MarkmapEditorOptions } from '@markmap/edit-dom';
+import type * as MarkmapModel from '@markmap/model';
+import { builtinLayouts, builtinThemes, softTheme } from '@markmap/render';
+import type { ToolbarOptions } from '@markmap/toolbar';
+import type { ViewOptions } from '@markmap/view';
+
+import { layoutFor } from '../src/markmap/layouts';
+import type { MarkmapSourceChange } from '../src/markmap/view';
 
 const mocks = vi.hoisted(() => {
   const editorSelected: { value: string | null } = { value: 'root' };
+  const editorOptions: MarkmapEditorOptions[] = [];
   return {
     parseDocument: vi.fn(),
     labelText: vi.fn(),
-    create: vi.fn(),
+    validateConventions: vi.fn<(doc?: unknown) => MarkmapModel.Issue[]>(() => []),
+    newConventionIssues: vi.fn<(before?: unknown, after?: unknown) => MarkmapModel.Issue[]>(
+      () => [],
+    ),
+    create: vi.fn<(target: SVGSVGElement, root?: MarkmapNode, options?: ViewOptions) => unknown>(),
     resolveViewOptions: vi.fn(),
-    createToolbar: vi.fn(),
+    createToolbar: vi.fn<(target: unknown, options?: ToolbarOptions) => unknown>(),
+    builtinButtons: {
+      'zoom-in': { label: 'Zoom in', icon: 'old-in', disabled: vi.fn(), onClick: vi.fn() },
+      'zoom-out': { label: 'Zoom out', icon: 'old-out', disabled: vi.fn(), onClick: vi.fn() },
+      fit: { label: 'Fit to view', icon: 'old-fit', disabled: vi.fn(), onClick: vi.fn() },
+      'expand-all': {
+        label: 'Expand all',
+        icon: 'old-expand',
+        disabled: vi.fn(),
+        onClick: vi.fn(),
+      },
+    },
     createEditView: vi.fn(),
-    editorOptions: [] as MarkmapEditorOptions[],
+    editorOptions,
     editorSetLabel: vi.fn(),
     editorSelected,
+    editorEditing: { value: false },
+    editorEditingNotes: { value: false },
+    editorEditNotes: vi.fn<(nodeId?: string | null) => boolean>(() => true),
+    editorCreateGroup: vi.fn<(label?: string) => boolean>(() => true),
+    editorSource: { value: '# Root' },
+    editorSelectedBlock: vi.fn<() => string | null>(() => '# Root'),
     editorNodes: new Map<string, unknown>([['root', {}]]),
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
     editorCommit: vi.fn(),
     editorSnapshotForSave: vi.fn<() => string>(),
+    editorInsertBlock: vi.fn<(text: string) => boolean>(() => true),
+    editorInsertLabel: vi.fn<(text: string) => boolean>(() => true),
+    editorDeleteSelected: vi.fn<() => boolean>(() => true),
   };
 });
 
 vi.mock('@markmap/model', () => ({
   parseDocument: mocks.parseDocument,
   labelText: mocks.labelText,
+  validateConventions: mocks.validateConventions,
+  newConventionIssues: mocks.newConventionIssues,
 }));
 vi.mock('@markmap/view', () => ({
   Markmap: { create: mocks.create },
   resolveViewOptions: mocks.resolveViewOptions,
 }));
-vi.mock('@markmap/toolbar', () => ({ createToolbar: mocks.createToolbar }));
+vi.mock('@markmap/toolbar', () => ({
+  builtinButtons: mocks.builtinButtons,
+  createToolbar: mocks.createToolbar,
+}));
 vi.mock('@markmap/edit-dom', () => ({
   createEditView: mocks.createEditView,
   MarkmapEditor: class {
@@ -47,8 +84,44 @@ vi.mock('@markmap/edit-dom', () => ({
       return { nodes: mocks.editorNodes };
     }
 
+    get isEditing(): boolean {
+      return mocks.editorEditing.value;
+    }
+
+    get isEditingNotes(): boolean {
+      return mocks.editorEditingNotes.value;
+    }
+
+    get source(): string {
+      return mocks.editorSource.value;
+    }
+
+    selectedBlock(): string | null {
+      return mocks.editorSelectedBlock();
+    }
+
+    insertBlock(text: string): boolean {
+      return mocks.editorInsertBlock(text);
+    }
+
+    insertLabel(text: string): boolean {
+      return mocks.editorInsertLabel(text);
+    }
+
+    deleteSelected(): boolean {
+      return mocks.editorDeleteSelected();
+    }
+
     setLabel(nodeId: string, text: string): void {
       mocks.editorSetLabel(nodeId, text);
+    }
+
+    editNotes(nodeId?: string | null): boolean {
+      return mocks.editorEditNotes(nodeId);
+    }
+
+    createGroup(label?: string): boolean {
+      return mocks.editorCreateGroup(label);
     }
 
     focus(): void {
@@ -59,7 +132,7 @@ vi.mock('@markmap/edit-dom', () => ({
       mocks.editorCommit();
     }
 
-    commitForSnapshot(): string {
+    snapshot(): string {
       return mocks.editorSnapshotForSave();
     }
 
@@ -70,12 +143,48 @@ vi.mock('@markmap/edit-dom', () => ({
 }));
 
 const { createMarkmapView } = await import('../src/markmap/view');
+const { parseDocument: parseRealDocument } =
+  await vi.importActual<typeof MarkmapModel>('@markmap/model');
 
 type FakeMarkmap = {
+  element: SVGSVGElement;
   options: Record<string, unknown>;
-  zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn> };
+  transform: {
+    k: number;
+    x: number;
+    y: number;
+    apply: (point: [number, number]) => [number, number];
+    applyX?: (v: number) => number;
+    applyY?: (v: number) => number;
+    translate: ReturnType<typeof vi.fn>;
+  };
+  result?:
+    | {
+        bounds: { x: number; y: number; width: number; height: number };
+        state?:
+          | {
+              groups?:
+                | {
+                    id: string;
+                    label: string | null;
+                    rect: { x: number; y: number; width: number; height: number };
+                  }[]
+                | undefined;
+            }
+          | undefined;
+      }
+    | undefined;
+  screenRect: ReturnType<typeof vi.fn>;
+  groupScreenRect?: (
+    id: string | number,
+  ) => { x: number; y: number; width: number; height: number } | undefined;
+  zoomBehavior: { wheelDelta: ReturnType<typeof vi.fn>; transform: ReturnType<typeof vi.fn> };
   setOptions: ReturnType<typeof vi.fn>;
+  fit: ReturnType<typeof vi.fn>;
+  focusNode: ReturnType<typeof vi.fn>;
   destroy: ReturnType<typeof vi.fn>;
+  on?: ReturnType<typeof vi.fn>;
+  hitAt?: (x: number, y: number) => { kind: string; groupId?: string; nodeId?: string } | undefined;
 };
 
 const root: MarkmapNode = {
@@ -87,55 +196,105 @@ const root: MarkmapNode = {
   children: [],
 };
 
-const fakeMarkmap = (): FakeMarkmap => {
+const fakeMarkmap = (svg: SVGSVGElement): FakeMarkmap => {
   const markmap: FakeMarkmap = {
+    element: svg,
     options: {},
-    zoomBehavior: { wheelDelta: vi.fn() },
+    transform: {
+      k: 1,
+      x: 0,
+      y: 0,
+      apply: ([x, y]) => [x, y],
+      applyX: (v) => v,
+      applyY: (v) => v,
+      translate: vi.fn(),
+    },
+    result: { bounds: { x: 0, y: 0, width: 400, height: 200 }, state: { groups: [] } },
+    screenRect: vi.fn(() => ({ x: 0, y: 0, width: 100, height: 40 })),
+    zoomBehavior: { wheelDelta: vi.fn(), transform: vi.fn() },
     setOptions: vi.fn((next: Record<string, unknown>) => {
       markmap.options = next;
     }),
+    fit: vi.fn(),
+    focusNode: vi.fn(() => true),
     destroy: vi.fn(),
+    on: vi.fn(),
+    hitAt: vi.fn(() => undefined),
   };
   return markmap;
 };
 
-const setup = () => {
-  const markmap = fakeMarkmap();
+type Setup = {
+  markmap: FakeMarkmap;
+  toolbar: {
+    element: HTMLDivElement;
+    destroy: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
+  surface: HTMLDivElement;
+  svg: SVGSVGElement;
+  onSource: Mock<(change: MarkmapSourceChange) => void>;
+  onDraft: Mock<(change: MarkmapSourceChange) => void>;
+  onError: Mock<(message: string) => void>;
+  onOpenUrl: Mock<(url: string) => void>;
+  resolved: {
+    options: ViewOptions;
+    warnings: string[];
+  };
+};
+
+const setup = (): Setup => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
+  const markmap = fakeMarkmap(svg);
   const toolbar = {
     element: document.createElement('div'),
     destroy: vi.fn(),
     update: vi.fn(),
   };
   const surface = document.createElement('div');
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  const onSource = vi.fn();
-  const onError = vi.fn();
-  const onOpenUrl = vi.fn();
-  const resolved = { options: { colorScheme: 'light' }, json: {}, warnings: [] };
+  const onSource = vi.fn<(change: MarkmapSourceChange) => void>();
+  const onDraft = vi.fn<(change: MarkmapSourceChange) => void>();
+  const onError = vi.fn<(message: string) => void>();
+  const onOpenUrl = vi.fn<(url: string) => void>();
+  const resolved: Setup['resolved'] = {
+    options: { colorScheme: 'light', layout: layoutFor('two-sided') },
+    warnings: [],
+  };
   mocks.parseDocument.mockImplementation((source: string) => ({
     tree:
       source.trim() === ''
         ? root
         : { ...root, source: { block: { start: 0, end: source.length } } },
     frontmatter: {},
-    document: {},
+    document: { conventionIssues: [] },
   }));
   mocks.resolveViewOptions.mockReturnValue(resolved);
   mocks.create.mockReturnValue(markmap);
   mocks.createToolbar.mockReturnValue(toolbar);
   mocks.createEditView.mockReturnValue({});
-  return { markmap, toolbar, surface, svg, onSource, onError, onOpenUrl, resolved };
+  return { markmap, toolbar, surface, svg, onSource, onDraft, onError, onOpenUrl, resolved };
 };
 
-const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {}) => {
+type Mount = Setup & {
+  options: Parameters<typeof createMarkmapView>[0];
+  result: ReturnType<typeof createMarkmapView>;
+};
+
+const mount = (
+  overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {},
+  configure?: (setup: Setup) => void,
+): Mount => {
   const base = setup();
-  const options = {
+  configure?.(base);
+  const options: Parameters<typeof createMarkmapView>[0] = {
     surface: base.surface,
     svg: base.svg,
     markdown: '# Root',
-    colorScheme: 'dark' as const,
+    colorScheme: 'dark',
     editable: true,
     onSource: base.onSource,
+    onDraft: base.onDraft,
     onError: base.onError,
     onOpenUrl: base.onOpenUrl,
     ...overrides,
@@ -144,14 +303,38 @@ const mount = (overrides: Partial<Parameters<typeof createMarkmapView>[0]> = {})
   return { ...base, options, result };
 };
 
+class TestResizeObserver implements ResizeObserver {
+  static instances: TestResizeObserver[] = [];
+  readonly observe = vi.fn<(target: Element, options?: ResizeObserverOptions) => void>();
+  readonly unobserve = vi.fn<(target: Element) => void>();
+  readonly disconnect = vi.fn<() => void>();
+  readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    TestResizeObserver.instances.push(this);
+  }
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  TestResizeObserver.instances.length = 0;
+});
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.editorOptions.length = 0;
   mocks.editorSelected.value = 'root';
+  mocks.editorEditing.value = false;
+  mocks.editorEditingNotes.value = false;
+  mocks.editorEditNotes.mockClear();
+  mocks.editorSource.value = '# Root';
+  mocks.editorSelectedBlock.mockReturnValue('# Root');
   mocks.editorNodes.clear();
   mocks.editorNodes.set('root', {});
   mocks.labelText.mockReturnValue('Root');
   document.head.replaceChildren();
+  document.body.replaceChildren();
 });
 
 describe('Markmap adapter', () => {
@@ -159,14 +342,23 @@ describe('Markmap adapter', () => {
     const { markmap, toolbar, surface, onSource, onError, resolved } = mount();
 
     expect(mocks.parseDocument).toHaveBeenCalledWith('# Root');
-    const options = mocks.create.mock.calls[0]?.[2] as {
-      colorScheme: string;
-      gestures: unknown;
-    };
-    expect(options.colorScheme).toBe('dark');
-    expect(options.gestures).toBeTypeOf('function');
+    const options = mocks.create.mock.calls[0]?.[2];
+    expect(options?.colorScheme).toBe('dark');
+    expect(options?.gestures).toBeTypeOf('function');
+    expect(markmap.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
     expect(markmap.zoomBehavior.wheelDelta).toHaveBeenCalledWith(expect.any(Function));
-    expect(mocks.createToolbar).toHaveBeenCalledWith(markmap);
+    const toolbarCall = mocks.createToolbar.mock.calls[0];
+    expect(toolbarCall?.[0]).toBe(markmap);
+    const toolbarOptions = toolbarCall?.[1];
+    const items = toolbarOptions?.items ?? [];
+    expect(items.map((item) => (typeof item === 'string' ? item : item.label))).toEqual([
+      'Zoom in',
+      'Zoom out',
+      'Fit to view',
+      'Reset view',
+      'Expand all',
+      'fold-level',
+    ]);
     expect(mocks.createEditView).toHaveBeenCalledWith(markmap);
     expect(mocks.editorOptions).toHaveLength(1);
     expect(mocks.editorOptions[0]?.source).toBe('# Root');
@@ -174,13 +366,159 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions[0]?.view).toEqual({});
     expect(mocks.editorFocus).toHaveBeenCalledOnce();
     expect(mocks.resolveViewOptions).toHaveBeenCalledWith(
-      { duration: 0, fitPadding: 24, fitMaxScale: 1 },
+      {
+        duration: 0,
+        fitPadding: 24,
+        fitMaxScale: 1,
+        layout: layoutFor('two-sided'),
+        theme: softTheme,
+        siblingGap: 14,
+        levelGap: 110,
+      },
       undefined,
+      { layouts: builtinLayouts, themes: builtinThemes },
     );
     expect(resolved.options).toBeDefined();
     expect(toolbar.destroy).not.toHaveBeenCalled();
     expect(onSource).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  test('[R-33] resets the view to 100% on the selected node', () => {
+    const { result, markmap, onSource } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = 'child';
+    markmap.focusNode.mockClear();
+    mocks.editorFocus.mockClear();
+    mocks.editorCommit.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode).toHaveBeenCalledWith('child', { scale: 1, animate: false });
+    expect(mocks.editorFocus).toHaveBeenCalledOnce();
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
+    expect(onSource).not.toHaveBeenCalled();
+  });
+
+  test('[R-33] falls back to the root when the selection is gone', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+    mocks.editorSelected.value = 'gone';
+    markmap.focusNode.mockReturnValueOnce(false);
+    markmap.focusNode.mockClear();
+    mocks.editorFocus.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode.mock.calls).toEqual([
+      ['gone', { scale: 1, animate: false }],
+      ['root', { scale: 1, animate: false }],
+    ]);
+    expect(mocks.editorFocus).toHaveBeenCalledOnce();
+  });
+
+  test('[R-02] reads the root rect for a large tree', () => {
+    const { result, markmap } = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('tree');
+      base.markmap.result = { bounds: { x: 0, y: 0, width: 1000, height: 800 } };
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(markmap.screenRect).toHaveBeenCalledWith('root');
+    expect(markmap.zoomBehavior.transform).toHaveBeenCalled();
+  });
+
+  test('[R-33] resets a read-only map to the root', () => {
+    const { result, markmap } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+    markmap.focusNode.mockClear();
+
+    result.view.resetView();
+
+    expect(markmap.focusNode).toHaveBeenCalledWith('root', { scale: 1, animate: false });
+    expect(mocks.editorFocus).not.toHaveBeenCalled();
+  });
+
+  test('[R-07] cancels a pending placement when destroyed', () => {
+    vi.stubGlobal('ResizeObserver', TestResizeObserver);
+    const { result, markmap } = mount({}, (base) => {
+      base.svg.getBoundingClientRect = () => new DOMRect(0, 0, 0, 0);
+    });
+    if (!result.ok) throw new Error(result.message);
+    const observer = TestResizeObserver.instances[0];
+    if (observer === undefined) throw new Error('No observer');
+
+    expect(markmap.focusNode).not.toHaveBeenCalled();
+
+    result.view.destroy();
+
+    expect(observer.disconnect).toHaveBeenCalledOnce();
+  });
+
+  test('[R-02] opens a file without a layout as two-sided', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.view.layout).toBe('two-sided');
+    expect(mocks.create.mock.calls[0]?.[2]?.layout).toBe(layoutFor('two-sided'));
+  });
+
+  test('[R-02] honors explicit layouts', () => {
+    const tree = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('tree');
+    });
+    if (!tree.result.ok) throw new Error(tree.result.message);
+
+    const chart = mount({}, (base) => {
+      base.resolved.options.layout = layoutFor('org-chart');
+    });
+    if (!chart.result.ok) throw new Error(chart.result.message);
+
+    expect(tree.result.view.layout).toBe('tree');
+    expect(chart.result.view.layout).toBe('org-chart');
+  });
+
+  test('[R-02] falls back to two-sided and reports an unknown layout', () => {
+    const { result, onError } = mount({}, (base) => {
+      base.resolved.warnings.push(
+        'Unknown layout `fishbone`; available: `tree`, `two-sided`, `org-chart`',
+      );
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(result.view.layout).toBe('two-sided');
+    expect(onError).toHaveBeenCalledWith(
+      'Unknown layout `fishbone`; available: `tree`, `two-sided`, `org-chart`',
+    );
+  });
+
+  test('[R-22] switches the layout and fits the map', () => {
+    const { result, markmap } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.setLayout('tree');
+
+    expect(mocks.editorCommit).toHaveBeenCalledOnce();
+    expect(markmap.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: layoutFor('tree') }),
+    );
+    expect(markmap.fit).toHaveBeenCalledOnce();
+    expect(result.view.layout).toBe('tree');
+    expect(mocks.create).toHaveBeenCalledOnce();
+  });
+
+  test('[R-22] switches a read-only map without committing an editor', () => {
+    const { result, markmap } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.setLayout('org-chart');
+
+    expect(mocks.editorCommit).not.toHaveBeenCalled();
+    expect(markmap.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: layoutFor('org-chart') }),
+    );
+    expect(markmap.fit).toHaveBeenCalledOnce();
+    expect(result.view.layout).toBe('org-chart');
   });
 
   test('[R-17] opens an http link through the host callback', () => {
@@ -256,7 +594,11 @@ describe('Markmap adapter', () => {
     const editor = mocks.editorOptions[0];
     if (editor === undefined) throw new Error('No editor');
 
-    editor.onChange?.({ source: '# Next', selection: 4, document: {} as never });
+    editor.onChange?.({
+      source: '# Next',
+      selection: 4,
+      document: parseRealDocument('# Next').document,
+    });
     editor.onError?.(new Error('bad label'));
 
     expect(onSource).toHaveBeenCalledWith({ source: '# Next', selection: 4 });
@@ -274,6 +616,117 @@ describe('Markmap adapter', () => {
     expect(markmap.destroy).not.toHaveBeenCalled();
   });
 
+  test('[R-26] opens the notes editor for the selected node', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.editNotes();
+
+    expect(mocks.editorEditNotes).toHaveBeenCalledOnce();
+  });
+
+  test('[R-12] [R-26] skips the notes editor for a read-only file', () => {
+    const { result } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.editNotes();
+
+    expect(mocks.editorEditNotes).not.toHaveBeenCalled();
+  });
+
+  test('[R-36] creates group through the editor', () => {
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.createGroup();
+
+    expect(mocks.editorCreateGroup).toHaveBeenCalledOnce();
+  });
+
+  test('[R-12] [R-36] skips group creation for a read-only file', () => {
+    const { result } = mount({ editable: false });
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.createGroup();
+
+    expect(mocks.editorCreateGroup).not.toHaveBeenCalled();
+  });
+
+  test('[R-36] syncs group elements on render and exposes groupScreenRect and hitAt', () => {
+    const { svg, markmap } = setup();
+    const groupEl = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    groupEl.setAttribute('data-key', 'group:group-0');
+    svg.append(groupEl);
+
+    if (markmap.result !== undefined) {
+      markmap.result.state = {
+        groups: [
+          { id: 'group-0', label: 'Delivery', rect: { x: 10, y: 20, width: 100, height: 50 } },
+          { id: 'group-1', label: null, rect: { x: 120, y: 20, width: 100, height: 50 } },
+        ],
+      };
+    }
+
+    let renderCallback: (() => void) | undefined;
+    markmap.on = vi.fn((event: string, callback: () => void) => {
+      if (event === 'render') renderCallback = callback;
+    });
+
+    const result = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '# Test',
+      colorScheme: 'light',
+      editable: true,
+      onSource: vi.fn(),
+      onDraft: vi.fn(),
+      onError: vi.fn(),
+      onOpenUrl: vi.fn(),
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(groupEl.getAttribute('data-group-id')).toBe('group-0');
+    expect(groupEl.getAttribute('data-group-index')).toBe('0');
+
+    renderCallback?.();
+
+    expect(markmap.groupScreenRect?.('group-0')).toBeDefined();
+    expect(markmap.groupScreenRect?.(0)).toBeDefined();
+    expect(markmap.groupScreenRect?.('nonexistent')).toBeUndefined();
+
+    expect(markmap.hitAt?.(20, 10)).toEqual({ kind: 'group', groupId: 'group-0' });
+    expect(markmap.hitAt?.(130, 25)).toEqual({ kind: 'group', groupId: 'group-1' });
+    expect(markmap.hitAt?.(5, 25)).toBeUndefined();
+    expect(markmap.hitAt?.(115, 25)).toBeUndefined();
+    expect(markmap.hitAt?.(20, -10)).toBeUndefined();
+    expect(markmap.hitAt?.(20, 80)).toBeUndefined();
+    expect(markmap.hitAt?.(500, 500)).toBeUndefined();
+
+    if (markmap.result !== undefined) {
+      markmap.result.state = { groups: undefined };
+    }
+    expect(markmap.groupScreenRect?.('group-0')).toBeUndefined();
+    expect(markmap.hitAt?.(20, 10)).toBeUndefined();
+    markmap.result = undefined;
+    expect(markmap.groupScreenRect?.('group-0')).toBeUndefined();
+    if (renderCallback !== undefined) renderCallback();
+
+    markmap.hitAt = () => ({ kind: 'node', nodeId: 'test' });
+    const resultWithHitAt = createMarkmapView({
+      surface: document.createElement('div'),
+      svg,
+      markdown: '# Test',
+      colorScheme: 'light',
+      editable: true,
+      onSource: vi.fn(),
+      onDraft: vi.fn(),
+      onError: vi.fn(),
+      onOpenUrl: vi.fn(),
+    });
+    if (!resultWithHitAt.ok) throw new Error(resultWithHitAt.message);
+    expect(markmap.hitAt(0, 0)).toEqual({ kind: 'node', nodeId: 'test' });
+  });
+
   test('[R-04] updates the color scheme without recreating the view', () => {
     const { result, markmap } = mount();
     if (!result.ok) throw new Error(result.message);
@@ -286,13 +739,28 @@ describe('Markmap adapter', () => {
     expect(mocks.editorOptions).toHaveLength(1);
   });
 
-  test('[R-05] commits an in-progress label before a snapshot', () => {
+  test('[R-05] commits an in-progress label through the view', () => {
     const { result } = mount();
     if (!result.ok) throw new Error(result.message);
 
     result.view.commit();
 
     expect(mocks.editorCommit).toHaveBeenCalledOnce();
+  });
+
+  test('[R-11] [R-20] forwards a label draft separately from committed changes', () => {
+    const { onSource, onDraft } = mount();
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onDraftChange?.({
+      source: '# Draft',
+      selection: 2,
+      document: parseRealDocument('# Draft').document,
+    });
+
+    expect(onDraft).toHaveBeenCalledWith({ source: '# Draft', selection: 2 });
+    expect(onSource).not.toHaveBeenCalled();
   });
 
   test('[R-20] snapshots an in-progress label without committing the editor', () => {
@@ -332,6 +800,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -342,8 +811,9 @@ describe('Markmap adapter', () => {
   });
 
   test('[R-06] reports a non-Error rejection as text', () => {
+    const failure: unknown = 'plain text';
     mocks.parseDocument.mockImplementation(() => {
-      throw 'plain text';
+      throw failure;
     });
 
     const result = createMarkmapView({
@@ -353,6 +823,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -362,7 +833,11 @@ describe('Markmap adapter', () => {
 
   test('[R-07] cleans up when the editor fails to construct', () => {
     const { markmap, toolbar, svg } = setup();
-    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+    mocks.parseDocument.mockReturnValue({
+      tree: root,
+      frontmatter: {},
+      document: { conventionIssues: [] },
+    });
     mocks.create.mockReturnValue(markmap);
     mocks.createToolbar.mockReturnValue(toolbar);
     mocks.createEditView.mockImplementation(() => {
@@ -376,6 +851,7 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
@@ -386,8 +862,73 @@ describe('Markmap adapter', () => {
     expect(svg.childElementCount).toBe(0);
   });
 
+  test('[R-21] copies and pastes from the mounted map', () => {
+    const { surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+    document.body.append(surface);
+    surface.tabIndex = 0;
+    surface.focus();
+    const clipboard = new DataTransfer();
+
+    surface.dispatchEvent(
+      new ClipboardEvent('copy', { clipboardData: clipboard, bubbles: true, cancelable: true }),
+    );
+
+    expect(clipboard.getData('text/plain')).toBe('# Root');
+
+    surface.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', metaKey: true, bubbles: true }));
+    const sink = surface.querySelector<HTMLTextAreaElement>('textarea.mm-clipboard-sink');
+    if (sink === null) throw new Error('No clipboard sink');
+    sink.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }),
+    );
+
+    expect(mocks.editorInsertBlock).toHaveBeenCalledWith('# Root');
+  });
+
+  test('[R-21] removes the clipboard sink with the view', () => {
+    const { surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    expect(surface.querySelector('.mm-clipboard-sink')).not.toBeNull();
+    result.view.destroy();
+
+    expect(surface.querySelector('.mm-clipboard-sink')).toBeNull();
+  });
+
+  test('[R-21] mounts no clipboard sink for a read-only map', () => {
+    const { surface } = mount({ editable: false });
+
+    expect(surface.querySelector('.mm-clipboard-sink')).toBeNull();
+  });
+
+  test('[R-37] passes graph metadata and identities to Markmap.create', () => {
+    const graph = { edges: [{ from: 'a', to: 'b', label: 'depends' }], groups: [], block: null };
+    const identities = new Map([
+      ['a', 'id-a'],
+      ['b', 'id-b'],
+    ]);
+    mount({}, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { graph, identities },
+      });
+    });
+
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ graph, identities }),
+    );
+  });
+
   test('[R-06] reports a failure while resolving options', () => {
-    mocks.parseDocument.mockReturnValue({ tree: root, frontmatter: {}, document: {} });
+    mocks.parseDocument.mockReturnValue({
+      tree: root,
+      frontmatter: {},
+      document: { conventionIssues: [] },
+    });
     mocks.resolveViewOptions.mockImplementation(() => {
       throw new Error('bad options');
     });
@@ -399,11 +940,82 @@ describe('Markmap adapter', () => {
       colorScheme: 'dark',
       editable: true,
       onSource: vi.fn(),
+      onDraft: vi.fn(),
       onError: vi.fn(),
       onOpenUrl: vi.fn(),
     });
 
     expect(result).toEqual({ ok: false, message: 'bad options' });
     expect(mocks.create).not.toHaveBeenCalled();
+  });
+
+  test('[R-38] reports initial convention issues through onDiagnostics callback', () => {
+    const onDiagnostics = vi.fn();
+    const issue = { code: 'E_IDENTITY' as const, message: 'duplicate' };
+    mocks.validateConventions.mockReturnValue([issue]);
+    const { result } = mount({ onDiagnostics }, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { conventionIssues: [issue] },
+      });
+    });
+    if (!result.ok) throw new Error(result.message);
+
+    expect(mocks.validateConventions).toHaveBeenCalled();
+    expect(onDiagnostics).toHaveBeenCalledWith([issue]);
+  });
+
+  test('[R-38] reports new convention issues introduced during editing', () => {
+    const onDiagnostics = vi.fn();
+    const newIssue = { code: 'E_GRAPH' as const, message: 'self loop' };
+    mocks.validateConventions.mockReturnValue([]);
+    mocks.newConventionIssues.mockReturnValue([newIssue]);
+    const { result } = mount({ onDiagnostics });
+    if (!result.ok) throw new Error(result.message);
+
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    editor.onChange?.({
+      source: '# Next',
+      selection: 4,
+      document: parseRealDocument('# Next').document,
+    });
+
+    expect(mocks.newConventionIssues).toHaveBeenCalled();
+    expect(onDiagnostics).toHaveBeenCalledWith([newIssue]);
+  });
+
+  test('[R-38] does not throw when convention issues exist but onDiagnostics is not provided', () => {
+    const issue = { code: 'E_IDENTITY' as const, message: 'duplicate' };
+    mocks.validateConventions.mockReturnValue([issue]);
+    const { result } = mount({}, () => {
+      mocks.parseDocument.mockReturnValue({
+        tree: root,
+        frontmatter: {},
+        document: { conventionIssues: [issue] },
+      });
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test('[R-38] does not throw when new issues exist but onDiagnostics is not provided during edit', () => {
+    const newIssue = { code: 'E_GRAPH' as const, message: 'self loop' };
+    mocks.validateConventions.mockReturnValue([]);
+    mocks.newConventionIssues.mockReturnValue([newIssue]);
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const editor = mocks.editorOptions[0];
+    if (editor === undefined) throw new Error('No editor');
+
+    expect(() => {
+      editor.onChange?.({
+        source: '# Next',
+        selection: 4,
+        document: parseRealDocument('# Next').document,
+      });
+    }).not.toThrow();
   });
 });

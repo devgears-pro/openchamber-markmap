@@ -7,6 +7,8 @@ export interface Note {
     block: MdastBlock;
     /** Number of children that precede this block in source order. */
     after: number;
+    source?: SourceRange;
+    fence?: boolean;
 }
 export interface SourceRange {
     start: number;
@@ -28,4 +30,18 @@ export interface MarkmapNode {
     position?: SourceRange;
     source?: NodeSource;
     children: MarkmapNode[];
+}
+export interface GraphEdge {
+    from: string;
+    to: string;
+    label: string | null;
+}
+export interface GraphGroup {
+    roots: string[];
+    label: string | null;
+}
+export interface GraphData {
+    edges: GraphEdge[];
+    groups: GraphGroup[];
+    block: SourceRange | null;
 }
