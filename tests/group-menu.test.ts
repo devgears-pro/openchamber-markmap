@@ -30,6 +30,13 @@ describe('group menu', () => {
     expect(icon?.querySelector('path')?.getAttribute('d')).toBeTruthy();
   });
 
+  test('[R-36] draws the Create group icon with a dashed outline', () => {
+    const menu = createGroupMenu(vi.fn());
+    const outline = menu.querySelector('button svg path');
+
+    expect(outline?.getAttribute('stroke-dasharray')).toBeTruthy();
+  });
+
   test('[R-36] forwards the create request', () => {
     const onCreate = vi.fn();
     const menu = createGroupMenu(onCreate);
