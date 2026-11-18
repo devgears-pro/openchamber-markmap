@@ -57,15 +57,19 @@ const mocks = vi.hoisted(() => {
     },
     createEditView: vi.fn(),
     editorOptions,
+    editorSelect: vi.fn(),
+    editorSetSource: vi.fn(),
     editorSetLabel: vi.fn(),
     editorSelected,
     editorEditing: { value: false },
     editorEditingNotes: { value: false },
     editorEditNotes: vi.fn<(nodeId?: string | null) => boolean>(() => true),
     editorCreateGroup: vi.fn<(label?: string) => boolean>(() => true),
-    editorSource: { value: '# Root' },
+    editorSource: { value: '- [ ] Task item' },
     editorSelectedBlock: vi.fn<() => string | null>(() => '# Root'),
-    editorNodes: new Map<string, unknown>([['root', {}]]),
+    editorNodes: new Map<string, unknown>([
+      ['root', { block: { start: 0, end: 15 }, label: { start: 6, end: 15 } }],
+    ]),
     editorDestroy: vi.fn(),
     editorFocus: vi.fn(),
     editorCommit: vi.fn(),
@@ -102,8 +106,16 @@ vi.mock('@markmap/edit-dom', () => ({
       return mocks.editorSelected.value;
     }
 
-    get document(): { readonly nodes: Map<string, unknown> } {
-      return { nodes: mocks.editorNodes };
+    select(nodeId: string | null, options?: unknown): void {
+      mocks.editorSelect(nodeId, options);
+    }
+
+    setSource(source: string, options?: unknown): void {
+      mocks.editorSetSource(source, options);
+    }
+
+    get document(): { readonly nodes: Map<string, unknown>; readonly source: string } {
+      return { nodes: mocks.editorNodes, source: mocks.editorSource.value };
     }
 
     get isEditing(): boolean {
@@ -667,6 +679,166 @@ describe('Markmap adapter', () => {
     readOnly.result.view.addMarker('✅');
 
     expect(mocks.editorSetLabel).not.toHaveBeenCalled();
+  });
+
+  test('[R-18] removes a marker from the selected node when glyph is empty', () => {
+    mocks.labelText.mockReturnValue('✅ Root');
+    const { result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    result.view.addMarker('');
+
+    expect(mocks.editorSetLabel).toHaveBeenCalledWith('root', 'Root');
+    expect(mocks.editorFocus).toHaveBeenCalled();
+  });
+
+  test('[R-18] opens marker picker when clicking marker hit area in svg', () => {
+    const { svg, surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-key', 'node:root');
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('data-action', 'marker');
+    group.append(hitRect);
+    svg.append(group);
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const popover = surface.querySelector('.mm-marker-popover');
+    expect(popover).toBeTruthy();
+
+    const doneButton = popover?.querySelector<HTMLButtonElement>('button[data-glyph="✅"]');
+    expect(doneButton).toBeTruthy();
+    doneButton?.click();
+
+    expect(mocks.editorSetLabel).toHaveBeenCalledWith('root', '✅ Root');
+
+    result.view.destroy();
+    expect(surface.querySelector('.mm-marker-popover')).toBeNull();
+  });
+
+  test('[R-18] toggles marker picker closed when clicking the same marker hit area again', () => {
+    const { svg, surface, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-key', 'node:root');
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('data-action', 'marker');
+    group.append(hitRect);
+    svg.append(group);
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(surface.querySelector('.mm-marker-popover')).toBeTruthy();
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(surface.querySelector('.mm-marker-popover')).toBeNull();
+
+    result.view.destroy();
+  });
+
+  test('[R-18] toggles task list checkbox on click in svg', () => {
+    mocks.editorSource.value = '- [ ] Task item';
+    mocks.editorNodes.set('root', {
+      block: { start: 0, end: 15 },
+      label: { start: 6, end: 15 },
+    });
+    const { svg, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-key', 'node:root');
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('data-action', 'checkbox');
+    group.append(hitRect);
+    svg.append(group);
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(mocks.editorSetSource).toHaveBeenCalledWith('- [x] Task item', {
+      selection: 6,
+      emit: true,
+    });
+  });
+
+  test('[R-18] toggles checked task back to unchecked with trailing lines', () => {
+    mocks.editorSource.value = '- [x] Done task\nSecond line';
+    mocks.editorNodes.set('root', {
+      block: { start: 0, end: 15 },
+      label: { start: 6, end: 15 },
+    });
+    const { svg, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-key', 'node:root');
+    const hitRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hitRect.setAttribute('data-action', 'checkbox');
+    group.append(hitRect);
+    svg.append(group);
+
+    hitRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(mocks.editorSetSource).toHaveBeenCalledWith('- [ ] Done task\nSecond line', {
+      selection: 6,
+      emit: true,
+    });
+  });
+
+  test('[R-18] ignores clicks on invalid actions or read-only markers', () => {
+    const { svg, result } = mount();
+    if (!result.ok) throw new Error(result.message);
+
+    const plainRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    svg.append(plainRect);
+    plainRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const emptyAction = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    emptyAction.setAttribute('data-action', '');
+    svg.append(emptyAction);
+    emptyAction.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const nonNodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    nonNodeGroup.setAttribute('data-key', 'group:test');
+    const nonNodeRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    nonNodeRect.setAttribute('data-action', 'checkbox');
+    nonNodeGroup.append(nonNodeRect);
+    svg.append(nonNodeGroup);
+    nonNodeRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const noBlockGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    noBlockGroup.setAttribute('data-key', 'node:root');
+    const noBlockRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    noBlockRect.setAttribute('data-action', 'checkbox');
+    noBlockGroup.append(noBlockRect);
+    svg.append(noBlockGroup);
+    noBlockRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    mocks.editorSource.value = '- Plain item without box';
+    mocks.editorNodes.set('root', {
+      block: { start: 0, end: 24 },
+      label: { start: 2, end: 24 },
+    });
+    noBlockRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const readOnly = mount({ editable: false });
+    if (!readOnly.result.ok) throw new Error(readOnly.result.message);
+    const roGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    roGroup.setAttribute('data-key', 'node:root');
+    const roMarker = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    roMarker.setAttribute('data-action', 'marker');
+    roGroup.append(roMarker);
+    readOnly.svg.append(roGroup);
+    roMarker.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    const otherActionGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    otherActionGroup.setAttribute('data-key', 'node:root');
+    const otherActionRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    otherActionRect.setAttribute('data-action', 'notes');
+    otherActionGroup.append(otherActionRect);
+    svg.append(otherActionGroup);
+    otherActionRect.dispatchEvent(new MouseEvent('click', { bubbles: true }));
   });
 
   test('[R-11] [R-13] forwards source changes and editor errors', () => {

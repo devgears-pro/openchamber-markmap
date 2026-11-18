@@ -1,36 +1,41 @@
-import { MARKER_GROUPS } from '../markmap/markers';
 import { createIcon } from './icons';
+import { createMarkerPicker, type MarkerPickerInstance } from './marker-picker';
 
 export const createMarkerMenu = (onMarker: (glyph: string) => void): HTMLElement => {
   const menu = document.createElement('div');
   menu.className = 'mm-marker-menu';
-  const select = document.createElement('select');
-  select.className = 'mm-marker-select';
-  select.setAttribute('aria-label', 'Add marker');
-  select.title = 'Marker';
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = '';
-  placeholder.disabled = true;
-  placeholder.selected = true;
-  select.append(placeholder);
-  menu.append(createIcon('marker'));
-  for (const group of MARKER_GROUPS) {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = group.label;
-    for (const marker of group.markers) {
-      const option = document.createElement('option');
-      option.value = marker.glyph;
-      option.textContent = `${marker.glyph} ${marker.label}`;
-      optgroup.append(option);
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'mm-marker-toolbar-button';
+  button.setAttribute('aria-label', 'Add marker');
+  button.title = 'Marker';
+  button.append(createIcon('marker'));
+
+  let activePicker: MarkerPickerInstance | null = null;
+
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    if (activePicker !== null) {
+      activePicker.destroy();
+      activePicker = null;
+      return;
     }
-    select.append(optgroup);
-  }
-  select.addEventListener('change', () => {
-    if (select.value === '') return;
-    onMarker(select.value);
-    select.value = '';
+    const rect = button.getBoundingClientRect();
+    activePicker = createMarkerPicker({
+      anchor: rect,
+      trigger: button,
+      onSelect: (glyph) => {
+        onMarker(glyph);
+      },
+      onClose: () => {
+        activePicker?.destroy();
+        activePicker = null;
+      },
+    });
+    document.body.append(activePicker.element);
   });
-  menu.prepend(select);
+
+  menu.append(button);
   return menu;
 };

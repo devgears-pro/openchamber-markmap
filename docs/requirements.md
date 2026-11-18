@@ -98,7 +98,9 @@ Clicking an http(s) link in a node asks the host to open it and never navigates 
 
 ### R-18 Node markers
 
-An editable map offers a marker menu grouped by status, priority, progress, and flags. Choosing a marker replaces an existing leading marker on the selected node and preserves the rest of the label. Read-only maps show no marker menu. Markers are plain Unicode characters in the Markdown source.
+An editable or read-only map renders node markers as vector SVG icons instead of monochrome text glyphs. Progress markers provide vector pie-chart states for 0%, 25%, 50%, 75%, and 100%. Priority markers render colored badges for levels 1 through 7. Status markers render vector done, in-progress, blocked, and risk icons. Flags render colored flag markers. Markers in the Markdown source remain standard Unicode characters for dry-Markdown portability.
+
+Clicking a marker icon on an editable node opens an anchored marker picker popover next to the node. The popover presents categorised icons and a remove action that clears the leading marker. Choosing an icon replaces or sets the leading marker and commits the change. Clicking outside or pressing Escape closes the popover without changes. Read-only maps render vector markers but open no picker. The toolbar marker control opens the same popover for the selected node. Clicking a list task checkbox directly toggles its state between checked and unchecked.
 
 ### R-19 Selection and editing modes
 

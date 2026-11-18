@@ -794,9 +794,11 @@ test('[R-18] adds a marker from the toolbar', async ({ page }) => {
   await page.goto('/dev/');
   await page.getByText('Links', { exact: true }).first().click();
 
-  await page.getByLabel('Add marker').selectOption({ label: '✅ Done' });
+  await page.getByLabel('Add marker').click();
+  await page.locator('.mm-marker-popover button[data-glyph="✅"]').click();
 
-  await expect(page.locator('.mm-markmap-svg')).toContainText('✅ Links');
+  await expect(page.locator('.mm-markmap-svg [data-action="marker"]')).toBeVisible();
+  await expect(page.locator('.mm-markmap-svg')).toContainText('Links');
 });
 
 test('[R-03] [R-10] selects a node and exposes accessible names', async ({ page }) => {
@@ -1487,7 +1489,7 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
           '.mm-markmap-toolbar .markmap-toolbar button, .mm-layout-menu button, .mm-notes-menu button',
         ),
       ].map((button) => button.getAttribute('aria-label') ?? '');
-      const marker = document.querySelector('.mm-marker-select');
+      const marker = document.querySelector('.mm-marker-toolbar-button');
       const markerStyle = marker === null ? null : getComputedStyle(marker);
       const wrapper = document.querySelector('.mm-markmap-toolbar');
       const wrapperStyle = wrapper === null ? null : getComputedStyle(wrapper);
@@ -1605,7 +1607,7 @@ test('[R-27] styles notes and toolbar icons for dark and light themes', async ({
     for (const name of result.buttonNames) {
       await expect(page.getByRole('button', { name, exact: true })).toBeVisible();
     }
-    await expect(page.getByRole('combobox', { name: 'Add marker' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add marker' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Tree', exact: true }).hover();
     const hovered = await page.evaluate(() => {

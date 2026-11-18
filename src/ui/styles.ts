@@ -168,56 +168,119 @@ const MARKMAP_CSS = `
     padding-left: 6px;
     border-left: 1px solid var(--oc-border, #34343c);
   }
-  .mm-marker-select {
-    position: relative;
-    z-index: 1;
+  .mm-marker-toolbar-button {
+    display: grid;
+    place-items: center;
     width: 28px;
     height: 28px;
     padding: 0;
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: transparent;
-    font: 15px/1 var(--oc-font, system-ui, sans-serif);
-    appearance: none;
+    color: var(--oc-muted, #8d8d99);
     cursor: pointer;
   }
-  .mm-marker-select:hover {
+  .mm-marker-toolbar-button:hover {
     background: var(--oc-hover, rgba(255, 255, 255, 0.06));
-  }
-  .mm-marker-select:focus {
     color: var(--oc-fg, #ececf1);
   }
-  .mm-marker-select option {
-    background: var(--oc-elevated, #25252c);
+  .mm-marker-toolbar-button:focus-visible {
+    outline: 2px solid var(--oc-focus, #6ea8fe);
+    outline-offset: -2px;
     color: var(--oc-fg, #ececf1);
   }
-  .mm-marker-menu svg {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
+  .mm-marker-toolbar-button svg {
+    display: block;
     width: 16px;
     height: 16px;
-    margin: auto;
-    color: var(--oc-muted, #8d8d99);
-    pointer-events: none;
   }
-  .mm-marker-select:hover + svg,
-  .mm-marker-select:focus + svg {
-    color: var(--oc-fg, #ececf1);
-  }
-  .mm-marker-menu path {
+  .mm-marker-toolbar-button path {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;
   }
-  .mm-marker-select:focus-visible {
+  .mm-marker-popover {
+    position: fixed;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    width: 224px;
+    box-sizing: border-box;
+    max-height: min(440px, calc(100vh - 16px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--oc-elevated, #25252c);
+    border: 1px solid var(--oc-border, #34343c);
+    border-radius: calc(var(--oc-radius, 9px) - 1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+    user-select: none;
+  }
+  .mm-marker-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .mm-marker-category {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mm-marker-category-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--oc-muted, #8d8d99);
+    padding: 0 2px;
+  }
+  .mm-marker-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 26px);
+    gap: 2px;
+  }
+  .mm-marker-button {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .mm-marker-button:hover {
+    background: var(--oc-hover, rgba(255, 255, 255, 0.08));
+  }
+  .mm-marker-button:focus-visible {
     outline: 2px solid var(--oc-focus, #6ea8fe);
-    outline-offset: -2px;
+    outline-offset: -1px;
+  }
+  .mm-marker-remove-button {
+    display: block;
+    width: 100%;
+    padding: 4px 6px;
+    border: 0;
+    border-top: 1px solid var(--oc-border, #34343c);
+    border-radius: 0 0 4px 4px;
+    background: transparent;
+    color: var(--oc-muted, #8d8d99);
+    font: 11px/1.2 var(--oc-font, system-ui, sans-serif);
+    text-align: center;
+    cursor: pointer;
+  }
+  .mm-marker-remove-button:hover {
+    background: var(--oc-hover, rgba(255, 255, 255, 0.06));
+    color: var(--oc-fg, #ececf1);
+  }
+  .mm-marker-remove-button:focus-visible {
+    outline: 2px solid var(--oc-focus, #6ea8fe);
+    outline-offset: -1px;
+    color: var(--oc-fg, #ececf1);
   }
   .mm-notice {
     position: absolute;
