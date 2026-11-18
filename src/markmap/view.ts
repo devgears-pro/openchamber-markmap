@@ -19,6 +19,7 @@ import { layoutFor, type MarkmapLayout } from './layouts';
 import { optionsFor, type MarkmapColorScheme } from './options';
 import { createToolbarItems } from './toolbar-items';
 import { placeAtFullScale } from './zoom';
+import { createMarkerPicker, type MarkerPickerInstance } from '../ui/marker-picker';
 
 export type { MarkmapColorScheme } from './options';
 
@@ -32,7 +33,7 @@ export type MarkmapView = {
   readonly toolbar: HTMLDivElement;
   setLayout: (layout: MarkmapLayout) => void;
   setColorScheme: (colorScheme: MarkmapColorScheme) => void;
-  addMarker: (glyph: string) => void;
+  addMarker: (glyph: string, targetId?: string) => void;
   editNotes: () => void;
   createGroup: () => void;
   resetView: () => void;
@@ -235,6 +236,80 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
     };
     mount.svg.addEventListener('click', handleLink, true);
 
+    let activePicker: MarkerPickerInstance | null = null;
+    let activePickerNodeId: string | null = null;
+
+    const closePicker = (): void => {
+      activePicker?.destroy();
+      activePicker = null;
+      activePickerNodeId = null;
+    };
+
+    const toggleCheckbox = (activeEditor: MarkmapEditor, nodeId: string): void => {
+      const node = activeEditor.document.nodes.get(nodeId);
+      if (!node?.block || !node.label) return;
+      const docSource = activeEditor.document.source;
+      const lineEndIndex = docSource.indexOf('\n', node.block.start);
+      const line = docSource.slice(
+        node.block.start,
+        lineEndIndex === -1 ? docSource.length : lineEndIndex,
+      );
+      const match = /^([ \t]*(?:[-+*]|\d{1,9}[.)])[ \t]+)(\[[ xX]\])/u.exec(line);
+      const prefix = match?.[1];
+      const checkbox = match?.[2];
+      if (prefix === undefined || checkbox === undefined) return;
+      const from = node.block.start + prefix.length;
+      const insert = checkbox === '[ ]' ? '[x]' : '[ ]';
+      const nextSource = `${docSource.slice(0, from)}${insert}${docSource.slice(from + 3)}`;
+      activeEditor.setSource(nextSource, { selection: node.label.start, emit: true });
+    };
+
+    const handleActionClick = (event: MouseEvent): void => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const actionRect = target.closest('[data-action]');
+      if (actionRect === null) return;
+      const action = actionRect.getAttribute('data-action');
+      if (!action) return;
+
+      const nodeGroup = target.closest('g[data-key^="node:"]');
+      const key = nodeGroup?.getAttribute('data-key');
+      if (!key?.startsWith('node:')) return;
+      const nodeId = key.slice(5);
+
+      if (editor === null) return;
+
+      if (action === 'checkbox') {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleCheckbox(editor, nodeId);
+        return;
+      }
+
+      if (action === 'marker') {
+        event.preventDefault();
+        event.stopPropagation();
+        if (activePicker !== null && activePickerNodeId === nodeId) {
+          closePicker();
+          return;
+        }
+        closePicker();
+        activePickerNodeId = nodeId;
+        editor.commit();
+        const rect = actionRect.getBoundingClientRect();
+        activePicker = createMarkerPicker({
+          anchor: rect,
+          trigger: actionRect,
+          onSelect: (glyph) => {
+            view.addMarker(glyph, nodeId);
+          },
+          onClose: closePicker,
+        });
+        mount.surface.append(activePicker.element);
+      }
+    };
+    mount.svg.addEventListener('click', handleActionClick, true);
+
     const view: MarkmapView = {
       get layout() {
         return layoutName;
@@ -249,10 +324,10 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
       setColorScheme: (colorScheme) => {
         instance.setOptions({ ...instance.options, colorScheme });
       },
-      addMarker: (glyph) => {
+      addMarker: (glyph, targetId) => {
         if (editor === null) return;
         editor.commit();
-        const id = editor.selected;
+        const id = targetId ?? editor.selected;
         if (id === null) return;
         const node = editor.document.nodes.get(id);
         if (node === undefined) return;
@@ -277,6 +352,8 @@ export const createMarkmapView: MarkmapFactory = (mount) => {
         placement?.();
         placement = null;
         mount.svg.removeEventListener('click', handleLink, true);
+        mount.svg.removeEventListener('click', handleActionClick, true);
+        closePicker();
         clipboard?.destroy();
         clipboard = null;
         editor?.destroy();

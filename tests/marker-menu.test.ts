@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { createMarkerMenu } from '../src/ui/marker-menu';
 
-const selectOf = (menu: HTMLElement): HTMLSelectElement => {
-  const select = menu.querySelector('select');
-  if (!(select instanceof HTMLSelectElement)) throw new Error('No marker select');
-  return select;
+const buttonOf = (menu: HTMLElement): HTMLButtonElement => {
+  const button = menu.querySelector('button');
+  if (!(button instanceof HTMLButtonElement)) throw new Error('No marker button');
+  return button;
 };
 
 describe('marker menu', () => {
@@ -13,39 +13,47 @@ describe('marker menu', () => {
     document.body.replaceChildren();
   });
 
-  test('[R-18] lists grouped markers and forwards the chosen glyph', () => {
+  test('[R-18] opens marker picker popover on click and forwards the chosen glyph', () => {
     const onMarker = vi.fn();
     const menu = createMarkerMenu(onMarker);
     document.body.append(menu);
-    const select = selectOf(menu);
+    const button = buttonOf(menu);
 
-    expect(select.getAttribute('aria-label')).toBe('Add marker');
-    expect(select.title).toBe('Marker');
-    expect(select.selectedOptions[0]?.textContent).toBe('');
-    expect(select.querySelectorAll('optgroup')).toHaveLength(4);
-    select.value = '✅';
-    select.dispatchEvent(new Event('change'));
+    expect(button.getAttribute('aria-label')).toBe('Add marker');
+    expect(button.title).toBe('Marker');
+
+    button.click();
+
+    const popover = document.body.querySelector('.mm-marker-popover');
+    expect(popover).toBeTruthy();
+
+    const doneButton = popover?.querySelector<HTMLButtonElement>('button[data-glyph="✅"]');
+    expect(doneButton).toBeTruthy();
+    doneButton?.click();
 
     expect(onMarker).toHaveBeenCalledWith('✅');
-    expect(select.value).toBe('');
+    expect(document.body.querySelector('.mm-marker-popover')).toBeNull();
   });
 
-  test('[R-18] ignores an empty selection', () => {
+  test('[R-18] toggles popover when button is clicked repeatedly', () => {
     const onMarker = vi.fn();
     const menu = createMarkerMenu(onMarker);
     document.body.append(menu);
+    const button = buttonOf(menu);
 
-    selectOf(menu).dispatchEvent(new Event('change'));
+    button.click();
+    expect(document.body.querySelector('.mm-marker-popover')).toBeTruthy();
 
-    expect(onMarker).not.toHaveBeenCalled();
+    button.click();
+    expect(document.body.querySelector('.mm-marker-popover')).toBeNull();
   });
 
   test('[R-27] shows an outlined marker icon without changing its accessible name', () => {
     const menu = createMarkerMenu(vi.fn());
-    const select = selectOf(menu);
+    const button = buttonOf(menu);
     const icon = menu.querySelector('svg');
 
-    expect(select.getAttribute('aria-label')).toBe('Add marker');
+    expect(button.getAttribute('aria-label')).toBe('Add marker');
     expect(icon?.getAttribute('viewBox')).toBe('0 0 16 16');
     expect(icon?.getAttribute('aria-hidden')).toBe('true');
     expect(icon?.querySelectorAll('path')).toHaveLength(1);

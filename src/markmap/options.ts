@@ -1,8 +1,16 @@
-import { builtinLayouts, builtinThemes, softTheme } from '@markmap/render';
+import {
+  basicContent,
+  builtinLayouts,
+  builtinThemes,
+  imageContent,
+  noteContent,
+  softTheme,
+} from '@markmap/render';
 import { resolveViewOptions, type ViewOptions } from '@markmap/view';
 
 import { mapGestures } from './gestures';
 import { layoutFor, type MarkmapLayout } from './layouts';
+import { markerContent } from './markers';
 
 export type MarkmapColorScheme = 'light' | 'dark';
 
@@ -41,7 +49,12 @@ export const optionsFor = (
     themes: builtinThemes,
   });
   return {
-    options: { ...resolved.options, colorScheme, gestures: mapGestures },
+    options: {
+      ...resolved.options,
+      colorScheme,
+      gestures: mapGestures,
+      plugins: [basicContent, markerContent, imageContent, noteContent],
+    },
     warnings: resolved.warnings,
     layout: layoutNameOf(resolved.options.layout),
   };
