@@ -33,6 +33,7 @@ declare global {
     devFileChangeSummary: () => { count: number; dirty: boolean };
     devAutosave: () => Promise<DevSnapshot | null>;
     devAcknowledgeOlder: () => void;
+    devReopenFile: (overrideContent?: string) => void;
     __devSnapshot?: string;
   }
 }
@@ -82,6 +83,7 @@ const selected = maps[params.get('map') ?? ''] ?? {
 const content = selected.content;
 const name = selected.name;
 
+let openListener: Parameters<MarkmapHost['onFileOpen']>[0] | null = null;
 let snapshotListener: Parameters<MarkmapHost['onFileSnapshot']>[0] | null = null;
 let savedListener: Parameters<MarkmapHost['onFileSaved']>[0] | null = null;
 let acknowledgedVersion: string | null = null;
@@ -106,6 +108,15 @@ window.devAutosave = async () => {
 window.devAcknowledgeOlder = () => {
   if (acknowledgedVersion !== null) savedListener?.(acknowledgedVersion);
 };
+window.devReopenFile = (overrideContent?: string) => {
+  openListener?.({
+    path: `dev/${name}`,
+    name,
+    readOnly: params.get('readonly') === '1',
+    encoding: 'text',
+    content: overrideContent ?? window.__devSnapshot ?? content,
+  });
+};
 const trackSnapshot = async (): Promise<DevSnapshot | null> => {
   const snapshot = await requestSnapshot();
   window.__devSnapshot = snapshot?.content ?? '';
@@ -124,6 +135,7 @@ const host: MarkmapHost = {
     return () => undefined;
   },
   onFileOpen: (listener) => {
+    openListener = listener;
     queueMicrotask(() => {
       listener({
         path: `dev/${name}`,
@@ -133,7 +145,9 @@ const host: MarkmapHost = {
         content,
       });
     });
-    return () => undefined;
+    return () => {
+      openListener = null;
+    };
   },
   onFileSnapshot: (listener) => {
     snapshotListener = listener;

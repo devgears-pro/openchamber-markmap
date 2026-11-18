@@ -103,4 +103,15 @@ describe('layout menu', () => {
     expect(buttonOf(menu, 'two-sided').getAttribute('aria-pressed')).toBe('false');
     expect(buttonOf(menu, 'org-chart').getAttribute('aria-pressed')).toBe('true');
   });
+
+  test('[R-22] prevents default on mousedown to preserve field focus', () => {
+    const menu = createLayoutMenu('two-sided', vi.fn());
+    document.body.append(menu);
+
+    const button = buttonOf(menu, 'tree');
+    const event = new MouseEvent('mousedown', { cancelable: true });
+    button.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
 });

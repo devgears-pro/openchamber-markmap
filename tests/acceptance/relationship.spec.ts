@@ -182,8 +182,9 @@ test('[R-37] routes around a blocker and adapts to layout without editing Markdo
 
   await expect.poll(() => line.getAttribute('d')).not.toBe(pathBefore);
   expect(await crossesBlocker()).toBe(false);
-  expect(await snapshotOf(page)).toBe(original);
-  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+  const updated = await snapshotOf(page);
+  expect(updated.replace('layout: org-chart', 'layout: tree')).toBe(original);
+  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(true);
 });
 
 test('[R-36] renders group boundaries with dashed outlines', async ({ page }) => {
@@ -256,8 +257,8 @@ test('[R-37] keeps the connection handle clear of fold controls across layouts',
   for (const layout of ['Tree', 'Two-sided']) {
     await page.getByRole('button', { name: layout }).click();
     horizontalGeometries.push(await selectedNodeGeometry(page));
-    expect(await snapshotOf(page)).toBe(original);
-    expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+    const snap = await snapshotOf(page);
+    expect(snap.replace(/layout: .*\n/u, 'layout: tree\n')).toBe(original);
   }
 
   await page.getByText('Branch', { exact: true }).first().click();
@@ -266,14 +267,14 @@ test('[R-37] keeps the connection handle clear of fold controls across layouts',
   await page.keyboard.press('/');
   await page.keyboard.up(modifier);
   await expect(page.getByText('Source', { exact: true })).toBeHidden();
-  expect(await snapshotOf(page)).toBe(original);
-  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+  const foldedSnap = await snapshotOf(page);
+  expect(foldedSnap.replace(/layout: .*\n/u, 'layout: tree\n')).toBe(original);
 
   await page.getByRole('button', { name: 'Org chart' }).click();
   await page.getByText('Routing', { exact: true }).first().click();
   const rootGeometry = await selectedNodeGeometry(page);
-  expect(await snapshotOf(page)).toBe(original);
-  expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+  const finalSnap = await snapshotOf(page);
+  expect(finalSnap.replace(/layout: .*\n/u, 'layout: tree\n')).toBe(original);
 
   for (const geometry of horizontalGeometries) {
     expect(overlaps(geometry.handle, geometry.fold)).toBe(false);
@@ -315,4 +316,20 @@ test('[R-37] starts the connection preview at its handle', async ({ page }) => {
   await page.mouse.up();
   expect(await snapshotOf(page)).toBe(original);
   expect(await page.evaluate(() => window.devFileChangeSummary().dirty)).toBe(false);
+});
+
+test('[R-22] preserves relationship selection across layout switch', async ({ page }) => {
+  await page.goto('/dev/?map=graph');
+  const relation = page.locator('.mm-markmap-svg g[data-key="relation:a:b"]');
+  await expect(relation).toBeVisible();
+
+  await relation.getByText('depends').click();
+  await expect(relation).toHaveClass(/mm-editor-relation-selected/u);
+
+  await page.getByRole('button', { name: 'Org chart' }).click();
+  await expect(page.getByRole('button', { name: 'Org chart' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(relation).toHaveClass(/mm-editor-relation-selected/u);
 });

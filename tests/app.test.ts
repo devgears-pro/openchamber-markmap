@@ -133,6 +133,8 @@ type FakeFactory = {
   setSnapshotContent: (content: string | null) => void;
   beginEditing: () => void;
   isEditing: () => boolean;
+  emitLayoutChange: (layout: MarkmapLayout) => void;
+  failLayout: boolean;
   fail: string | null;
 };
 
@@ -156,14 +158,44 @@ const createMarkmapFactory = (): FakeFactory => {
   let groupCreateCount = 0;
   let snapshotContent: string | null = null;
   let editing = false;
+  const layoutListeners: ((layout: MarkmapLayout) => void)[] = [];
   const view: MarkmapView = {
     get layout() {
       return currentLayout;
     },
     toolbar,
     setLayout: (layout) => {
+      if (layout === currentLayout || state.failLayout) return;
       currentLayout = layout;
       layouts.push(layout);
+      layoutListeners.forEach((l) => {
+        l(currentLayout);
+      });
+      const lastMount = state.mounts[state.mounts.length - 1];
+      if (lastMount?.editable) {
+        lastMount.onSource({
+          source: `---
+markmap:
+  theme: classic
+  layout: ${layout}
+---
+
+# Root
+
+## Branch
+
+- Leaf
+`,
+          selection: 0,
+        });
+      }
+    },
+    onLayoutChange: (listener) => {
+      layoutListeners.push(listener);
+      return () => {
+        const index = layoutListeners.indexOf(listener);
+        if (index >= 0) layoutListeners.splice(index, 1);
+      };
     },
     setColorScheme: (scheme) => {
       colorSchemes.push(scheme);
@@ -207,6 +239,13 @@ const createMarkmapFactory = (): FakeFactory => {
       editing = true;
     },
     isEditing: () => editing,
+    emitLayoutChange: (layout) => {
+      currentLayout = layout;
+      layoutListeners.forEach((l) => {
+        l(layout);
+      });
+    },
+    failLayout: false,
     fail: null,
     factory: (mount) => {
       if (state.fail !== null) return { ok: false, message: state.fail };
@@ -355,7 +394,7 @@ describe('Markmap file editor', () => {
     expect(root.querySelector('.mm-error')).toBeNull();
   });
 
-  test('[R-22] switches the layout from the toolbar without changing the file', async () => {
+  test('[R-22] switches the layout from the toolbar and saves it to frontmatter', async () => {
     const { host, markmaps } = mount();
     host.emitFile(textFile(SOURCE));
     const tree = root.querySelector<HTMLButtonElement>('button[data-layout="tree"]');
@@ -368,8 +407,19 @@ describe('Markmap file editor', () => {
     expect(markmaps.layouts).toEqual(['tree']);
     expect(tree.getAttribute('aria-pressed')).toBe('true');
     expect(twoSided.getAttribute('aria-pressed')).toBe('false');
-    expect(host.changes).toHaveLength(0);
-    expect(contentOf(await host.snapshot())).toBe(SOURCE);
+    expect(host.changes).toEqual([{ dirty: true, edited: true }]);
+    expect(contentOf(await host.snapshot())).toBe(`---
+markmap:
+  theme: classic
+  layout: tree
+---
+
+# Root
+
+## Branch
+
+- Leaf
+`);
   });
 
   test('[R-22] keeps the layout buttons on a read-only file', () => {
@@ -384,6 +434,49 @@ describe('Markmap file editor', () => {
     expect(root.querySelector('.mm-marker-menu')).toBeNull();
     expect(root.querySelector('.mm-notes-menu')).toBeNull();
     expect(root.querySelector('.mm-group-menu')).toBeNull();
+  });
+
+  test('[R-22] clicking the active layout button is a no-op', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const twoSided = root.querySelector<HTMLButtonElement>('button[data-layout="two-sided"]');
+    if (twoSided === null) throw new Error('No layout button');
+
+    expect(twoSided.getAttribute('aria-pressed')).toBe('true');
+    twoSided.click();
+
+    expect(markmaps.layouts).toHaveLength(0);
+    expect(host.changes).toHaveLength(0);
+  });
+
+  test('[R-22] updates active layout button when view emits layout change on undo', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const tree = root.querySelector<HTMLButtonElement>('button[data-layout="tree"]');
+    const twoSided = root.querySelector<HTMLButtonElement>('button[data-layout="two-sided"]');
+    if (tree === null || twoSided === null) throw new Error('No layout buttons');
+
+    tree.click();
+    expect(tree.getAttribute('aria-pressed')).toBe('true');
+    expect(twoSided.getAttribute('aria-pressed')).toBe('false');
+
+    markmaps.emitLayoutChange('two-sided');
+    expect(tree.getAttribute('aria-pressed')).toBe('false');
+    expect(twoSided.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  test('[R-22] rolls back layout button when layout switch fails', () => {
+    const { host, markmaps } = mount();
+    host.emitFile(textFile(SOURCE));
+    const tree = root.querySelector<HTMLButtonElement>('button[data-layout="tree"]');
+    const twoSided = root.querySelector<HTMLButtonElement>('button[data-layout="two-sided"]');
+    if (tree === null || twoSided === null) throw new Error('No layout buttons');
+
+    markmaps.failLayout = true;
+    tree.click();
+
+    expect(twoSided.getAttribute('aria-pressed')).toBe('true');
+    expect(tree.getAttribute('aria-pressed')).toBe('false');
   });
 
   test('[R-36] creates group from the toolbar', () => {

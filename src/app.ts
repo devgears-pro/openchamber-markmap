@@ -195,11 +195,16 @@ export const mountApp = (
       state.view = result.view;
       state.renderedScheme = state.colorScheme;
       toolbar.replaceChildren(result.view.toolbar);
-      toolbar.append(
-        createLayoutMenu(result.view.layout, (layout) => {
-          result.view.setLayout(layout);
-        }),
-      );
+      const layoutMenu = createLayoutMenu(result.view.layout, (layout) => {
+        result.view.setLayout(layout);
+        if (result.view.layout !== layout) {
+          layoutMenu.setLayout(result.view.layout);
+        }
+      });
+      result.view.onLayoutChange?.((layout) => {
+        layoutMenu.setLayout(layout);
+      });
+      toolbar.append(layoutMenu);
       if (!state.readOnly) {
         toolbar.append(createMarkerMenu(result.view.addMarker));
         toolbar.append(

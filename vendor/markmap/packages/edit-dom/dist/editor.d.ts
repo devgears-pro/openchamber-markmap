@@ -25,6 +25,7 @@ export declare class MarkmapEditor {
     private readonly stops;
     private doc;
     private title;
+    private layout;
     private selectedId;
     private selectedIds;
     private selectedRelationRef;
@@ -33,6 +34,9 @@ export declare class MarkmapEditor {
     private editingGroup;
     private selectedBoundaryIndex;
     private notes;
+    private pendingLayoutRelation;
+    private pendingLayoutBoundary;
+    private pendingLayoutGroup;
     private drag;
     private connectDrag;
     private suppressClick;
@@ -62,6 +66,8 @@ export declare class MarkmapEditor {
     get isEditingNotes(): boolean;
     get canUndo(): boolean;
     get canRedo(): boolean;
+    get currentLayout(): string;
+    setLayout(layout: string): void;
     get selectedBoundary(): number | null;
     createGroup(label?: string): boolean;
     deleteGroup(index?: number): boolean;

@@ -560,7 +560,16 @@ function parse(markdown, options = {}) {
 		gfm,
 		hasTitle: Boolean(title),
 		bodyStart: readBodyStart(markdown, mdast),
-		htmlBlocks: readHtmlBlocks(mdast)
+		htmlBlocks: readHtmlBlocks(mdast),
+		frontmatterRange: readFrontmatterRange(mdast)
+	};
+}
+function readFrontmatterRange(mdast) {
+	const node = mdast.children.find((child) => child.type === "yaml");
+	if (!node || node.position?.start.offset == null || node.position?.end.offset == null) return null;
+	return {
+		start: node.position.start.offset,
+		end: node.position.end.offset
 	};
 }
 function readBodyStart(markdown, mdast) {

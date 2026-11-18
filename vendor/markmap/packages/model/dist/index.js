@@ -479,12 +479,13 @@ function serializeGraphBlock(graph, ending) {
 }
 // src/build.ts
 function parseDocument(source) {
-	const { root, frontmatter, hasTitle, bodyStart, htmlBlocks } = parse(source);
+	const { root, frontmatter, hasTitle, bodyStart, htmlBlocks, frontmatterRange } = parse(source);
 	return {
 		document: buildFromTree(source, root, {
 			hasTitle,
 			bodyStart,
-			htmlBlocks
+			htmlBlocks,
+			frontmatterRange: frontmatterRange ?? null
 		}),
 		tree: root,
 		frontmatter
@@ -541,7 +542,8 @@ function buildFromTree(source, root, meta) {
 		rootPolicy,
 		identities: conventions.identities,
 		graph: conventions.graph,
-		conventionIssues: conventions.issues
+		conventionIssues: conventions.issues,
+		frontmatterRange: meta.frontmatterRange ?? null
 	};
 }
 function buildNode(source, tree, parent) {

@@ -162,6 +162,17 @@ function sameTarget(left, right) {
 	if (!left || !right) return left === right;
 	return left.parentId === right.parentId && left.index === right.index && left.kind === right.kind && left.targetId === right.targetId;
 }
+function isRecord(value) {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function extractLayout(frontmatter) {
+	const markmap = frontmatter.markmap;
+	if (isRecord(markmap)) {
+		const layout = markmap.layout;
+		if (typeof layout === "string" && layout.length > 0) return layout;
+	}
+	return "two-sided";
+}
 var MarkmapEditor = class {
 	view;
 	container;
@@ -187,6 +198,7 @@ var MarkmapEditor = class {
 	stops = [];
 	doc;
 	title = "";
+	layout = "two-sided";
 	selectedId = null;
 	selectedIds = [];
 	selectedRelationRef = null;
@@ -195,6 +207,9 @@ var MarkmapEditor = class {
 	editingGroup = null;
 	selectedBoundaryIndex = null;
 	notes = null;
+	pendingLayoutRelation = null;
+	pendingLayoutBoundary = null;
+	pendingLayoutGroup = null;
 	drag = null;
 	connectDrag = null;
 	suppressClick = false;
@@ -209,6 +224,7 @@ var MarkmapEditor = class {
 		this.doc = parsed.document;
 		this.renderedSource = this.doc.source;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
+		this.layout = extractLayout(parsed.frontmatter);
 		this.onChange = onChange;
 		this.onDraftChange = onDraftChange;
 		this.onError = onError;
@@ -361,6 +377,29 @@ var MarkmapEditor = class {
 	get canRedo() {
 		return this.history.canRedo;
 	}
+	get currentLayout() {
+		return this.layout;
+	}
+	setLayout(layout) {
+		if (layout !== "tree" && layout !== "two-sided" && layout !== "org-chart") return;
+		if (this.notes) {
+			if (this.commitNotes({ keepOpen: false }) === "error") return;
+		}
+		if (this.editing && this.commitEditing() === "error") return;
+		if (this.currentLayout === layout) return;
+		this.pendingLayoutRelation = this.selectedRelationRef ? { ...this.selectedRelationRef } : null;
+		this.pendingLayoutBoundary = this.selectedBoundaryIndex;
+		this.pendingLayoutGroup = this.selectedIds.length > 1 ? [...this.selectedIds] : null;
+		if (!this.run({
+			type: "setLayout",
+			layout,
+			node: this.selectedId
+		})) {
+			this.pendingLayoutRelation = null;
+			this.pendingLayoutBoundary = null;
+			this.pendingLayoutGroup = null;
+		}
+	}
 	get selectedBoundary() {
 		return this.selectedBoundaryIndex;
 	}
@@ -430,6 +469,7 @@ var MarkmapEditor = class {
 		this.completeEditing("switch", false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
+		this.layout = extractLayout(parsed.frontmatter);
 		this.history.clear();
 		this.render(this.doc.source, parsed.tree);
 		const offset = options.selection ?? this.doc.nodes.get(this.doc.root)?.label?.start ?? 0;
@@ -1753,6 +1793,22 @@ var MarkmapEditor = class {
 			});
 		} else this.selectAt(result.selection, { reveal: false });
 		if (command.type === "setNotes") this.select(command.node, { reveal: false });
+		if (command.type === "setLayout") {
+			this.layout = command.layout;
+			if (this.pendingLayoutRelation) this.selectRelation(this.pendingLayoutRelation);
+			else if (this.pendingLayoutBoundary !== null && this.pendingLayoutBoundary !== void 0) this.selectBoundary(this.pendingLayoutBoundary);
+			else if (this.pendingLayoutGroup && this.pendingLayoutGroup.length > 1) {
+				const ids = this.pendingLayoutGroup.filter((id) => this.doc.nodes.has(id));
+				if (ids.length > 1) {
+					const anchor = command.node && ids.includes(command.node) ? command.node : ids[0];
+					this.selectionOffset = this.offsetOf(anchor);
+					this.selectGroup(ids, anchor, { reveal: false });
+				}
+			} else if (command.node && this.doc.nodes.has(command.node)) this.select(command.node, { reveal: false });
+			this.pendingLayoutRelation = null;
+			this.pendingLayoutBoundary = null;
+			this.pendingLayoutGroup = null;
+		}
 		this.emitChange();
 		return result;
 	}
@@ -2094,7 +2150,8 @@ var MarkmapEditor = class {
 			source: this.doc.source,
 			selection: this.selectedId ? this.offsetOf(this.selectedId) : this.selectionOffset,
 			folded: [...this.view.foldedIds],
-			selectedGroup: this.selectedBoundaryIndex
+			selectedGroup: this.selectedBoundaryIndex,
+			selectedRelation: this.selectedRelationRef ? { ...this.selectedRelationRef } : null
 		};
 		if (group.length > 1) entry.group = group.map((id) => this.offsetOf(id));
 		return entry;
@@ -2105,12 +2162,17 @@ var MarkmapEditor = class {
 		this.completeEditing("switch", false);
 		this.doc = parsed.document;
 		this.title = typeof parsed.frontmatter.title === "string" ? parsed.frontmatter.title : "";
+		this.layout = extractLayout(parsed.frontmatter);
 		this.render(this.doc.source, parsed.tree);
 		this.view.setFoldedIds(entry.folded, { animate: false });
 		this.restoreSelection(entry);
 		this.emitChange();
 	}
 	restoreSelection(entry) {
+		if (entry.selectedRelation) {
+			this.selectRelation(entry.selectedRelation);
+			return;
+		}
 		if (entry.selectedGroup !== void 0 && entry.selectedGroup !== null && entry.selectedGroup >= 0 && entry.selectedGroup < this.doc.graph.groups.length) {
 			this.selectBoundary(entry.selectedGroup);
 			return;

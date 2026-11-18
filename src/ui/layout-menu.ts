@@ -7,10 +7,14 @@ const LABELS: Record<MarkmapLayout, string> = {
   'org-chart': 'Org chart',
 };
 
+type LayoutMenu = HTMLDivElement & {
+  readonly setLayout: (layout: MarkmapLayout) => void;
+};
+
 export const createLayoutMenu = (
   initial: MarkmapLayout,
   onSelect: (layout: MarkmapLayout) => void,
-): HTMLElement => {
+): LayoutMenu => {
   const menu = document.createElement('div');
   menu.className = 'mm-layout-menu';
   menu.setAttribute('role', 'group');
@@ -29,6 +33,9 @@ export const createLayoutMenu = (
     button.setAttribute('aria-label', LABELS[layout]);
     button.title = LABELS[layout];
     button.append(createIcon(layout));
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+    });
     button.addEventListener('click', () => {
       setValue(layout);
       onSelect(layout);
@@ -37,5 +44,5 @@ export const createLayoutMenu = (
     menu.append(button);
   }
   setValue(initial);
-  return menu;
+  return Object.assign(menu, { setLayout: setValue });
 };
